@@ -27,6 +27,9 @@ class PaymentMethodSelectionTest {
         mockMvc.perform(post("/checkout")
                 .with(user("buyer").roles("USER"))
                 .with(csrf())
+                .param("receiverName", "Nguyen Van A")
+                .param("receiverPhone", "0901234567")
+                .param("shippingAddress", "123 Le Loi, TP HCM")
                 .param("paymentMethod", "COD"))
             .andExpect(status().isOk())
             .andExpect(model().attribute("checkoutPaymentForm",
@@ -39,6 +42,9 @@ class PaymentMethodSelectionTest {
         mockMvc.perform(post("/checkout")
                 .with(user("buyer").roles("USER"))
                 .with(csrf())
+                .param("receiverName", "Nguyen Van A")
+                .param("receiverPhone", "0901234567")
+                .param("shippingAddress", "123 Le Loi, TP HCM")
                 .param("paymentMethod", "BANK_TRANSFER"))
             .andExpect(status().isOk())
             .andExpect(model().attribute("checkoutPaymentForm",
@@ -50,7 +56,10 @@ class PaymentMethodSelectionTest {
     void rejectMissingMethod() throws Exception {
         mockMvc.perform(post("/checkout")
                 .with(user("buyer").roles("USER"))
-                .with(csrf()))
+                .with(csrf())
+                .param("receiverName", "Nguyen Van A")
+                .param("receiverPhone", "0901234567")
+                .param("shippingAddress", "123 Le Loi, TP HCM"))
             .andExpect(status().isOk())
             .andExpect(model().attributeHasFieldErrors(
                 "checkoutPaymentForm", "paymentMethod"));
@@ -61,6 +70,9 @@ class PaymentMethodSelectionTest {
         mockMvc.perform(post("/checkout")
                 .with(user("buyer").roles("USER"))
                 .with(csrf())
+                .param("receiverName", "Nguyen Van A")
+                .param("receiverPhone", "0901234567")
+                .param("shippingAddress", "123 Le Loi, TP HCM")
                 .param("paymentMethod", "TRANSFER"))
             .andExpect(status().isOk())
             .andExpect(model().attributeHasFieldErrors(

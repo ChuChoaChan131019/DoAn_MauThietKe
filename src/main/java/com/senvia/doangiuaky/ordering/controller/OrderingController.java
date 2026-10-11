@@ -72,14 +72,24 @@ public class OrderingController {
     }
 
     @PostMapping("/checkout")
-    public String validatePaymentMethod(@Valid @ModelAttribute("checkoutPaymentForm") CheckoutPaymentForm form, BindingResult bindingResult, Model model) {
-        // PAY 03: Kiểm tra phương thức thanh toán
+    public String validateCheckout(@Valid @ModelAttribute("checkoutPaymentForm") CheckoutPaymentForm form, BindingResult bindingResult, Model model) {
         if (bindingResult.hasErrors()) {
             return "ordering/checkout/index";
         }
 
-        // Tạm thời chỉ xác nhận dữ liệu hợp lệ.
-        // PAY 02 và PAY 04 sẽ nối vào checkout thật.
+        // Chuẩn hóa thông tin giao hàng.
+        form.setReceiverName(form.getReceiverName().trim());
+        form.setReceiverPhone(form.getReceiverPhone().trim());
+        form.setShippingAddress(form.getShippingAddress().trim());
+
+        if (form.getNote() == null || form.getNote().isBlank()) {
+            form.setNote(null);
+        } else {
+            form.setNote(form.getNote().trim());
+        }
+
+        // PAY 01 và PAY 03: dữ liệu hợp lệ; chưa tạo đơn hàng.
+        model.addAttribute("addressValidated", true);
         model.addAttribute("paymentValidated", true);
 
         return "ordering/checkout/index";
