@@ -145,6 +145,27 @@ public class Shop {
         rejectionReason = normalizedReason;
     }
 
+    public void resubmit(String shopName, String description, String logoUrl,
+                         String logoPublicId, String phone, String address,
+                         Instant submittedAt) {
+        Objects.requireNonNull(shopName, "Shop name must not be null");
+        Objects.requireNonNull(phone, "Shop phone must not be null");
+        Objects.requireNonNull(address, "Shop address must not be null");
+        Objects.requireNonNull(submittedAt, "Submission time must not be null");
+
+        status = state().resubmit();
+        this.shopName = shopName;
+        this.description = description;
+        this.logoUrl = logoUrl;
+        this.logoPublicId = logoPublicId;
+        this.phone = phone;
+        this.address = address;
+        this.submittedAt = submittedAt;
+        rejectionReason = null;
+        approvedById = null;
+        approvedAt = null;
+    }
+
     public boolean canAddProduct() { return state().canAddProduct(); }
     public boolean canReceiveOrder() { return state().canReceiveOrder(); }
     public boolean canResubmit() { return state().canResubmit(); }

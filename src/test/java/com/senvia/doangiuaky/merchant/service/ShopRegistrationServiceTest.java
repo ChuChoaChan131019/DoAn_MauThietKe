@@ -17,6 +17,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.springframework.context.ApplicationEventPublisher;
 
 import java.util.Optional;
 
@@ -34,7 +35,9 @@ class ShopRegistrationServiceTest {
     private final ShopRepository shopRepository = mock(ShopRepository.class);
     private final IdentityApi identityApi = mock(IdentityApi.class);
     private final MerchantImageStorage imageStorage = mock(MerchantImageStorage.class);
-    private final ShopRegistrationService service = new ShopRegistrationService(shopRepository, identityApi, imageStorage);
+    private final ApplicationEventPublisher eventPublisher = mock(ApplicationEventPublisher.class);
+    private final ShopRegistrationService service = new ShopRegistrationService(
+            shopRepository, identityApi, imageStorage, eventPublisher);
 
     @BeforeEach
     void setUpEligibleUser() {

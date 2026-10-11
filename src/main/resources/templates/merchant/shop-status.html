@@ -6,6 +6,11 @@
     
     <main class="w-100 mx-auto px-3 px-md-4 py-5 max-w-1440 text-center">
         <div style="max-width: 600px; margin: 0 auto;">
+            <div th:if="${success}" class="alert alert-success border-0 rounded-0 text-start" role="alert"
+                 th:text="${success}"></div>
+            <div th:if="${error}" class="alert alert-danger border-0 rounded-0 text-start" role="alert"
+                 th:text="${error}"></div>
+
             <!-- Pending State -->
             <div class="mb-5" th:if="${ownedShop.status.name() == 'PENDING'}">
                 <div class="rounded-circle bg-warning text-dark d-inline-flex align-items-center justify-content-center mx-auto mb-4" style="width: 80px; height: 80px;">
@@ -36,7 +41,7 @@
                     <h6 class="fw-bold mb-2">Lý do từ chối:</h6>
                     <p class="mb-0" th:text="${ownedShop.rejectionReason}">Yêu cầu cần được cập nhật.</p>
                 </div>
-                <a th:href="@{/merchant/register}" class="btn bg-burgundy text-white rounded-0 fw-medium px-4 py-2 mt-3 hover-bg-plum transition-colors">Cập nhật và Gửi lại</a>
+                <a th:href="@{/merchant/shop-resubmission}" class="btn bg-burgundy text-white rounded-0 fw-medium px-4 py-2 mt-3 hover-bg-plum transition-colors">Cập nhật và Gửi lại</a>
             </div>
 
             <!-- Locked State -->

@@ -3,6 +3,7 @@ package com.senvia.doangiuaky.merchant.service;
 import com.senvia.doangiuaky.identity.api.IdentityApi;
 import com.senvia.doangiuaky.identity.api.UserRole;
 import com.senvia.doangiuaky.identity.api.UserSummary;
+import com.senvia.doangiuaky.merchant.api.ShopRequestedEvent;
 import com.senvia.doangiuaky.merchant.dto.ShopRegistrationForm;
 import com.senvia.doangiuaky.merchant.entity.Shop;
 import com.senvia.doangiuaky.merchant.repository.ShopRepository;
@@ -10,12 +11,14 @@ import com.senvia.doangiuaky.merchant.service.image.MerchantImageAsset;
 import com.senvia.doangiuaky.merchant.service.image.MerchantImageStorage;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.util.StringUtils;
 
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.UUID;
 
 @Service
 public class ShopRegistrationService {
@@ -23,12 +26,15 @@ public class ShopRegistrationService {
     private final ShopRepository shopRepository;
     private final IdentityApi identityApi;
     private final MerchantImageStorage imageStorage;
+    private final ApplicationEventPublisher eventPublisher;
 
     public ShopRegistrationService(ShopRepository shopRepository, IdentityApi identityApi,
-                                   MerchantImageStorage imageStorage) {
+                                   MerchantImageStorage imageStorage,
+                                   ApplicationEventPublisher eventPublisher) {
         this.shopRepository = shopRepository;
         this.identityApi = identityApi;
         this.imageStorage = imageStorage;
+        this.eventPublisher = eventPublisher;
     }
 
     @Transactional
@@ -41,7 +47,7 @@ public class ShopRegistrationService {
         MerchantImageAsset logo = imageStorage.uploadShopLogo(ownerId, form.getLogo());
         Runnable cleanupLogo = registerRollbackCleanup(logo.publicId());
         try {
-            return shopRepository.saveAndFlush(Shop.createPending(
+            Shop shop = shopRepository.saveAndFlush(Shop.createPending(
                     ownerId,
                     normalize(form.getShopName()),
                     normalize(form.getDescription()),
@@ -49,6 +55,13 @@ public class ShopRegistrationService {
                     logo.publicId(),
                     normalize(form.getPhone()),
                     normalize(form.getAddress())));
+            eventPublisher.publishEvent(new ShopRequestedEvent(
+                    UUID.randomUUID(),
+                    shop.getId(),
+                    shop.getOwnerId(),
+                    shop.getShopName(),
+                    shop.getSubmittedAt()));
+            return shop;
         } catch (DataIntegrityViolationException exception) {
             cleanupLogo.run();
             throw new ShopRegistrationException("Bạn đã có yêu cầu hoặc gian hàng. Không thể gửi thêm yêu cầu mới.");
