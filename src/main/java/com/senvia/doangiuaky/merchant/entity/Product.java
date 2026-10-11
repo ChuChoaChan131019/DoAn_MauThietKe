@@ -10,10 +10,14 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
 import java.math.BigDecimal;
+import java.util.Objects;
 
 @Entity
 @Table(name = "products")
 public class Product {
+
+    private static final int PRICE_INTEGER_DIGITS = 10;
+    private static final int PRICE_FRACTION_DIGITS = 2;
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -42,6 +46,68 @@ public class Product {
     private ProductStatus status;
 
     protected Product() {
+    }
+
+    private Product(Long shopId, Long categoryId, String name, String description,
+                    BigDecimal price, Integer stockQuantity, ProductStatus status) {
+        this.shopId = Objects.requireNonNull(shopId, "Product shop must not be null");
+        this.categoryId = Objects.requireNonNull(categoryId, "Product category must not be null");
+        this.name = Objects.requireNonNull(name, "Product name must not be null");
+        this.description = description;
+        this.status = Objects.requireNonNull(status, "Product status must not be null");
+        applyPriceAndStock(price, stockQuantity);
+    }
+
+    /**
+     * Creates an active product while enforcing the price and stock invariants.
+     * Product CRUD and ownership checks are intentionally left to the application service.
+     */
+    public static Product create(Long shopId, Long categoryId, String name, String description,
+                                 BigDecimal price, Integer stockQuantity) {
+        return new Product(shopId, categoryId, name, description, price, stockQuantity, ProductStatus.ACTIVE);
+    }
+
+    /**
+     * Changes only the mutable price and stock values after validating both values together.
+     * The entity is not changed when either value is invalid.
+     */
+    public void changePriceAndStock(BigDecimal price, Integer stockQuantity) {
+        validatePriceAndStock(price, stockQuantity);
+        this.price = price;
+        this.stockQuantity = stockQuantity;
+    }
+
+    private void applyPriceAndStock(BigDecimal price, Integer stockQuantity) {
+        validatePriceAndStock(price, stockQuantity);
+        this.price = price;
+        this.stockQuantity = stockQuantity;
+    }
+
+    private static void validatePriceAndStock(BigDecimal price, Integer stockQuantity) {
+        validatePrice(price);
+        if (stockQuantity == null) {
+            throw new IllegalArgumentException("Product stock quantity must not be null");
+        }
+        if (stockQuantity < 0) {
+            throw new IllegalArgumentException("Product stock quantity must not be negative");
+        }
+    }
+
+    private static void validatePrice(BigDecimal price) {
+        if (price == null) {
+            throw new IllegalArgumentException("Product price must not be null");
+        }
+        if (price.signum() <= 0) {
+            throw new IllegalArgumentException("Product price must be greater than zero");
+        }
+        if (price.scale() > PRICE_FRACTION_DIGITS) {
+            throw new IllegalArgumentException("Product price must have at most two decimal places");
+        }
+
+        int integerDigits = price.precision() - price.scale();
+        if (integerDigits > PRICE_INTEGER_DIGITS) {
+            throw new IllegalArgumentException("Product price exceeds NUMERIC(12,2) precision");
+        }
     }
 
     public Long getId() {

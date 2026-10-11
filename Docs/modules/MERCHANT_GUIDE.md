@@ -38,7 +38,7 @@ Merchant sở hữu vòng đời shop, category, product, ảnh và stock.
 - PENDING/REJECTED/LOCKED không sửa catalog hoặc nhận order mới.
 - LOCKED vẫn cho xử lý order đã tồn tại.
 - Product chỉ `ACTIVE/HIDDEN`; hết hàng suy từ stock bằng 0.
-- Giá > 0, stock >= 0 và product có ít nhất một ảnh.
+- Giá dùng `BigDecimal` tương ứng `NUMERIC(12,2)`, phải lớn hơn 0 và có tối đa 2 chữ số thập phân; stock là số nguyên không âm và product có ít nhất một ảnh.
 - Catalog chỉ hiện khi owner ACTIVE, shop APPROVED, category active, product ACTIVE và stock > 0.
 - Trừ stock dùng conditional update nguyên tử; hoàn stock phải chống lặp.
 
