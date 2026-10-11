@@ -17,16 +17,6 @@ public class SellerController {
     @GetMapping("/merchant/dashboard")
     public String merchantDashboard() { return "merchant/dashboard"; }
 
-    @GetMapping("/merchant/products")
-    public String merchantProducts() { return "merchant/products"; }
-
-    @GetMapping("/merchant/products/add")
-    public String merchantProductAdd() { return "merchant/product-add"; }
-
-    @GetMapping("/merchant/products/edit")
-    public String merchantProductEdit() { return "merchant/product-edit"; }
-
-    
     public String merchantOrders() { return "ordering/seller-orders"; }
 
     

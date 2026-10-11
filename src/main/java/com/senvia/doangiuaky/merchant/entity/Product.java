@@ -52,7 +52,7 @@ public class Product {
                     BigDecimal price, Integer stockQuantity, ProductStatus status) {
         this.shopId = Objects.requireNonNull(shopId, "Product shop must not be null");
         this.categoryId = Objects.requireNonNull(categoryId, "Product category must not be null");
-        this.name = Objects.requireNonNull(name, "Product name must not be null");
+        this.name = normalizeName(name);
         this.description = description;
         this.status = Objects.requireNonNull(status, "Product status must not be null");
         applyPriceAndStock(price, stockQuantity);
@@ -65,6 +65,19 @@ public class Product {
     public static Product create(Long shopId, Long categoryId, String name, String description,
                                  BigDecimal price, Integer stockQuantity) {
         return new Product(shopId, categoryId, name, description, price, stockQuantity, ProductStatus.ACTIVE);
+    }
+
+    public void updateDetails(String name, String description) {
+        this.name = normalizeName(name);
+        this.description = normalizeDescription(description);
+    }
+
+    public void changeCategory(Long categoryId) {
+        this.categoryId = Objects.requireNonNull(categoryId, "Product category must not be null");
+    }
+
+    public void hide() {
+        this.status = ProductStatus.HIDDEN;
     }
 
     /**
@@ -108,6 +121,25 @@ public class Product {
         if (integerDigits > PRICE_INTEGER_DIGITS) {
             throw new IllegalArgumentException("Product price exceeds NUMERIC(12,2) precision");
         }
+    }
+
+    private static String normalizeName(String name) {
+        if (name == null || name.trim().isBlank()) {
+            throw new IllegalArgumentException("Product name must not be blank");
+        }
+        String normalized = name.trim();
+        if (normalized.length() > 200) {
+            throw new IllegalArgumentException("Product name must not exceed 200 characters");
+        }
+        return normalized;
+    }
+
+    private static String normalizeDescription(String description) {
+        if (description == null) {
+            return null;
+        }
+        String normalized = description.trim();
+        return normalized.isEmpty() ? null : normalized;
     }
 
     public Long getId() {

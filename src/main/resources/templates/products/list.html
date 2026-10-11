@@ -51,10 +51,11 @@
                             <h3 class="fw-bold text-plum mb-4 products-sidebar-title">Danh mục</h3>
                             <ul class="list-unstyled d-flex flex-column gap-3 text-plum products-sidebar-list">
                                 <li><a th:href="@{/products(q=${param.q}, sort=${param.sort}, min=${param.min}, max=${param.max}, brand=${param.brand})}" class="text-decoration-none text-burgundy fw-bold cursor-pointer py-1 d-block">Tất cả sản phẩm</a></li>
-                                <li><a th:href="@{/products(category='Thời trang', q=${param.q}, sort=${param.sort}, min=${param.min}, max=${param.max}, brand=${param.brand})}" class="text-decoration-none text-plum hover-burgundy transition-colors cursor-pointer py-1 d-block">Thời trang</a></li>
-                                <li><a th:href="@{/products(category='Làm đẹp', q=${param.q}, sort=${param.sort}, min=${param.min}, max=${param.max}, brand=${param.brand})}" class="text-decoration-none text-plum hover-burgundy transition-colors cursor-pointer py-1 d-block">Làm đẹp</a></li>
-                                <li><a th:href="@{/products(category='Nhà cửa', q=${param.q}, sort=${param.sort}, min=${param.min}, max=${param.max}, brand=${param.brand})}" class="text-decoration-none text-plum hover-burgundy transition-colors cursor-pointer py-1 d-block">Nhà cửa</a></li>
-                                <li><a th:href="@{/products(category='Công nghệ', q=${param.q}, sort=${param.sort}, min=${param.min}, max=${param.max}, brand=${param.brand})}" class="text-decoration-none text-plum hover-burgundy transition-colors cursor-pointer py-1 d-block">Công nghệ</a></li>
+                                <li th:each="availableCategory : ${categories}">
+                                    <a th:href="@{/products(category=${availableCategory.name}, q=${param.q}, sort=${param.sort}, min=${param.min}, max=${param.max}, brand=${param.brand})}"
+                                       th:text="${availableCategory.name}"
+                                       class="text-decoration-none text-plum hover-burgundy transition-colors cursor-pointer py-1 d-block"></a>
+                                </li>
                             </ul>
                         </div>
 

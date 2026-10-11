@@ -1,0 +1,140 @@
+package com.senvia.doangiuaky.merchant.controller;
+
+import com.senvia.doangiuaky.identity.security.IdentityPrincipal;
+import com.senvia.doangiuaky.identity.security.SecurityConfig;
+import com.senvia.doangiuaky.merchant.dto.CategoryOption;
+import com.senvia.doangiuaky.merchant.dto.SellerProductView;
+import com.senvia.doangiuaky.merchant.entity.ProductStatus;
+import com.senvia.doangiuaky.merchant.service.CategoryManagementService;
+import com.senvia.doangiuaky.merchant.service.InactiveCategoryException;
+import com.senvia.doangiuaky.merchant.service.ProductManagementService;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.context.annotation.Import;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.web.servlet.MockMvc;
+
+import java.math.BigDecimal;
+import java.util.List;
+
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.flash;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.model;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.view;
+
+@WebMvcTest(ProductController.class)
+@Import(SecurityConfig.class)
+class ProductControllerTest {
+
+    @Autowired
+    private MockMvc mockMvc;
+
+    @MockitoBean
+    private ProductManagementService productService;
+
+    @MockitoBean
+    private CategoryManagementService categoryService;
+
+    private IdentityPrincipal ownerPrincipal;
+
+    @BeforeEach
+    void setUp() {
+        ownerPrincipal = principal(1L);
+        when(categoryService.listActiveForProductSelection())
+                .thenReturn(List.of());
+    }
+
+    @Test
+    void ownerCanOpenProductCreateForm() throws Exception {
+        when(productService.listOwnedProducts(1L)).thenReturn(List.of());
+
+        mockMvc.perform(get("/merchant/products/add").with(user(ownerPrincipal)))
+                .andExpect(status().isOk())
+                .andExpect(view().name("merchant/product-add"))
+                .andExpect(model().attributeExists("productForm", "categoryOptions"));
+    }
+
+    @Test
+    void hiddenCategoryIsRejectedByProductCreateFlow() throws Exception {
+        doThrow(new InactiveCategoryException("Danh mục đã bị ẩn."))
+                .when(productService).create(eq(1L), any());
+
+        mockMvc.perform(post("/merchant/products")
+                        .with(user(ownerPrincipal))
+                        .with(csrf())
+                        .param("name", "Product")
+                        .param("categoryId", "9")
+                        .param("price", "10.00")
+                        .param("stockQuantity", "2"))
+                .andExpect(status().isOk())
+                .andExpect(view().name("merchant/product-add"))
+                .andExpect(model().attributeHasFieldErrors("productForm", "categoryId"));
+    }
+
+    @Test
+    void ownerCanOpenExistingProductForEdit() throws Exception {
+        SellerProductView product = new SellerProductView(
+                10L, "Product", "Description", 9L, "Category", true,
+                new BigDecimal("10.00"), 2, ProductStatus.ACTIVE);
+        when(productService.getOwnedProduct(1L, 10L)).thenReturn(product);
+
+        mockMvc.perform(get("/merchant/products/10/edit").with(user(ownerPrincipal)))
+                .andExpect(status().isOk())
+                .andExpect(view().name("merchant/product-edit"))
+                .andExpect(model().attributeExists("productForm", "product"));
+    }
+
+    @Test
+    void validProductUpdateRedirectsToOwnedProductList() throws Exception {
+        mockMvc.perform(post("/merchant/products/10")
+                        .with(user(ownerPrincipal))
+                        .with(csrf())
+                        .param("name", "Product updated")
+                        .param("categoryId", "9")
+                        .param("price", "10.00")
+                        .param("stockQuantity", "2"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/merchant/products"))
+                .andExpect(flash().attribute("successMessage", "Đã cập nhật sản phẩm thành công."));
+
+        verify(productService).update(eq(1L), eq(10L), any());
+    }
+
+    @Test
+    void anonymousUserCannotOpenSellerProductFlow() throws Exception {
+        mockMvc.perform(get("/merchant/products"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/login"));
+
+        verify(productService, never()).listOwnedProducts(any());
+    }
+
+    private static IdentityPrincipal principal(Long userId) {
+        IdentityPrincipal principal = mock(IdentityPrincipal.class);
+        when(principal.getUserId()).thenReturn(userId);
+        when(principal.getAuthorities()).thenAnswer(ignored ->
+                List.of(new SimpleGrantedAuthority("ROLE_USER")));
+        when(principal.getUsername()).thenReturn("owner@example.com");
+        when(principal.getPassword()).thenReturn("password");
+        when(principal.isAccountNonExpired()).thenReturn(true);
+        when(principal.isAccountNonLocked()).thenReturn(true);
+        when(principal.isCredentialsNonExpired()).thenReturn(true);
+        when(principal.isEnabled()).thenReturn(true);
+        return principal;
+    }
+}

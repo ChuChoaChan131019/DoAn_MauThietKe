@@ -1,6 +1,7 @@
 package com.senvia.doangiuaky.merchant.controller;
 
 import com.senvia.doangiuaky.merchant.dto.CatalogProductView;
+import com.senvia.doangiuaky.merchant.service.CategoryManagementService;
 import com.senvia.doangiuaky.merchant.service.DemoMerchantApi;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Controller;
@@ -22,9 +23,12 @@ public class ProductsController {
     private static final int PAGE_SIZE = 6;
 
     private final DemoMerchantApi catalogService;
+    private final CategoryManagementService categoryService;
 
-    public ProductsController(DemoMerchantApi catalogService) {
+    public ProductsController(DemoMerchantApi catalogService,
+                              CategoryManagementService categoryService) {
         this.catalogService = catalogService;
+        this.categoryService = categoryService;
     }
 
     @GetMapping("/products")
@@ -70,6 +74,7 @@ public class ProductsController {
         model.addAttribute("currentPage", currentPage);
         model.addAttribute("sort", sort);
         model.addAttribute("selectedBrands", brand != null ? brand : List.of());
+        model.addAttribute("categories", categoryService.listActiveForProductSelection());
 
         Map<String, Long> brandCounts = catalogProducts.stream()
                 .collect(Collectors.groupingBy(CatalogProductView::brand, Collectors.counting()));

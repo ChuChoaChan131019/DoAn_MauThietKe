@@ -50,7 +50,7 @@
             
             <div class="d-flex overflow-x-auto gap-4 gap-lg-5 pb-3 pb-lg-0 hide-scrollbar category-container justify-content-between">
                 <!-- Categories from controller -->
-                <a th:each="cat : ${categories}" th:href="@{/products}" class="group d-flex flex-column align-items-center text-decoration-none home-cat-item">
+                <a th:each="cat : ${categories}" th:href="@{/products(category=${cat.name})}" class="group d-flex flex-column align-items-center text-decoration-none home-cat-item">
                     <div class="rounded-circle position-relative overflow-hidden bg-ivory category-circle category-item-box w-100 home-cat-circle">
                         <img th:src="${cat.img}" th:alt="${cat.name}" class="w-100 h-100 object-fit-cover category-image" />
                     </div>

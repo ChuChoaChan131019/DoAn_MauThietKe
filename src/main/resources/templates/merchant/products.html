@@ -1,143 +1,76 @@
 <!DOCTYPE html>
 <html lang="vi" xmlns:th="http://www.thymeleaf.org">
-<head th:replace="~{fragments/head :: head('Senvia - Quản Lý Sản Phẩm')}"></head>
+<head th:replace="~{fragments/head :: head('Senvia - Quản lý sản phẩm')}"></head>
 <body>
-    <div th:replace="~{fragments/header :: header}"></div>
-    
-    <main class="w-100 mx-auto px-3 px-md-4 py-5 max-w-1440">
-        <div class="row gx-lg-5">
-            <!-- Sidebar Navigation for Seller -->
-            <div class="col-12 col-md-3 mb-5 mb-md-0">
-                <div class="d-flex flex-column gap-3 sticky-top" style="top: 100px;">
-                    <div class="d-flex align-items-center gap-3 mb-4 pb-4 border-bottom border-clay">
-                        <div class="bg-ivory border border-clay p-1" style="width: 50px; height: 50px;">
-                            <img src="https://images.unsplash.com/photo-1540200049848-d9813ea0e120?w=100&q=80" alt="Shop" class="w-100 h-100 object-fit-cover">
-                        </div>
-                        <div>
-                            <div class="fw-bold text-plum">NOLA Official</div>
-                            <a th:href="@{/merchant/shop-public}" class="small text-burgundy text-decoration-none">Xem gian hàng &rarr;</a>
-                        </div>
-                    </div>
-                    
-                    <a th:href="@{/merchant/dashboard}" class="text-muted hover-plum text-decoration-none transition-colors pb-2 d-inline-block w-100"><i class="bi bi-graph-up me-2"></i>Thống kê</a>
-                    <a th:href="@{/merchant/products}" class="fw-bold text-burgundy text-decoration-none border-bottom border-burgundy pb-2 d-inline-block w-100"><i class="bi bi-box-seam me-2"></i>Quản lý sản phẩm</a>
-                    <a th:href="@{/merchant/orders}" class="text-muted hover-plum text-decoration-none transition-colors pb-2 d-inline-block w-100 d-flex justify-content-between align-items-center">
-                        <div><i class="bi bi-receipt me-2"></i>Quản lý đơn hàng</div>
-                        <span class="badge bg-burgundy rounded-pill">5</span>
-                    </a>
-                    <a th:href="@{/merchant/profile}" class="text-muted hover-plum text-decoration-none transition-colors pb-2 d-inline-block w-100"><i class="bi bi-shop me-2"></i>Thông tin gian hàng</a>
-                </div>
+<div th:replace="~{fragments/header :: header}"></div>
+
+<main class="w-100 mx-auto px-3 px-md-4 py-5" style="max-width: 1440px;">
+    <div class="row gx-lg-5">
+        <aside class="col-12 col-md-3 mb-5 mb-md-0">
+            <div class="d-flex flex-column gap-3 sticky-top" style="top: 100px;">
+                <h4 class="text-serif text-plum mb-4">Kênh Người Bán</h4>
+                <a th:href="@{/merchant/dashboard}" class="text-muted text-decoration-none pb-2 d-inline-block w-100">Thống kê</a>
+                <a th:href="@{/merchant/products}" class="fw-bold text-burgundy text-decoration-none border-bottom border-burgundy pb-2 d-inline-block w-100">Quản lý sản phẩm</a>
+                <a th:href="@{/merchant/profile}" class="text-muted text-decoration-none pb-2 d-inline-block w-100">Thông tin gian hàng</a>
+            </div>
+        </aside>
+
+        <section class="col-12 col-md-9">
+            <div class="d-flex justify-content-between align-items-center mb-4 gap-3">
+                <h2 class="text-serif text-plum m-0">Sản phẩm của bạn</h2>
+                <a th:href="@{/merchant/products/add}" class="btn bg-burgundy text-white rounded-0">Thêm sản phẩm</a>
             </div>
 
-            <!-- Main Content -->
-            <div class="col-12 col-md-9">
-                <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-5 gap-3">
-                    <h2 class="text-serif text-plum m-0">Sản Phẩm Của Bạn</h2>
-                    <a th:href="@{/merchant/products/add}" class="btn bg-burgundy text-white rounded-0 fw-medium px-4 py-2 border-0 hover-bg-plum transition-colors d-flex align-items-center gap-2">
-                        <i class="bi bi-plus-lg"></i> Thêm Sản Phẩm Mới
-                    </a>
-                </div>
+            <div th:if="${successMessage}" class="alert alert-success" role="alert" th:text="${successMessage}"></div>
 
-                <!-- Filters -->
-                <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 gap-3">
-                    <div class="d-flex flex-nowrap overflow-x-auto gap-2 pb-2 hide-scrollbar">
-                        <a href="#" class="btn bg-plum text-white rounded-0 px-4 py-1 flex-shrink-0 small">Tất cả</a>
-                        <a href="#" class="btn border border-clay text-plum hover-border-plum rounded-0 px-4 py-1 flex-shrink-0 transition-colors small">Đang bán (38)</a>
-                        <a href="#" class="btn border border-clay text-plum hover-border-plum rounded-0 px-4 py-1 flex-shrink-0 transition-colors small">Hết hàng (4)</a>
-                        <a href="#" class="btn border border-clay text-plum hover-border-plum rounded-0 px-4 py-1 flex-shrink-0 transition-colors small">Bị ẩn (0)</a>
+            <div class="card border-0 shadow-sm">
+                <div class="card-body p-0">
+                    <div th:if="${#lists.isEmpty(products)}" class="p-4 text-muted">Chưa có sản phẩm nào.</div>
+                    <div th:unless="${#lists.isEmpty(products)}" class="table-responsive">
+                        <table class="table align-middle mb-0">
+                            <thead>
+                            <tr>
+                                <th class="px-4 py-3">Sản phẩm</th>
+                                <th class="py-3">Danh mục</th>
+                                <th class="py-3">Giá</th>
+                                <th class="py-3">Tồn kho</th>
+                                <th class="py-3">Trạng thái</th>
+                                <th class="py-3 text-end px-4">Thao tác</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            <tr th:each="product : ${products}">
+                                <td class="px-4">
+                                    <div class="fw-semibold text-plum" th:text="${product.name}"></div>
+                                    <div class="text-muted small" th:text="${product.description ?: 'Không có mô tả'}"></div>
+                                </td>
+                                <td>
+                                    <span th:text="${product.categoryName}"></span>
+                                    <span th:if="${!product.categoryActive}" class="badge text-bg-secondary ms-1">Đã ẩn</span>
+                                </td>
+                                <td th:text="${#numbers.formatDecimal(product.price, 0, 'COMMA', 0, 'POINT')} + '₫'"></td>
+                                <td th:text="${product.stockQuantity}"></td>
+                                <td>
+                                    <span th:if="${product.active}" class="badge text-bg-success">Đang bán</span>
+                                    <span th:unless="${product.active}" class="badge text-bg-secondary">Đã ẩn</span>
+                                </td>
+                                <td class="text-end px-4">
+                                    <a th:href="@{/merchant/products/{id}/edit(id=${product.id})}" class="btn btn-sm btn-outline-secondary rounded-0">Sửa</a>
+                                    <form th:if="${product.active}" th:action="@{/merchant/products/{id}/hide(id=${product.id})}" method="post" class="d-inline">
+                                        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger rounded-0" onclick="return confirm('Bạn có chắc muốn ẩn sản phẩm này không?');">Ẩn</button>
+                                    </form>
+                                </td>
+                            </tr>
+                            </tbody>
+                        </table>
                     </div>
-                    
-                    <div class="position-relative" style="width: 250px;">
-                        <input type="text" class="form-control bg-ivory border-0 rounded-0 px-3 py-2 shadow-none small" placeholder="Tìm tên sản phẩm...">
-                        <i class="bi bi-search position-absolute end-0 top-50 translate-middle-y me-3 text-muted"></i>
-                    </div>
-                </div>
-                
-                <!-- Product List -->
-                <div class="bg-white border border-clay p-0 mb-4">
-                    <!-- Product Item -->
-                    <div class="d-flex p-3 border-bottom align-items-center">
-                        <div class="flex-shrink-0 me-3 bg-ivory border border-clay" style="width: 80px; height: 80px;">
-                            <img src="https://images.unsplash.com/photo-1594035910387-fea47714263f?w=150&q=80" alt="Product" class="w-100 h-100 object-fit-cover">
-                        </div>
-                        <div class="flex-grow-1 min-w-0 row align-items-center m-0">
-                            <div class="col-12 col-md-5 mb-2 mb-md-0 px-0 px-md-2">
-                                <h6 class="text-plum mb-1 text-truncate">Nước Hoa Le Labo Santal 33</h6>
-                                <div class="text-muted small">ID: PRD-001 | Danh mục: Làm đẹp</div>
-                            </div>
-                            <div class="col-6 col-md-3 px-0 px-md-2">
-                                <div class="fw-bold text-burgundy">4.500.000₫</div>
-                            </div>
-                            <div class="col-6 col-md-2 px-0 px-md-2 text-md-center">
-                                <div class="small text-muted mb-1">Tồn kho</div>
-                                <div class="fw-medium text-plum">45</div>
-                            </div>
-                            <div class="col-12 col-md-2 px-0 mt-3 mt-md-0 d-flex justify-content-md-end gap-2">
-                                <a th:href="@{/merchant/products/edit}" class="btn btn-sm border border-plum text-plum rounded-0 px-2 py-1 hover-bg-plum hover-text-white transition-colors" title="Sửa"><i class="bi bi-pencil"></i></a>
-                                <button class="btn btn-sm border border-clay text-muted rounded-0 px-2 py-1 hover-border-plum transition-colors" title="Ẩn" data-bs-toggle="modal" data-bs-target="#hideProductModal"><i class="bi bi-eye-slash"></i></button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Product Item 2 -->
-                    <div class="d-flex p-3 align-items-center bg-light">
-                        <div class="flex-shrink-0 me-3 bg-ivory border border-clay position-relative" style="width: 80px; height: 80px;">
-                            <img src="https://images.unsplash.com/photo-1505691938895-1758d7feb511?w=150&q=80" alt="Product" class="w-100 h-100 object-fit-cover opacity-50">
-                            <div class="position-absolute top-50 start-50 translate-middle bg-dark text-white px-1 small fw-bold" style="font-size: 0.6rem;">HẾT HÀNG</div>
-                        </div>
-                        <div class="flex-grow-1 min-w-0 row align-items-center m-0">
-                            <div class="col-12 col-md-5 mb-2 mb-md-0 px-0 px-md-2">
-                                <h6 class="text-plum mb-1 text-truncate opacity-75">Giày Loafer Da Thật</h6>
-                                <div class="text-muted small">ID: PRD-042 | Danh mục: Thời trang</div>
-                            </div>
-                            <div class="col-6 col-md-3 px-0 px-md-2 opacity-75">
-                                <div class="fw-bold text-burgundy">1.800.000₫</div>
-                            </div>
-                            <div class="col-6 col-md-2 px-0 px-md-2 text-md-center text-danger">
-                                <div class="small mb-1">Tồn kho</div>
-                                <div class="fw-bold">0</div>
-                            </div>
-                            <div class="col-12 col-md-2 px-0 mt-3 mt-md-0 d-flex justify-content-md-end gap-2">
-                                <a th:href="@{/merchant/products/edit}" class="btn btn-sm border border-plum text-plum rounded-0 px-2 py-1 hover-bg-plum hover-text-white transition-colors" title="Sửa"><i class="bi bi-pencil"></i></a>
-                                <button class="btn btn-sm border border-clay text-muted rounded-0 px-2 py-1 hover-border-plum transition-colors" title="Ẩn" data-bs-toggle="modal" data-bs-target="#hideProductModal"><i class="bi bi-eye-slash"></i></button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Pagination -->
-                <nav>
-                    <ul class="pagination justify-content-center border-0 gap-2">
-                        <li class="page-item disabled"><a class="page-link border-0 text-muted shadow-none bg-transparent" href="#">&larr; Trước</a></li>
-                        <li class="page-item active"><a class="page-link border-0 bg-plum text-white rounded-circle shadow-none" href="#" style="width: 36px; height: 36px; display: flex; align-items: center; justify-content: center;">1</a></li>
-                        <li class="page-item"><a class="page-link border-0 text-plum shadow-none bg-transparent" href="#">Sau &rarr;</a></li>
-                    </ul>
-                </nav>
-            </div>
-        </div>
-    </main>
-
-    <!-- Hide Product Modal -->
-    <div class="modal fade" id="hideProductModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content rounded-0 border-0 shadow">
-                <div class="modal-header border-bottom-0 pt-4 px-4 pb-0">
-                    <h5 class="modal-title fw-bold text-plum">Xác Nhận Ẩn Sản Phẩm</h5>
-                    <button type="button" class="btn-close shadow-none" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body p-4 text-plum">
-                    Sản phẩm này sẽ không còn hiển thị trên cửa hàng công khai. Bạn có thể mở bán lại bất kỳ lúc nào.
-                </div>
-                <div class="modal-footer border-top-0 pb-4 px-4 pt-0 d-flex gap-2 flex-nowrap">
-                    <button type="button" class="btn border border-clay text-plum rounded-0 flex-grow-1 m-0 hover-border-plum transition-colors" data-bs-dismiss="modal">Hủy</button>
-                    <button type="button" class="btn bg-plum text-white rounded-0 flex-grow-1 m-0 hover-bg-burgundy transition-colors">Xác nhận ẩn</button>
                 </div>
             </div>
-        </div>
+        </section>
     </div>
-    
-    <div th:replace="~{fragments/footer :: footer}"></div>
+</main>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<div th:replace="~{fragments/footer :: footer}"></div>
 </body>
 </html>
