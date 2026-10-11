@@ -71,7 +71,22 @@
                     </div>
                     
                     <div class="d-flex gap-3 mt-auto">
-                        <button class="senvia-btn senvia-btn-outline flex-shrink-0 d-flex align-items-center justify-content-center" style="width: 50px;" onclick="alert('Đã thêm vào danh sách yêu thích')"><i class="bi bi-heart"></i></button>
+                        <form th:if="${role == 'USER'}" th:action="@{/account/wishlist/{id}(id=${product.id})}" method="post" class="flex-shrink-0">
+                            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+                            <button type="submit"
+                                    class="senvia-btn senvia-btn-outline d-flex align-items-center justify-content-center"
+                                    style="width: 50px;"
+                                    aria-label="Thêm sản phẩm vào yêu thích">
+                                <i class="bi bi-heart"></i>
+                            </button>
+                        </form>
+                        <a th:unless="${role == 'USER'}"
+                           th:href="@{/login}"
+                           class="senvia-btn senvia-btn-outline flex-shrink-0 d-flex align-items-center justify-content-center text-decoration-none"
+                           style="width: 50px;"
+                           aria-label="Đăng nhập để thêm sản phẩm vào yêu thích">
+                            <i class="bi bi-heart"></i>
+                        </a>
                         <form th:if="${role == 'USER'}" th:action="@{/cart/items}" method="post" class="flex-grow-1">
                             <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
                             <input type="hidden" name="productId" th:value="${product.id}">

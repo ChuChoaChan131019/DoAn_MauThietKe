@@ -38,4 +38,26 @@ class ShoppingAuthorizationIntegrationTest {
                         .param("quantity", "1"))
                 .andExpect(status().isForbidden());
     }
+
+    @Test
+    void guestCannotAddFavorite() throws Exception {
+        mockMvc.perform(post("/account/wishlist/1").with(csrf()))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/login"));
+    }
+
+    @Test
+    void adminCannotAddFavorite() throws Exception {
+        mockMvc.perform(post("/account/wishlist/1")
+                        .with(user("admin@example.com").roles("ADMIN"))
+                        .with(csrf()))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void favoritePostRequiresCsrf() throws Exception {
+        mockMvc.perform(post("/account/wishlist/1")
+                        .with(user("buyer@example.com").roles("USER")))
+                .andExpect(status().isForbidden());
+    }
 }
