@@ -9,4 +9,5 @@ public final class RejectedShopState implements ShopState {
     @Override public boolean canReceiveOrder() { return false; }
     @Override public boolean canResubmit() { return true; }
     @Override public boolean canHandleExistingOrders() { return false; }
+    @Override public ShopStatus resubmit() { return ShopStatus.PENDING; }
 }

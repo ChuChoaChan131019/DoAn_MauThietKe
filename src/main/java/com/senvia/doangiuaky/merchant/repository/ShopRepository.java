@@ -15,6 +15,10 @@ public interface ShopRepository extends JpaRepository<Shop, Long> {
 
     Optional<Shop> findByOwnerId(Long ownerId);
 
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select shop from Shop shop where shop.ownerId = :ownerId")
+    Optional<Shop> findByOwnerIdForUpdate(@Param("ownerId") Long ownerId);
+
     boolean existsByOwnerId(Long ownerId);
 
     List<Shop> findAllByStatusOrderBySubmittedAtAsc(ShopStatus status);

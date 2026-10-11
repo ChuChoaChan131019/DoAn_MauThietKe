@@ -22,4 +22,8 @@ public interface ShopState {
     default ShopStatus reject() {
         throw new InvalidShopStateTransitionException(status(), ShopStatus.REJECTED);
     }
+
+    default ShopStatus resubmit() {
+        throw new InvalidShopStateTransitionException(status(), ShopStatus.PENDING);
+    }
 }
