@@ -9,4 +9,5 @@ public final class LockedShopState implements ShopState {
     @Override public boolean canReceiveOrder() { return false; }
     @Override public boolean canResubmit() { return false; }
     @Override public boolean canHandleExistingOrders() { return true; }
+    @Override public ShopStatus unlock() { return ShopStatus.APPROVED; }
 }

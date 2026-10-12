@@ -86,7 +86,20 @@ class DemoMerchantApiTest {
         Long shopId = jdbcTemplate.queryForObject(
                 "select shop_id from products where id = ?", Long.class, productId);
 
-        jdbcTemplate.update("update shops set status = ? where id = ?", shopStatus, shopId);
+        if ("LOCKED".equals(shopStatus)) {
+            Long ownerId = jdbcTemplate.queryForObject(
+                    "select owner_id from shops where id = ?", Long.class, shopId);
+            jdbcTemplate.update("""
+                    update shops
+                       set status = 'LOCKED',
+                           lock_reason = 'saleability test',
+                           locked_by = ?,
+                           locked_at = CURRENT_TIMESTAMP
+                     where id = ?
+                    """, ownerId, shopId);
+        } else {
+            jdbcTemplate.update("update shops set status = ? where id = ?", shopStatus, shopId);
+        }
         entityManager.clear();
 
         var product = merchantApi.findProductForCart(productId).orElseThrow();

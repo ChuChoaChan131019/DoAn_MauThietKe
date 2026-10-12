@@ -122,6 +122,8 @@ public class Shop {
     public Instant getSubmittedAt() { return submittedAt; }
     public String getRejectionReason() { return rejectionReason; }
     public String getLockReason() { return lockReason; }
+    public Long getLockedById() { return lockedById; }
+    public Instant getLockedAt() { return lockedAt; }
     public Long getApprovedById() { return approvedById; }
     public Instant getApprovedAt() { return approvedAt; }
 
@@ -166,6 +168,27 @@ public class Shop {
         approvedAt = null;
     }
 
+    public void lock(Long adminId, String reason, Instant lockedAt) {
+        Objects.requireNonNull(adminId, "Locking admin must not be null");
+        Objects.requireNonNull(lockedAt, "Lock time must not be null");
+        if (adminId <= 0) {
+            throw new IllegalArgumentException("Locking admin must be positive");
+        }
+        String normalizedReason = normalizeLockReason(reason);
+
+        status = state().lock();
+        lockReason = normalizedReason;
+        lockedById = adminId;
+        this.lockedAt = lockedAt;
+    }
+
+    public void unlock() {
+        status = state().unlock();
+        lockReason = null;
+        lockedById = null;
+        lockedAt = null;
+    }
+
     public boolean canAddProduct() { return state().canAddProduct(); }
     public boolean canReceiveOrder() { return state().canReceiveOrder(); }
     public boolean canResubmit() { return state().canResubmit(); }
@@ -180,5 +203,16 @@ public class Shop {
             throw new IllegalArgumentException("Shop rejection reason must not be blank");
         }
         return reason.trim();
+    }
+
+    private static String normalizeLockReason(String reason) {
+        if (reason == null || reason.trim().isBlank()) {
+            throw new IllegalArgumentException("Shop lock reason must not be blank");
+        }
+        String normalized = reason.trim();
+        if (normalized.length() > 500) {
+            throw new IllegalArgumentException("Shop lock reason must not exceed 500 characters");
+        }
+        return normalized;
     }
 }

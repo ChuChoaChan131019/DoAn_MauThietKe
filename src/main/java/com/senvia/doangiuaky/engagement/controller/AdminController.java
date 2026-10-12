@@ -30,8 +30,4 @@ public class AdminController {
         return "engagement/admin-accounts";
     }
 
-    @GetMapping("/admin/shops")
-    public String adminShops() {
-        return "engagement/admin-shops";
-    }
 }
