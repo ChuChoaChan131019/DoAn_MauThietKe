@@ -6,8 +6,11 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.List;
 
 public class ProductForm {
 
@@ -29,6 +32,10 @@ public class ProductForm {
     @NotNull(message = "Tồn kho không được để trống.")
     @Min(value = 0, message = "Tồn kho không được âm.")
     private Integer stockQuantity;
+
+    private List<MultipartFile> images = new ArrayList<>();
+
+    private List<Long> removedImageIds = new ArrayList<>();
 
     public ProductForm() {
     }
@@ -80,5 +87,21 @@ public class ProductForm {
 
     public void setStockQuantity(Integer stockQuantity) {
         this.stockQuantity = stockQuantity;
+    }
+
+    public List<MultipartFile> getImages() {
+        return images;
+    }
+
+    public void setImages(List<MultipartFile> images) {
+        this.images = images == null ? new ArrayList<>() : images;
+    }
+
+    public List<Long> getRemovedImageIds() {
+        return removedImageIds;
+    }
+
+    public void setRemovedImageIds(List<Long> removedImageIds) {
+        this.removedImageIds = removedImageIds == null ? new ArrayList<>() : removedImageIds;
     }
 }

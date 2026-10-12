@@ -41,6 +41,8 @@
                             <tbody>
                             <tr th:each="product : ${products}">
                                 <td class="px-4">
+                                    <img th:if="${!#lists.isEmpty(product.images)}" th:src="${product.images[0].imageUrl}"
+                                         alt="Ảnh sản phẩm" class="rounded object-fit-cover me-2" style="width: 48px; height: 48px;">
                                     <div class="fw-semibold text-plum" th:text="${product.name}"></div>
                                     <div class="text-muted small" th:text="${product.description ?: 'Không có mô tả'}"></div>
                                 </td>
