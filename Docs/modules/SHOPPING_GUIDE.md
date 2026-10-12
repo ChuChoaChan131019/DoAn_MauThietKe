@@ -18,6 +18,20 @@
 - Cung cấp `shopping.api`: checkout snapshot và xóa item sau checkout thành công.
 - Không tạo Order, Payment hoặc cập nhật stock.
 
+### Contract checkout cho Ordering
+
+`shopping.api.CheckoutCartItem` gồm `Long cartItemId`, `Long productId`, `int quantity`.
+`shopping.api.CheckoutCartApi` cung cấp `List<CheckoutCartItem> getCheckoutSnapshot(Long buyerId)`
+và `void removePurchasedItems(Long buyerId, List<CheckoutCartItem> purchasedItems)`.
+`buyerId` phải lấy từ USER đã xác thực; Shopping kiểm tra quyền sở hữu giỏ.
+
+Hai phương thức yêu cầu transaction checkout đang mở (`Propagation.MANDATORY`) và
+khóa hàng cart đến hết transaction. Mọi thao tác sửa giỏ phải dùng cùng khóa cart.
+Snapshot trả mọi cart item để Ordering kiểm tra lại giá, trạng thái và tồn kho qua
+`merchant.api`. Xóa chỉ nhận các item hợp lệ, không trùng, còn thuộc giỏ và khớp
+product/quantity; lỗi làm rollback checkout. Ordering gọi xóa sau khi tạo order/payment,
+trừ kho thành công và trước commit.
+
 ## Thứ tự feature
 
 1. Migration và mapping cart/cart item/favorite.
