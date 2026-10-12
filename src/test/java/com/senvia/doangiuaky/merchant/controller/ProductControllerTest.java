@@ -88,6 +88,70 @@ class ProductControllerTest {
     }
 
     @Test
+    void validProductCreateRedirectsToOwnedProductList() throws Exception {
+        when(productService.create(eq(1L), any()))
+                .thenReturn(new SellerProductView(
+                        11L, "Product", null, 9L, "Category", true,
+                        new BigDecimal("10.00"), 2, ProductStatus.ACTIVE));
+
+        mockMvc.perform(post("/merchant/products")
+                        .with(user(ownerPrincipal))
+                        .with(csrf())
+                        .param("name", "Product")
+                        .param("categoryId", "9")
+                        .param("price", "10.00")
+                        .param("stockQuantity", "2"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/merchant/products"))
+                .andExpect(flash().attribute("successMessage", "Đã thêm sản phẩm thành công."));
+
+        verify(productService).create(eq(1L), any());
+    }
+
+    @Test
+    void invalidProductCreateRendersFormWithoutCallingService() throws Exception {
+        mockMvc.perform(post("/merchant/products")
+                        .with(user(ownerPrincipal))
+                        .with(csrf())
+                        .param("name", "")
+                        .param("price", "0")
+                        .param("stockQuantity", "-1"))
+                .andExpect(status().isOk())
+                .andExpect(view().name("merchant/product-add"))
+                .andExpect(model().attributeHasFieldErrors(
+                        "productForm", "name", "categoryId", "price", "stockQuantity"));
+
+        verify(productService, never()).create(eq(1L), any());
+    }
+
+    @Test
+    void adminCannotPostProductCreate() throws Exception {
+        mockMvc.perform(post("/merchant/products")
+                        .with(user("admin").roles("ADMIN"))
+                        .with(csrf())
+                        .param("name", "Product")
+                        .param("categoryId", "9")
+                        .param("price", "10.00")
+                        .param("stockQuantity", "2"))
+                .andExpect(status().isForbidden());
+
+        verify(productService, never()).create(any(), any());
+    }
+
+    @Test
+    void productCreateWithoutCsrfIsForbidden() throws Exception {
+        mockMvc.perform(post("/merchant/products")
+                        .with(user(ownerPrincipal))
+                        .param("name", "Product")
+                        .param("categoryId", "9")
+                        .param("price", "10.00")
+                        .param("stockQuantity", "2"))
+                .andExpect(status().isForbidden());
+
+        verify(productService, never()).create(any(), any());
+    }
+
+    @Test
     void ownerCanOpenExistingProductForEdit() throws Exception {
         SellerProductView product = new SellerProductView(
                 10L, "Product", "Description", 9L, "Category", true,
@@ -152,6 +216,29 @@ class ProductControllerTest {
                 .when(productService).hide(1L, 10L);
 
         mockMvc.perform(post("/merchant/products/10/hide")
+                        .with(user(ownerPrincipal))
+                        .with(csrf()))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void ownerCanShowProduct() throws Exception {
+        mockMvc.perform(post("/merchant/products/10/show")
+                        .with(user(ownerPrincipal))
+                        .with(csrf()))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/merchant/products"))
+                .andExpect(flash().attribute("successMessage", "Đã bỏ ẩn sản phẩm thành công."));
+
+        verify(productService).show(1L, 10L);
+    }
+
+    @Test
+    void lockedShopCannotShowProduct() throws Exception {
+        doThrow(new ProductAuthorizationException("Gian hàng đang bị khóa."))
+                .when(productService).show(1L, 10L);
+
+        mockMvc.perform(post("/merchant/products/10/show")
                         .with(user(ownerPrincipal))
                         .with(csrf()))
                 .andExpect(status().isForbidden());

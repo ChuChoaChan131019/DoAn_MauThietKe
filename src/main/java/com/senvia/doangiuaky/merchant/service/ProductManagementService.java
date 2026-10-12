@@ -53,7 +53,7 @@ public class ProductManagementService {
 
     @Transactional
     public SellerProductView create(Long ownerId, ProductForm form) {
-        Shop shop = requireCatalogMutableShop(ownerId);
+        Shop shop = requireCatalogMutableShopForWrite(ownerId);
         Category category = categoryService.requireActiveCategory(form.getCategoryId());
         Product product = Product.create(
                 shop.getId(),
@@ -85,7 +85,23 @@ public class ProductManagementService {
         productRepository.saveAndFlush(product);
     }
 
+    @Transactional
+    public void show(Long ownerId, Long productId) {
+        Shop shop = requireCatalogMutableShop(ownerId);
+        Product product = findOwnedProduct(productId, shop.getId());
+        product.show();
+        productRepository.saveAndFlush(product);
+    }
+
     private Shop requireCatalogMutableShop(Long ownerId) {
+        return requireCatalogMutableShop(ownerId, false);
+    }
+
+    private Shop requireCatalogMutableShopForWrite(Long ownerId) {
+        return requireCatalogMutableShop(ownerId, true);
+    }
+
+    private Shop requireCatalogMutableShop(Long ownerId, boolean forUpdate) {
         if (ownerId == null || identityApi.findUser(ownerId)
                 .filter(user -> user.role() == UserRole.USER
                         && user.accountStatus() == AccountStatus.ACTIVE)
@@ -94,7 +110,9 @@ public class ProductManagementService {
                     "Chỉ tài khoản người bán đang hoạt động mới được quản lý sản phẩm.");
         }
 
-        Shop shop = shopRepository.findByOwnerId(ownerId)
+        Shop shop = (forUpdate
+                ? shopRepository.findByOwnerIdForUpdate(ownerId)
+                : shopRepository.findByOwnerId(ownerId))
                 .orElseThrow(() -> new ProductAuthorizationException("Bạn chưa có gian hàng."));
         if (!shop.canAddProduct()) {
             throw new ProductAuthorizationException(

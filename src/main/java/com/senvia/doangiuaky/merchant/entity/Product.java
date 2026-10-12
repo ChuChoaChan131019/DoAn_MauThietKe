@@ -80,6 +80,10 @@ public class Product {
         this.status = ProductStatus.HIDDEN;
     }
 
+    public void show() {
+        this.status = ProductStatus.ACTIVE;
+    }
+
     /**
      * Changes only the mutable price and stock values after validating both values together.
      * The entity is not changed when either value is invalid.

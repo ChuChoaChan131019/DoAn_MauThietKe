@@ -136,6 +136,21 @@ public class ProductController {
         }
     }
 
+    @PostMapping("/{id}/show")
+    public String show(@PathVariable Long id,
+                       @AuthenticationPrincipal IdentityPrincipal principal,
+                       RedirectAttributes redirectAttributes) {
+        try {
+            productService.show(principal.getUserId(), id);
+            redirectAttributes.addFlashAttribute("successMessage", "Đã bỏ ẩn sản phẩm thành công.");
+            return "redirect:/merchant/products";
+        } catch (ProductNotFoundException exception) {
+            throw notFound(exception);
+        } catch (ProductAuthorizationException exception) {
+            throw forbidden(exception);
+        }
+    }
+
     private String renderCreateForm(IdentityPrincipal principal, ProductForm form, Model model) {
         try {
             productService.listOwnedProducts(principal.getUserId());

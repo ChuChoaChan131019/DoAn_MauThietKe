@@ -8,6 +8,7 @@ import com.senvia.doangiuaky.merchant.dto.ProductForm;
 import com.senvia.doangiuaky.merchant.dto.SellerProductView;
 import com.senvia.doangiuaky.merchant.entity.Category;
 import com.senvia.doangiuaky.merchant.entity.Product;
+import com.senvia.doangiuaky.merchant.entity.ProductStatus;
 import com.senvia.doangiuaky.merchant.entity.Shop;
 import com.senvia.doangiuaky.merchant.repository.CategoryRepository;
 import com.senvia.doangiuaky.merchant.repository.ProductRepository;
@@ -24,6 +25,7 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -59,10 +61,11 @@ class ProductManagementServiceTest {
     void setUp() {
         service = new ProductManagementService(
                 productRepository, shopRepository, categoryRepository, categoryService, identityApi);
-        when(identityApi.findUser(OWNER_ID))
+        lenient().when(identityApi.findUser(OWNER_ID))
                 .thenReturn(Optional.of(new UserSummary(OWNER_ID, "Owner", UserRole.USER, AccountStatus.ACTIVE)));
-        when(shopRepository.findByOwnerId(OWNER_ID)).thenReturn(Optional.of(approvedShop));
-        when(approvedShop.canAddProduct()).thenReturn(true);
+        lenient().when(shopRepository.findByOwnerId(OWNER_ID)).thenReturn(Optional.of(approvedShop));
+        lenient().when(shopRepository.findByOwnerIdForUpdate(OWNER_ID)).thenReturn(Optional.of(approvedShop));
+        lenient().when(approvedShop.canAddProduct()).thenReturn(true);
     }
 
     @Test
@@ -79,8 +82,74 @@ class ProductManagementServiceTest {
 
         assertEquals("Product", result.name());
         assertEquals(40L, result.categoryId());
+        assertEquals(ProductStatus.ACTIVE, result.status());
         verify(categoryService).requireActiveCategory(40L);
+        verify(shopRepository).findByOwnerIdForUpdate(OWNER_ID);
         verify(productRepository).saveAndFlush(any(Product.class));
+    }
+
+    @Test
+    void createAssignsProductToShopResolvedFromOwner() {
+        when(approvedShop.getId()).thenReturn(SHOP_ID);
+        Category category = category(40L, "Active category", true);
+        when(categoryService.requireActiveCategory(40L)).thenReturn(category);
+        when(productRepository.saveAndFlush(any(Product.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        when(categoryRepository.findById(40L)).thenReturn(Optional.of(category));
+
+        service.create(OWNER_ID,
+                new ProductForm("Product", "Description", 40L, new BigDecimal("10.00"), 3));
+
+        var productCaptor = org.mockito.ArgumentCaptor.forClass(Product.class);
+        verify(productRepository).saveAndFlush(productCaptor.capture());
+        assertEquals(SHOP_ID, productCaptor.getValue().getShopId());
+        assertEquals(40L, productCaptor.getValue().getCategoryId());
+        assertEquals(ProductStatus.ACTIVE, productCaptor.getValue().getStatus());
+    }
+
+    @Test
+    void nullOwnerIsRejectedBeforeLoadingShop() {
+        assertThrows(ProductAuthorizationException.class,
+                () -> service.create(null,
+                        new ProductForm("Product", null, 40L, new BigDecimal("10.00"), 1)));
+
+        verifyNoInteractions(identityApi, shopRepository, categoryService, productRepository, categoryRepository);
+    }
+
+    @Test
+    void adminCannotCreateProducts() {
+        when(identityApi.findUser(OWNER_ID))
+                .thenReturn(Optional.of(new UserSummary(OWNER_ID, "Admin", UserRole.ADMIN, AccountStatus.ACTIVE)));
+
+        assertThrows(ProductAuthorizationException.class,
+                () -> service.create(OWNER_ID,
+                        new ProductForm("Product", null, 40L, new BigDecimal("10.00"), 1)));
+
+        verifyNoInteractions(shopRepository, categoryService, productRepository, categoryRepository);
+    }
+
+    @Test
+    void lockedAccountCannotCreateProducts() {
+        when(identityApi.findUser(OWNER_ID))
+                .thenReturn(Optional.of(new UserSummary(OWNER_ID, "Owner", UserRole.USER, AccountStatus.LOCKED)));
+
+        assertThrows(ProductAuthorizationException.class,
+                () -> service.create(OWNER_ID,
+                        new ProductForm("Product", null, 40L, new BigDecimal("10.00"), 1)));
+
+        verifyNoInteractions(shopRepository, categoryService, productRepository, categoryRepository);
+    }
+
+    @Test
+    void ownerWithoutShopCannotCreateProducts() {
+        when(shopRepository.findByOwnerIdForUpdate(OWNER_ID)).thenReturn(Optional.empty());
+
+        assertThrows(ProductAuthorizationException.class,
+                () -> service.create(OWNER_ID,
+                        new ProductForm("Product", null, 40L, new BigDecimal("10.00"), 1)));
+
+        verify(categoryService, never()).requireActiveCategory(any());
+        verify(productRepository, never()).saveAndFlush(any(Product.class));
     }
 
     @Test
@@ -138,8 +207,23 @@ class ProductManagementServiceTest {
                 () -> service.update(OWNER_ID, 50L, form));
         assertThrows(ProductAuthorizationException.class,
                 () -> service.hide(OWNER_ID, 50L));
+        assertThrows(ProductAuthorizationException.class,
+                () -> service.show(OWNER_ID, 50L));
 
         verifyNoInteractions(productRepository, categoryRepository, categoryService);
+    }
+
+    @Test
+    void ownerCanShowOwnedHiddenProduct() {
+        when(approvedShop.getId()).thenReturn(SHOP_ID);
+        Product product = Product.create(SHOP_ID, 42L, "Product", null, new BigDecimal("10.00"), 2);
+        product.hide();
+        when(productRepository.findByIdAndShopId(50L, SHOP_ID)).thenReturn(Optional.of(product));
+
+        service.show(OWNER_ID, 50L);
+
+        assertEquals(ProductStatus.ACTIVE, product.getStatus());
+        verify(productRepository).saveAndFlush(product);
     }
 
     private static Category category(Long id, String name, boolean active) {
