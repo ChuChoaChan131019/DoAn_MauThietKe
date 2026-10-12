@@ -5,6 +5,7 @@ import com.senvia.doangiuaky.identity.api.IdentityApi;
 import com.senvia.doangiuaky.identity.api.UserSummary;
 import com.senvia.doangiuaky.merchant.api.CartProductView;
 import com.senvia.doangiuaky.merchant.api.MerchantApi;
+import com.senvia.doangiuaky.merchant.api.ShopOrderCapabilities;
 import com.senvia.doangiuaky.merchant.dto.CatalogProductView;
 import com.senvia.doangiuaky.merchant.entity.Category;
 import com.senvia.doangiuaky.merchant.entity.Product;
@@ -75,6 +76,23 @@ public class DemoMerchantApi implements MerchantApi {
             return Optional.empty();
         }
         return productRepository.findById(productId).flatMap(this::toCartProductView);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<ShopOrderCapabilities> findShopOrderCapabilities(Long shopId) {
+        if (shopId == null || shopId <= 0) {
+            return Optional.empty();
+        }
+        return shopRepository.findById(shopId).map(shop -> {
+            boolean ownerActive = identityApi.findUser(shop.getOwnerId())
+                    .map(owner -> owner.accountStatus() == AccountStatus.ACTIVE)
+                    .orElse(false);
+            return new ShopOrderCapabilities(
+                    shop.getId(),
+                    ownerActive && shop.canReceiveOrder(),
+                    shop.canHandleExistingOrders());
+        });
     }
 
     @Transactional(readOnly = true)

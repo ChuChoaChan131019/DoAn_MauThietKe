@@ -47,3 +47,11 @@ Merchant sở hữu vòng đời shop, category, product, ảnh và stock.
 Test State, ownership, validation, catalog visibility, category/owner/shop bị khóa, stock concurrency và lỗi Cloudinary. Lê Anh Khoa review stock contract; Đỗ Đặng Diệu Linh review dữ liệu cart; Huỳnh Thiên Phúc review event/dashboard contract.
 
 Checklist chất lượng chung xem [CONTRIBUTING.md](../CONTRIBUTING.md).
+
+## Contract trạng thái nhận đơn của shop
+
+- `MerchantApi#findShopOrderCapabilities(shopId)` là contract để Ordering kiểm tra khả năng xử lý đơn mà không truy cập nội bộ Merchant.
+- `canReceiveNewOrders` chỉ bật khi owner đang hoạt động và trạng thái shop cho phép nhận đơn mới.
+- `canHandleExistingOrders` là quyền độc lập với nhận đơn mới. Shop `LOCKED` trả về `false/true`: không nhận đơn mới nhưng vẫn được xử lý các đơn đã tạo trước lúc khóa.
+- Shop `PENDING` hoặc `REJECTED` trả về `false/false`; ID không hợp lệ hoặc shop không tồn tại trả về `Optional.empty()`.
+- Contract chỉ cung cấp khả năng của shop. Ordering vẫn chịu trách nhiệm xác định đơn đã tồn tại trước lúc khóa và kiểm tra ownership của đơn.

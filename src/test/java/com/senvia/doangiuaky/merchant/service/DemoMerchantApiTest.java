@@ -58,20 +58,63 @@ class DemoMerchantApiTest {
     }
 
     @Test
+    void returnsEmptyCapabilitiesForInvalidOrUnknownShop() {
+        assertTrue(merchantApi.findShopOrderCapabilities(null).isEmpty());
+        assertTrue(merchantApi.findShopOrderCapabilities(0L).isEmpty());
+        assertTrue(merchantApi.findShopOrderCapabilities(Long.MAX_VALUE).isEmpty());
+    }
+
+    @Test
+    void approvedShopCanReceiveAndHandleOrders() {
+        Long shopId = shopIdOf("Canvas Tote Bag");
+
+        var capabilities = merchantApi.findShopOrderCapabilities(shopId).orElseThrow();
+
+        assertEquals(shopId, capabilities.shopId());
+        assertTrue(capabilities.canReceiveNewOrders());
+        assertTrue(capabilities.canHandleExistingOrders());
+    }
+
+    @Test
+    void lockedShopCannotReceiveNewOrdersButCanHandleExistingOrders() {
+        Long shopId = shopIdOf("Canvas Tote Bag");
+        lockShop(shopId);
+
+        var capabilities = merchantApi.findShopOrderCapabilities(shopId).orElseThrow();
+
+        assertFalse(capabilities.canReceiveNewOrders());
+        assertTrue(capabilities.canHandleExistingOrders());
+    }
+
+    @ParameterizedTest(name = "shop status {0} cannot receive or handle orders")
+    @ValueSource(strings = {"PENDING", "REJECTED"})
+    void unapprovedShopCannotReceiveOrHandleOrders(String shopStatus) {
+        Long shopId = shopIdOf("Canvas Tote Bag");
+        jdbcTemplate.update("update shops set status = ? where id = ?", shopStatus, shopId);
+        entityManager.clear();
+
+        var capabilities = merchantApi.findShopOrderCapabilities(shopId).orElseThrow();
+
+        assertFalse(capabilities.canReceiveNewOrders());
+        assertFalse(capabilities.canHandleExistingOrders());
+    }
+
+    @Test
+    void lockedOwnerStopsNewOrdersWithoutChangingApprovedShopOldOrderCapability() {
+        Long shopId = shopIdOf("Canvas Tote Bag");
+        lockOwner(shopId);
+
+        var capabilities = merchantApi.findShopOrderCapabilities(shopId).orElseThrow();
+
+        assertFalse(capabilities.canReceiveNewOrders());
+        assertTrue(capabilities.canHandleExistingOrders());
+    }
+
+    @Test
     void lockedOwnerMakesExistingProductUnavailableWithoutHidingItsSummary() {
         Long productId = productRepository.findByName("Canvas Tote Bag").orElseThrow().getId();
-        Long shopId = jdbcTemplate.queryForObject(
-                "select shop_id from products where id = ?", Long.class, productId);
-
-        jdbcTemplate.update("""
-                update users
-                   set account_status = 'LOCKED',
-                       lock_reason = 'saleability test',
-                       locked_by = id,
-                       locked_at = CURRENT_TIMESTAMP
-                 where id = (select owner_id from shops where id = ?)
-                """, shopId);
-        entityManager.clear();
+        Long shopId = shopIdOf("Canvas Tote Bag");
+        lockOwner(shopId);
 
         var product = merchantApi.findProductForCart(productId).orElseThrow();
 
@@ -146,5 +189,47 @@ class DemoMerchantApiTest {
         assertTrue(merchantApi.findSaleableCatalogProducts().stream()
                 .noneMatch(product -> product.id().equals(productId)));
         assertTrue(merchantApi.findSaleableCatalogProduct(productId).isEmpty());
+    }
+
+    @Test
+    void catalogListAndDetailExcludeProductOfLockedShop() {
+        Long productId = productRepository.findByName("Canvas Tote Bag").orElseThrow().getId();
+        lockShop(shopIdOf("Canvas Tote Bag"));
+
+        assertTrue(merchantApi.findSaleableCatalogProducts().stream()
+                .noneMatch(product -> product.id().equals(productId)));
+        assertTrue(merchantApi.findSaleableCatalogProduct(productId).isEmpty());
+    }
+
+    private Long shopIdOf(String productName) {
+        Long productId = productRepository.findByName(productName).orElseThrow().getId();
+        return jdbcTemplate.queryForObject(
+                "select shop_id from products where id = ?", Long.class, productId);
+    }
+
+    private void lockShop(Long shopId) {
+        Long ownerId = jdbcTemplate.queryForObject(
+                "select owner_id from shops where id = ?", Long.class, shopId);
+        jdbcTemplate.update("""
+                update shops
+                   set status = 'LOCKED',
+                       lock_reason = 'capability test',
+                       locked_by = ?,
+                       locked_at = CURRENT_TIMESTAMP
+                 where id = ?
+                """, ownerId, shopId);
+        entityManager.clear();
+    }
+
+    private void lockOwner(Long shopId) {
+        jdbcTemplate.update("""
+                update users
+                   set account_status = 'LOCKED',
+                       lock_reason = 'capability test',
+                       locked_by = id,
+                       locked_at = CURRENT_TIMESTAMP
+                 where id = (select owner_id from shops where id = ?)
+                """, shopId);
+        entityManager.clear();
     }
 }
