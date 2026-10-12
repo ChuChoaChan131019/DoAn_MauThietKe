@@ -17,7 +17,8 @@
         </div>
         <div class="mb-3">
             <label for="productDescription" class="form-label">Mô tả</label>
-            <textarea id="productDescription" th:field="*{description}" class="form-control" rows="4"></textarea>
+            <textarea id="productDescription" th:field="*{description}" class="form-control" rows="4" required></textarea>
+            <div th:if="${#fields.hasErrors('description')}" th:errors="*{description}" class="text-danger small mt-1"></div>
         </div>
         <div class="row g-3 mb-3">
             <div class="col-md-6">

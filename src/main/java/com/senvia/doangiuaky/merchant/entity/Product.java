@@ -32,7 +32,7 @@ public class Product {
     @Column(nullable = false, length = 200)
     private String name;
 
-    @Column(columnDefinition = "TEXT")
+    @Column(nullable = false, columnDefinition = "TEXT")
     private String description;
 
     @Column(nullable = false, precision = 12, scale = 2)
@@ -53,7 +53,7 @@ public class Product {
         this.shopId = Objects.requireNonNull(shopId, "Product shop must not be null");
         this.categoryId = Objects.requireNonNull(categoryId, "Product category must not be null");
         this.name = normalizeName(name);
-        this.description = description;
+        this.description = normalizeDescription(description);
         this.status = Objects.requireNonNull(status, "Product status must not be null");
         applyPriceAndStock(price, stockQuantity);
     }
@@ -139,11 +139,10 @@ public class Product {
     }
 
     private static String normalizeDescription(String description) {
-        if (description == null) {
-            return null;
+        if (description == null || description.trim().isBlank()) {
+            throw new IllegalArgumentException("Product description must not be blank");
         }
-        String normalized = description.trim();
-        return normalized.isEmpty() ? null : normalized;
+        return description.trim();
     }
 
     public Long getId() {

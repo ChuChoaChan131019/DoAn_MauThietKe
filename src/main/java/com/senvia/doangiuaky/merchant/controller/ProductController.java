@@ -75,7 +75,7 @@ public class ProductController {
             return renderCreateForm(principal, form, model);
         }
         try {
-            productService.createWithImages(principal.getUserId(), form);
+            productService.create(principal.getUserId(), form);
             redirectAttributes.addFlashAttribute("successMessage", "Đã thêm sản phẩm thành công.");
             return "redirect:/merchant/products";
         } catch (InactiveCategoryException | CategoryNotFoundException exception) {

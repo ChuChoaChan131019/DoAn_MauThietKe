@@ -33,6 +33,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -80,6 +81,12 @@ class ProductManagementServiceTest {
         lenient().when(shopRepository.findByOwnerId(OWNER_ID)).thenReturn(Optional.of(approvedShop));
         lenient().when(shopRepository.findByOwnerIdForUpdate(OWNER_ID)).thenReturn(Optional.of(approvedShop));
         lenient().when(approvedShop.canAddProduct()).thenReturn(true);
+        lenient().when(imageStorage.uploadProductImage(eq(OWNER_ID), any()))
+                .thenReturn(new MerchantImageAsset("https://cloudinary.test/default.png", "products/20/default"));
+        lenient().when(productRepository.saveAndFlush(any(Product.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        lenient().when(productImageRepository.saveAllAndFlush(any()))
+                .thenAnswer(invocation -> invocation.getArgument(0));
     }
 
     @Test
@@ -92,7 +99,7 @@ class ProductManagementServiceTest {
         when(categoryRepository.findById(40L)).thenReturn(Optional.of(category));
 
         SellerProductView result = service.create(OWNER_ID,
-                new ProductForm("  Product  ", " Description ", 40L, new BigDecimal("10.00"), 3));
+                productFormWithImages("  Product  ", 40L, image("one.png")));
 
         assertEquals("Product", result.name());
         assertEquals(40L, result.categoryId());
@@ -112,7 +119,7 @@ class ProductManagementServiceTest {
         when(categoryRepository.findById(40L)).thenReturn(Optional.of(category));
 
         service.create(OWNER_ID,
-                new ProductForm("Product", "Description", 40L, new BigDecimal("10.00"), 3));
+                productFormWithImages("Product", 40L, image("one.png")));
 
         var productCaptor = org.mockito.ArgumentCaptor.forClass(Product.class);
         verify(productRepository).saveAndFlush(productCaptor.capture());
@@ -125,7 +132,7 @@ class ProductManagementServiceTest {
     void nullOwnerIsRejectedBeforeLoadingShop() {
         assertThrows(ProductAuthorizationException.class,
                 () -> service.create(null,
-                        new ProductForm("Product", null, 40L, new BigDecimal("10.00"), 1)));
+                        new ProductForm("Product", "Description", 40L, new BigDecimal("10.00"), 1)));
 
         verifyNoInteractions(identityApi, shopRepository, categoryService, productRepository, categoryRepository);
     }
@@ -137,7 +144,7 @@ class ProductManagementServiceTest {
 
         assertThrows(ProductAuthorizationException.class,
                 () -> service.create(OWNER_ID,
-                        new ProductForm("Product", null, 40L, new BigDecimal("10.00"), 1)));
+                        new ProductForm("Product", "Description", 40L, new BigDecimal("10.00"), 1)));
 
         verifyNoInteractions(shopRepository, categoryService, productRepository, categoryRepository);
     }
@@ -149,7 +156,7 @@ class ProductManagementServiceTest {
 
         assertThrows(ProductAuthorizationException.class,
                 () -> service.create(OWNER_ID,
-                        new ProductForm("Product", null, 40L, new BigDecimal("10.00"), 1)));
+                        new ProductForm("Product", "Description", 40L, new BigDecimal("10.00"), 1)));
 
         verifyNoInteractions(shopRepository, categoryService, productRepository, categoryRepository);
     }
@@ -160,7 +167,7 @@ class ProductManagementServiceTest {
 
         assertThrows(ProductAuthorizationException.class,
                 () -> service.create(OWNER_ID,
-                        new ProductForm("Product", null, 40L, new BigDecimal("10.00"), 1)));
+                        new ProductForm("Product", "Description", 40L, new BigDecimal("10.00"), 1)));
 
         verify(categoryService, never()).requireActiveCategory(any());
         verify(productRepository, never()).saveAndFlush(any(Product.class));
@@ -173,7 +180,7 @@ class ProductManagementServiceTest {
 
         assertThrows(InactiveCategoryException.class,
                 () -> service.create(OWNER_ID,
-                        new ProductForm("Product", null, 41L, new BigDecimal("10.00"), 1)));
+                        new ProductForm("Product", "Description", 41L, new BigDecimal("10.00"), 1)));
 
         verify(productRepository, never()).saveAndFlush(any(Product.class));
     }
@@ -181,7 +188,7 @@ class ProductManagementServiceTest {
     @Test
     void ownerCanMoveExistingProductToAnotherActiveCategory() {
         when(approvedShop.getId()).thenReturn(SHOP_ID);
-        Product product = Product.create(SHOP_ID, 42L, "Product", null, new BigDecimal("10.00"), 2);
+        Product product = Product.create(SHOP_ID, 42L, "Product", "Description", new BigDecimal("10.00"), 2);
         Category targetCategory = category(43L, "Target", true);
         when(productRepository.findByIdAndShopId(50L, SHOP_ID)).thenReturn(Optional.of(product));
         when(categoryService.requireActiveCategory(43L)).thenReturn(targetCategory);
@@ -190,7 +197,7 @@ class ProductManagementServiceTest {
         when(categoryRepository.findById(43L)).thenReturn(Optional.of(targetCategory));
 
         SellerProductView result = service.update(OWNER_ID, 50L,
-                new ProductForm("Product", null, 43L, new BigDecimal("12.00"), 5));
+                new ProductForm("Product", "Description", 43L, new BigDecimal("12.00"), 5));
 
         assertEquals(43L, product.getCategoryId());
         assertEquals(43L, result.categoryId());
@@ -204,7 +211,7 @@ class ProductManagementServiceTest {
 
         assertThrows(ProductNotFoundException.class,
                 () -> service.update(OWNER_ID, 999L,
-                        new ProductForm("Product", null, 43L, new BigDecimal("12.00"), 5)));
+                        new ProductForm("Product", "Description", 43L, new BigDecimal("12.00"), 5)));
 
         verify(categoryService, never()).requireActiveCategory(any());
     }
@@ -213,7 +220,7 @@ class ProductManagementServiceTest {
     void lockedShopCannotCreateUpdateOrHideProducts() {
         when(approvedShop.canAddProduct()).thenReturn(false);
         ProductForm form = new ProductForm(
-                "Product", null, 40L, new BigDecimal("10.00"), 1);
+                "Product", "Description", 40L, new BigDecimal("10.00"), 1);
 
         assertThrows(ProductAuthorizationException.class,
                 () -> service.create(OWNER_ID, form));
@@ -230,7 +237,7 @@ class ProductManagementServiceTest {
     @Test
     void ownerCanShowOwnedHiddenProduct() {
         when(approvedShop.getId()).thenReturn(SHOP_ID);
-        Product product = Product.create(SHOP_ID, 42L, "Product", null, new BigDecimal("10.00"), 2);
+        Product product = Product.create(SHOP_ID, 42L, "Product", "Description", new BigDecimal("10.00"), 2);
         product.hide();
         when(productRepository.findByIdAndShopId(50L, SHOP_ID)).thenReturn(Optional.of(product));
 
@@ -241,32 +248,35 @@ class ProductManagementServiceTest {
     }
 
     @Test
-    void createWithImagesPersistsCloudinaryMetadataInDisplayOrder() {
+    void createPersistsMultipleCloudinaryImagesInDisplayOrder() {
         when(approvedShop.getId()).thenReturn(SHOP_ID);
         Category category = categoryWithId(40L);
         when(categoryService.requireActiveCategory(40L)).thenReturn(category);
         when(imageStorage.uploadProductImage(eq(OWNER_ID), any()))
-                .thenReturn(new MerchantImageAsset("https://cloudinary.test/one.png", "products/20/one"));
-        when(productRepository.saveAndFlush(any(Product.class)))
-                .thenAnswer(invocation -> invocation.getArgument(0));
-        when(productImageRepository.saveAllAndFlush(any()))
-                .thenAnswer(invocation -> invocation.getArgument(0));
+                .thenReturn(
+                        new MerchantImageAsset("https://cloudinary.test/one.png", "products/20/one"),
+                        new MerchantImageAsset("https://cloudinary.test/two.png", "products/20/two"));
 
-        SellerProductView result = service.createWithImages(OWNER_ID,
-                productFormWithImages("Product", 40L, image("one.png")));
+        SellerProductView result = service.create(OWNER_ID,
+                productFormWithImages("Product", 40L, image("one.png"), image("two.png")));
 
         assertEquals("Product", result.name());
-        verify(imageStorage).uploadProductImage(eq(OWNER_ID), any());
+        verify(imageStorage, times(2)).uploadProductImage(eq(OWNER_ID), any());
         var imageCaptor = org.mockito.ArgumentCaptor.forClass(List.class);
         verify(productImageRepository).saveAllAndFlush(imageCaptor.capture());
         ProductImage persistedImage = (ProductImage) imageCaptor.getValue().get(0);
+        assertEquals(2, imageCaptor.getValue().size());
         assertEquals("https://cloudinary.test/one.png", persistedImage.getImageUrl());
         assertEquals("products/20/one", persistedImage.getPublicId());
         assertEquals(0, persistedImage.getDisplayOrder());
+        ProductImage secondImage = (ProductImage) imageCaptor.getValue().get(1);
+        assertEquals("https://cloudinary.test/two.png", secondImage.getImageUrl());
+        assertEquals("products/20/two", secondImage.getPublicId());
+        assertEquals(1, secondImage.getDisplayOrder());
     }
 
     @Test
-    void createWithImagesCleansUploadedAssetsWhenDatabaseSaveFails() {
+    void createCleansUploadedAssetsWhenDatabaseSaveFails() {
         when(approvedShop.getId()).thenReturn(SHOP_ID);
         Category category = categoryWithId(40L);
         when(categoryService.requireActiveCategory(40L)).thenReturn(category);
@@ -275,10 +285,34 @@ class ProductManagementServiceTest {
         when(productRepository.saveAndFlush(any(Product.class)))
                 .thenThrow(new IllegalStateException("database failure"));
 
-        assertThrows(IllegalStateException.class, () -> service.createWithImages(OWNER_ID,
+        assertThrows(IllegalStateException.class, () -> service.create(OWNER_ID,
                 productFormWithImages("Product", 40L, image("one.png"))));
 
         verify(imageStorage).delete("products/20/one");
+    }
+
+    @Test
+    void createRejectsMissingImagesBeforeCallingCloudinary() {
+        ProductImageManagementException exception = assertThrows(ProductImageManagementException.class,
+                () -> service.create(OWNER_ID,
+                        new ProductForm("Product", "Description", 40L, new BigDecimal("10.00"), 1)));
+
+        assertEquals("Sản phẩm phải có ít nhất một ảnh.", exception.getMessage());
+        verify(imageStorage, never()).uploadProductImage(any(), any());
+        verify(productRepository, never()).saveAndFlush(any(Product.class));
+    }
+
+    @Test
+    void createCleansPreviouslyUploadedImagesWhenLaterUploadFails() {
+        when(imageStorage.uploadProductImage(eq(OWNER_ID), any()))
+                .thenReturn(new MerchantImageAsset("https://cloudinary.test/one.png", "products/20/one"))
+                .thenThrow(new ProductImageManagementException("Ảnh thứ hai không hợp lệ."));
+
+        assertThrows(ProductImageManagementException.class, () -> service.create(OWNER_ID,
+                productFormWithImages("Product", 40L, image("one.png"), image("two.png"))));
+
+        verify(imageStorage).delete("products/20/one");
+        verify(productRepository, never()).saveAndFlush(any(Product.class));
     }
 
     @Test

@@ -75,13 +75,14 @@ class ProductControllerTest {
     @Test
     void hiddenCategoryIsRejectedByProductCreateFlow() throws Exception {
         doThrow(new InactiveCategoryException("Danh mục đã bị ẩn."))
-                .when(productService).createWithImages(eq(1L), any());
+                .when(productService).create(eq(1L), any());
 
         mockMvc.perform(multipart("/merchant/products")
                         .with(user(ownerPrincipal))
                         .with(csrf())
                         .file(validImage())
                         .param("name", "Product")
+                        .param("description", "Description")
                         .param("categoryId", "9")
                         .param("price", "10.00")
                         .param("stockQuantity", "2"))
@@ -92,9 +93,9 @@ class ProductControllerTest {
 
     @Test
     void validProductCreateRedirectsToOwnedProductList() throws Exception {
-        when(productService.createWithImages(eq(1L), any()))
+        when(productService.create(eq(1L), any()))
                 .thenReturn(new SellerProductView(
-                        11L, "Product", null, 9L, "Category", true,
+                        11L, "Product", "Description", 9L, "Category", true,
                         new BigDecimal("10.00"), 2, ProductStatus.ACTIVE));
 
         mockMvc.perform(multipart("/merchant/products")
@@ -102,6 +103,7 @@ class ProductControllerTest {
                         .with(csrf())
                         .file(validImage())
                         .param("name", "Product")
+                        .param("description", "Description")
                         .param("categoryId", "9")
                         .param("price", "10.00")
                         .param("stockQuantity", "2"))
@@ -109,7 +111,7 @@ class ProductControllerTest {
                 .andExpect(redirectedUrl("/merchant/products"))
                 .andExpect(flash().attribute("successMessage", "Đã thêm sản phẩm thành công."));
 
-        verify(productService).createWithImages(eq(1L), any());
+        verify(productService).create(eq(1L), any());
     }
 
     @Test
@@ -123,9 +125,9 @@ class ProductControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(view().name("merchant/product-add"))
                 .andExpect(model().attributeHasFieldErrors(
-                        "productForm", "name", "categoryId", "price", "stockQuantity", "images"));
+                        "productForm", "name", "description", "categoryId", "price", "stockQuantity", "images"));
 
-        verify(productService, never()).createWithImages(eq(1L), any());
+        verify(productService, never()).create(eq(1L), any());
     }
 
     @Test
@@ -139,7 +141,7 @@ class ProductControllerTest {
                         .param("stockQuantity", "2"))
                 .andExpect(status().isForbidden());
 
-        verify(productService, never()).createWithImages(any(), any());
+        verify(productService, never()).create(any(), any());
     }
 
     @Test
@@ -152,7 +154,7 @@ class ProductControllerTest {
                         .param("stockQuantity", "2"))
                 .andExpect(status().isForbidden());
 
-        verify(productService, never()).createWithImages(any(), any());
+        verify(productService, never()).create(any(), any());
     }
 
     @Test
@@ -174,6 +176,7 @@ class ProductControllerTest {
                         .with(user(ownerPrincipal))
                         .with(csrf())
                         .param("name", "Product updated")
+                        .param("description", "Description")
                         .param("categoryId", "9")
                         .param("price", "10.00")
                         .param("stockQuantity", "2"))
@@ -186,7 +189,7 @@ class ProductControllerTest {
 
     @Test
     void lockedShopCannotCreateProduct() throws Exception {
-        when(productService.createWithImages(eq(1L), any()))
+        when(productService.create(eq(1L), any()))
                 .thenThrow(new ProductAuthorizationException("Gian hàng đang bị khóa."));
 
         mockMvc.perform(multipart("/merchant/products")
@@ -194,6 +197,7 @@ class ProductControllerTest {
                         .with(csrf())
                         .file(validImage())
                         .param("name", "Product")
+                        .param("description", "Description")
                         .param("categoryId", "9")
                         .param("price", "10.00")
                         .param("stockQuantity", "2"))
@@ -209,6 +213,7 @@ class ProductControllerTest {
                         .with(user(ownerPrincipal))
                         .with(csrf())
                         .param("name", "Product")
+                        .param("description", "Description")
                         .param("categoryId", "9")
                         .param("price", "10.00")
                         .param("stockQuantity", "2"))

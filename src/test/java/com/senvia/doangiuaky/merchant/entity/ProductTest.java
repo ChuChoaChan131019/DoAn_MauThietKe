@@ -51,6 +51,14 @@ class ProductTest {
     }
 
     @Test
+    void rejectsNullOrBlankDescription() {
+        assertThrows(IllegalArgumentException.class, () -> Product.create(
+                10L, 20L, "Test product", null, new BigDecimal("10.00"), 1));
+        assertThrows(IllegalArgumentException.class, () -> Product.create(
+                10L, 20L, "Test product", "   ", new BigDecimal("10.00"), 1));
+    }
+
+    @Test
     void invalidUpdateLeavesExistingPriceAndStockUnchanged() {
         Product product = product(new BigDecimal("125.50"), 8);
 
