@@ -18,6 +18,7 @@ public class ProductForm {
     @Size(max = 200, message = "Tên sản phẩm không được vượt quá 200 ký tự.")
     private String name;
 
+    @NotBlank(message = "Mô tả sản phẩm không được để trống.")
     private String description;
 
     @NotNull(message = "Vui lòng chọn danh mục.")

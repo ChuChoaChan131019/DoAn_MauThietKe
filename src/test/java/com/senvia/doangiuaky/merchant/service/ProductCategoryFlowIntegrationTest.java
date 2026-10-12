@@ -5,10 +5,14 @@ import com.senvia.doangiuaky.merchant.dto.SellerProductView;
 import com.senvia.doangiuaky.merchant.entity.Category;
 import com.senvia.doangiuaky.merchant.repository.CategoryRepository;
 import com.senvia.doangiuaky.merchant.repository.ProductRepository;
+import com.senvia.doangiuaky.merchant.service.image.MerchantImageAsset;
+import com.senvia.doangiuaky.merchant.service.image.MerchantImageStorage;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
@@ -16,10 +20,22 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.when;
 
 @SpringBootTest
 @Transactional
 class ProductCategoryFlowIntegrationTest {
+
+    @MockitoBean
+    private MerchantImageStorage imageStorage;
+
+    @org.junit.jupiter.api.BeforeEach
+    void setUpImageStorage() {
+        when(imageStorage.uploadProductImage(anyLong(), any()))
+                .thenReturn(new MerchantImageAsset("https://cloudinary.test/category.png", "products/category"));
+    }
 
     @Autowired
     private ProductManagementService productService;
@@ -59,12 +75,23 @@ class ProductCategoryFlowIntegrationTest {
     }
 
     private ProductForm form(Long categoryId) {
-        return new ProductForm(
+        ProductForm form = new ProductForm(
                 "Integration product",
                 "Product category flow",
                 categoryId,
                 new BigDecimal("12.50"),
                 4);
+        form.setImages(java.util.List.of(image("category.png")));
+        return form;
+    }
+
+    private static MockMultipartFile image(String filename) {
+        return new MockMultipartFile(
+                "images",
+                filename,
+                "image/png",
+                java.util.Base64.getDecoder().decode(
+                        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="));
     }
 
     private Fixture fixture() {

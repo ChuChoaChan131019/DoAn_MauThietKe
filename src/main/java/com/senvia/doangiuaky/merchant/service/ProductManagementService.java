@@ -73,30 +73,16 @@ public class ProductManagementService {
         return toView(findOwnedProduct(productId, shop.getId()));
     }
 
+    /**
+     * Creates a product with all required product data and one to five uploaded images.
+     * Cloudinary assets and database rows are compensated when any part of the use case fails.
+     */
     @Transactional
     public SellerProductView create(Long ownerId, ProductForm form) {
         Shop shop = requireCatalogMutableShopForWrite(ownerId);
         Category category = categoryService.requireActiveCategory(form.getCategoryId());
-        Product product = Product.create(
-                shop.getId(),
-                category.getId(),
-                form.getName(),
-                form.getDescription(),
-                form.getPrice(),
-                form.getStockQuantity());
-        return toView(productRepository.saveAndFlush(product));
-    }
-
-    /**
-     * Creates a product and persists uploaded image metadata without exposing Cloudinary IDs.
-     * The required-image validation belongs to PROD 03; this method is the image-aware path
-     * used by the product form and accepts one or more uploaded files.
-     */
-    @Transactional
-    public SellerProductView createWithImages(Long ownerId, ProductForm form) {
-        Shop shop = requireCatalogMutableShopForWrite(ownerId);
-        Category category = categoryService.requireActiveCategory(form.getCategoryId());
         List<MultipartFile> files = uploadedFiles(form.getImages());
+        requireAtLeastOneImage(files);
         validateImageCount(files, 0);
 
         List<MerchantImageAsset> uploaded = new ArrayList<>();
@@ -281,6 +267,13 @@ public class ProductManagementService {
         return files.stream()
                 .filter(file -> file != null && !file.isEmpty())
                 .toList();
+    }
+
+    private void requireAtLeastOneImage(List<MultipartFile> files) {
+        if (files.isEmpty()) {
+            throw new ProductImageManagementException(
+                    "Sản phẩm phải có ít nhất một ảnh.");
+        }
     }
 
     private void validateImageCount(List<MultipartFile> newFiles, int existingCount) {

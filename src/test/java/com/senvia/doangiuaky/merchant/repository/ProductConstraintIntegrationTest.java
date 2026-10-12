@@ -20,9 +20,9 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 class ProductConstraintIntegrationTest {
 
     private static final String INSERT_PRODUCT = """
-            insert into products (shop_id, category_id, name, price, stock_quantity, status,
+            insert into products (shop_id, category_id, name, description, price, stock_quantity, status,
                                   created_at, updated_at)
-            values (?, ?, ?, ?, ?, 'ACTIVE', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            values (?, ?, ?, ?, ?, ?, 'ACTIVE', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
             """;
 
     @Autowired
@@ -36,7 +36,7 @@ class ProductConstraintIntegrationTest {
         Fixture fixture = fixture();
 
         Product saved = productRepository.saveAndFlush(Product.create(
-                fixture.shopId(), fixture.categoryId(), "Boundary product", null,
+                fixture.shopId(), fixture.categoryId(), "Boundary product", "Boundary description",
                 new BigDecimal("0.01"), 0));
 
         BigDecimal storedPrice = jdbcTemplate.queryForObject(
@@ -88,21 +88,39 @@ class ProductConstraintIntegrationTest {
                 () -> insertProduct(fixture, "null-stock", new BigDecimal("10.00"), null));
     }
 
+    @Test
+    void databaseRejectsMissingDescription() {
+        Fixture fixture = fixture();
+
+        assertThrows(DataIntegrityViolationException.class,
+                () -> insertProduct(fixture, "null-description", null,
+                        new BigDecimal("10.00"), 1));
+        assertThrows(DataIntegrityViolationException.class,
+                () -> insertProduct(fixture, "blank-description", "   ",
+                        new BigDecimal("10.00"), 1));
+    }
+
     private void insertProduct(Fixture fixture, String name, BigDecimal price, Integer stockQuantity) {
+        insertProduct(fixture, name, "Boundary description", price, stockQuantity);
+    }
+
+    private void insertProduct(Fixture fixture, String name, String description,
+                                BigDecimal price, Integer stockQuantity) {
         jdbcTemplate.update(connection -> {
             var statement = connection.prepareStatement(INSERT_PRODUCT);
             statement.setLong(1, fixture.shopId());
             statement.setLong(2, fixture.categoryId());
             statement.setString(3, name);
+            statement.setString(4, description);
             if (price == null) {
-                statement.setNull(4, Types.NUMERIC);
+                statement.setNull(5, Types.NUMERIC);
             } else {
-                statement.setBigDecimal(4, price);
+                statement.setBigDecimal(5, price);
             }
             if (stockQuantity == null) {
-                statement.setNull(5, Types.INTEGER);
+                statement.setNull(6, Types.INTEGER);
             } else {
-                statement.setInt(5, stockQuantity);
+                statement.setInt(6, stockQuantity);
             }
             return statement;
         });

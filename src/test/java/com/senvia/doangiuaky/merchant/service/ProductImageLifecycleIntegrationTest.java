@@ -59,7 +59,7 @@ class ProductImageLifecycleIntegrationTest {
                         new MerchantImageAsset("https://cloudinary.test/second.png", "products/second"));
 
         ProductForm createForm = form(category.getId(), image("first.png"));
-        var created = productService.createWithImages(fixture.ownerId(), createForm);
+        var created = productService.create(fixture.ownerId(), createForm);
         var persistedBeforeUpdate = productImageRepository
                 .findAllByProductIdOrderByDisplayOrderAscIdAsc(created.id());
 
@@ -89,7 +89,7 @@ class ProductImageLifecycleIntegrationTest {
                 Category.create("Required image category " + fixture.suffix(), null));
         when(imageStorage.uploadProductImage(eq(fixture.ownerId()), any()))
                 .thenReturn(new MerchantImageAsset("https://cloudinary.test/only.png", "products/only"));
-        var created = productService.createWithImages(fixture.ownerId(), form(category.getId(), image("only.png")));
+        var created = productService.create(fixture.ownerId(), form(category.getId(), image("only.png")));
 
         ProductForm updateForm = form(category.getId());
         updateForm.setRemovedImageIds(List.of(productImageRepository
