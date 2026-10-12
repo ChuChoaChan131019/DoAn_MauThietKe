@@ -26,6 +26,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -126,14 +127,19 @@ class ProductManagementServiceTest {
     }
 
     @Test
-    void unapprovedShopCannotManageProducts() {
+    void lockedShopCannotCreateUpdateOrHideProducts() {
         when(approvedShop.canAddProduct()).thenReturn(false);
+        ProductForm form = new ProductForm(
+                "Product", null, 40L, new BigDecimal("10.00"), 1);
 
         assertThrows(ProductAuthorizationException.class,
-                () -> service.create(OWNER_ID,
-                        new ProductForm("Product", null, 40L, new BigDecimal("10.00"), 1)));
+                () -> service.create(OWNER_ID, form));
+        assertThrows(ProductAuthorizationException.class,
+                () -> service.update(OWNER_ID, 50L, form));
+        assertThrows(ProductAuthorizationException.class,
+                () -> service.hide(OWNER_ID, 50L));
 
-        verify(productRepository, never()).saveAndFlush(any(Product.class));
+        verifyNoInteractions(productRepository, categoryRepository, categoryService);
     }
 
     private static Category category(Long id, String name, boolean active) {

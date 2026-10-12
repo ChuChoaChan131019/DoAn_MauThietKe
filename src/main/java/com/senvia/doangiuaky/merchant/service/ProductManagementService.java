@@ -39,7 +39,7 @@ public class ProductManagementService {
 
     @Transactional(readOnly = true)
     public List<SellerProductView> listOwnedProducts(Long ownerId) {
-        Shop shop = requireApprovedShop(ownerId);
+        Shop shop = requireCatalogMutableShop(ownerId);
         return productRepository.findAllByShopIdOrderByIdAsc(shop.getId()).stream()
                 .map(this::toView)
                 .toList();
@@ -47,13 +47,13 @@ public class ProductManagementService {
 
     @Transactional(readOnly = true)
     public SellerProductView getOwnedProduct(Long ownerId, Long productId) {
-        Shop shop = requireApprovedShop(ownerId);
+        Shop shop = requireCatalogMutableShop(ownerId);
         return toView(findOwnedProduct(productId, shop.getId()));
     }
 
     @Transactional
     public SellerProductView create(Long ownerId, ProductForm form) {
-        Shop shop = requireApprovedShop(ownerId);
+        Shop shop = requireCatalogMutableShop(ownerId);
         Category category = categoryService.requireActiveCategory(form.getCategoryId());
         Product product = Product.create(
                 shop.getId(),
@@ -67,7 +67,7 @@ public class ProductManagementService {
 
     @Transactional
     public SellerProductView update(Long ownerId, Long productId, ProductForm form) {
-        Shop shop = requireApprovedShop(ownerId);
+        Shop shop = requireCatalogMutableShop(ownerId);
         Product product = findOwnedProduct(productId, shop.getId());
         Category category = categoryService.requireActiveCategory(form.getCategoryId());
 
@@ -79,13 +79,13 @@ public class ProductManagementService {
 
     @Transactional
     public void hide(Long ownerId, Long productId) {
-        Shop shop = requireApprovedShop(ownerId);
+        Shop shop = requireCatalogMutableShop(ownerId);
         Product product = findOwnedProduct(productId, shop.getId());
         product.hide();
         productRepository.saveAndFlush(product);
     }
 
-    private Shop requireApprovedShop(Long ownerId) {
+    private Shop requireCatalogMutableShop(Long ownerId) {
         if (ownerId == null || identityApi.findUser(ownerId)
                 .filter(user -> user.role() == UserRole.USER
                         && user.accountStatus() == AccountStatus.ACTIVE)
@@ -98,7 +98,7 @@ public class ProductManagementService {
                 .orElseThrow(() -> new ProductAuthorizationException("Bạn chưa có gian hàng."));
         if (!shop.canAddProduct()) {
             throw new ProductAuthorizationException(
-                    "Chỉ gian hàng đã được duyệt mới được quản lý sản phẩm.");
+                    "Chỉ gian hàng đã được duyệt và không bị khóa mới được quản lý sản phẩm.");
         }
         return shop;
     }

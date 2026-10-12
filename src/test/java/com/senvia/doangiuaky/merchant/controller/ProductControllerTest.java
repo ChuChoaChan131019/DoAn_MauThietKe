@@ -7,6 +7,7 @@ import com.senvia.doangiuaky.merchant.dto.SellerProductView;
 import com.senvia.doangiuaky.merchant.entity.ProductStatus;
 import com.senvia.doangiuaky.merchant.service.CategoryManagementService;
 import com.senvia.doangiuaky.merchant.service.InactiveCategoryException;
+import com.senvia.doangiuaky.merchant.service.ProductAuthorizationException;
 import com.senvia.doangiuaky.merchant.service.ProductManagementService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -113,6 +114,47 @@ class ProductControllerTest {
                 .andExpect(flash().attribute("successMessage", "Đã cập nhật sản phẩm thành công."));
 
         verify(productService).update(eq(1L), eq(10L), any());
+    }
+
+    @Test
+    void lockedShopCannotCreateProduct() throws Exception {
+        when(productService.create(eq(1L), any()))
+                .thenThrow(new ProductAuthorizationException("Gian hàng đang bị khóa."));
+
+        mockMvc.perform(post("/merchant/products")
+                        .with(user(ownerPrincipal))
+                        .with(csrf())
+                        .param("name", "Product")
+                        .param("categoryId", "9")
+                        .param("price", "10.00")
+                        .param("stockQuantity", "2"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void lockedShopCannotUpdateProduct() throws Exception {
+        when(productService.update(eq(1L), eq(10L), any()))
+                .thenThrow(new ProductAuthorizationException("Gian hàng đang bị khóa."));
+
+        mockMvc.perform(post("/merchant/products/10")
+                        .with(user(ownerPrincipal))
+                        .with(csrf())
+                        .param("name", "Product")
+                        .param("categoryId", "9")
+                        .param("price", "10.00")
+                        .param("stockQuantity", "2"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void lockedShopCannotHideProduct() throws Exception {
+        doThrow(new ProductAuthorizationException("Gian hàng đang bị khóa."))
+                .when(productService).hide(1L, 10L);
+
+        mockMvc.perform(post("/merchant/products/10/hide")
+                        .with(user(ownerPrincipal))
+                        .with(csrf()))
+                .andExpect(status().isForbidden());
     }
 
     @Test
