@@ -10,6 +10,7 @@ import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 public interface ShopRepository extends JpaRepository<Shop, Long> {
 
@@ -23,7 +24,11 @@ public interface ShopRepository extends JpaRepository<Shop, Long> {
 
     List<Shop> findAllByStatusOrderBySubmittedAtAsc(ShopStatus status);
 
+    List<Shop> findAllByStatusInOrderByShopNameAscIdAsc(Set<ShopStatus> statuses);
+
     Optional<Shop> findByIdAndStatus(Long id, ShopStatus status);
+
+    Optional<Shop> findByIdAndStatusIn(Long id, Set<ShopStatus> statuses);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select shop from Shop shop where shop.id = :shopId")
