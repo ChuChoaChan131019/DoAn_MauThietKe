@@ -14,6 +14,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -31,6 +32,7 @@ import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.flash;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.model;
@@ -73,11 +75,12 @@ class ProductControllerTest {
     @Test
     void hiddenCategoryIsRejectedByProductCreateFlow() throws Exception {
         doThrow(new InactiveCategoryException("Danh mục đã bị ẩn."))
-                .when(productService).create(eq(1L), any());
+                .when(productService).createWithImages(eq(1L), any());
 
-        mockMvc.perform(post("/merchant/products")
+        mockMvc.perform(multipart("/merchant/products")
                         .with(user(ownerPrincipal))
                         .with(csrf())
+                        .file(validImage())
                         .param("name", "Product")
                         .param("categoryId", "9")
                         .param("price", "10.00")
@@ -89,14 +92,15 @@ class ProductControllerTest {
 
     @Test
     void validProductCreateRedirectsToOwnedProductList() throws Exception {
-        when(productService.create(eq(1L), any()))
+        when(productService.createWithImages(eq(1L), any()))
                 .thenReturn(new SellerProductView(
                         11L, "Product", null, 9L, "Category", true,
                         new BigDecimal("10.00"), 2, ProductStatus.ACTIVE));
 
-        mockMvc.perform(post("/merchant/products")
+        mockMvc.perform(multipart("/merchant/products")
                         .with(user(ownerPrincipal))
                         .with(csrf())
+                        .file(validImage())
                         .param("name", "Product")
                         .param("categoryId", "9")
                         .param("price", "10.00")
@@ -105,7 +109,7 @@ class ProductControllerTest {
                 .andExpect(redirectedUrl("/merchant/products"))
                 .andExpect(flash().attribute("successMessage", "Đã thêm sản phẩm thành công."));
 
-        verify(productService).create(eq(1L), any());
+        verify(productService).createWithImages(eq(1L), any());
     }
 
     @Test
@@ -119,9 +123,9 @@ class ProductControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(view().name("merchant/product-add"))
                 .andExpect(model().attributeHasFieldErrors(
-                        "productForm", "name", "categoryId", "price", "stockQuantity"));
+                        "productForm", "name", "categoryId", "price", "stockQuantity", "images"));
 
-        verify(productService, never()).create(eq(1L), any());
+        verify(productService, never()).createWithImages(eq(1L), any());
     }
 
     @Test
@@ -135,7 +139,7 @@ class ProductControllerTest {
                         .param("stockQuantity", "2"))
                 .andExpect(status().isForbidden());
 
-        verify(productService, never()).create(any(), any());
+        verify(productService, never()).createWithImages(any(), any());
     }
 
     @Test
@@ -148,7 +152,7 @@ class ProductControllerTest {
                         .param("stockQuantity", "2"))
                 .andExpect(status().isForbidden());
 
-        verify(productService, never()).create(any(), any());
+        verify(productService, never()).createWithImages(any(), any());
     }
 
     @Test
@@ -177,17 +181,18 @@ class ProductControllerTest {
                 .andExpect(redirectedUrl("/merchant/products"))
                 .andExpect(flash().attribute("successMessage", "Đã cập nhật sản phẩm thành công."));
 
-        verify(productService).update(eq(1L), eq(10L), any());
+        verify(productService).updateWithImages(eq(1L), eq(10L), any());
     }
 
     @Test
     void lockedShopCannotCreateProduct() throws Exception {
-        when(productService.create(eq(1L), any()))
+        when(productService.createWithImages(eq(1L), any()))
                 .thenThrow(new ProductAuthorizationException("Gian hàng đang bị khóa."));
 
-        mockMvc.perform(post("/merchant/products")
+        mockMvc.perform(multipart("/merchant/products")
                         .with(user(ownerPrincipal))
                         .with(csrf())
+                        .file(validImage())
                         .param("name", "Product")
                         .param("categoryId", "9")
                         .param("price", "10.00")
@@ -197,7 +202,7 @@ class ProductControllerTest {
 
     @Test
     void lockedShopCannotUpdateProduct() throws Exception {
-        when(productService.update(eq(1L), eq(10L), any()))
+        when(productService.updateWithImages(eq(1L), eq(10L), any()))
                 .thenThrow(new ProductAuthorizationException("Gian hàng đang bị khóa."));
 
         mockMvc.perform(post("/merchant/products/10")
@@ -265,5 +270,14 @@ class ProductControllerTest {
         when(principal.isCredentialsNonExpired()).thenReturn(true);
         when(principal.isEnabled()).thenReturn(true);
         return principal;
+    }
+
+    private static MockMultipartFile validImage() {
+        return new MockMultipartFile(
+                "images",
+                "product.png",
+                "image/png",
+                java.util.Base64.getDecoder().decode(
+                        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="));
     }
 }

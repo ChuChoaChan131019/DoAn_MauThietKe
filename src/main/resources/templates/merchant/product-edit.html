@@ -8,7 +8,7 @@
     <a th:href="@{/merchant/products}" class="text-muted text-decoration-none">← Quay lại sản phẩm</a>
     <h2 class="text-serif text-plum my-4">Sửa sản phẩm</h2>
 
-    <form th:action="@{/merchant/products/{id}(id=${product.id})}" th:object="${productForm}" method="post" class="bg-white p-4 border border-clay shadow-sm">
+    <form th:action="@{/merchant/products/{id}(id=${product.id})}" th:object="${productForm}" method="post" enctype="multipart/form-data" class="bg-white p-4 border border-clay shadow-sm">
         <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
         <div class="mb-3">
             <label for="productName" class="form-label">Tên sản phẩm</label>
@@ -39,7 +39,26 @@
                 <div th:if="${#fields.hasErrors('stockQuantity')}" th:errors="*{stockQuantity}" class="text-danger small mt-1"></div>
             </div>
         </div>
-        <div class="alert alert-info">Chỉ category đang hoạt động mới được chọn. Ảnh sản phẩm thuộc luồng Cloudinary PROD 03.</div>
+        <div class="mb-3">
+            <label class="form-label">Ảnh hiện tại</label>
+            <div th:if="${#lists.isEmpty(product.images)}" class="text-muted small">Sản phẩm chưa có ảnh.</div>
+            <div th:unless="${#lists.isEmpty(product.images)}" class="row g-3">
+                <div th:each="image : ${product.images}" class="col-6 col-md-3">
+                    <img th:src="${image.imageUrl}" alt="Ảnh sản phẩm" class="img-fluid border border-clay rounded">
+                    <label class="form-check mt-2 small">
+                        <input class="form-check-input" type="checkbox" name="removedImageIds" th:value="${image.id}">
+                        <span class="form-check-label">Xóa ảnh này</span>
+                    </label>
+                </div>
+            </div>
+        </div>
+        <div class="mb-3">
+            <label for="productImages" class="form-label">Thêm ảnh mới</label>
+            <input id="productImages" type="file" name="images" class="form-control"
+                   accept="image/jpeg,image/png" multiple>
+            <div th:if="${#fields.hasErrors('images')}" th:errors="*{images}" class="text-danger small mt-1"></div>
+            <div class="form-text">Tối đa 5 ảnh cho một sản phẩm, mỗi ảnh không quá 2MB.</div>
+        </div>
         <button type="submit" class="btn bg-burgundy text-white rounded-0">Cập nhật sản phẩm</button>
     </form>
 </main>

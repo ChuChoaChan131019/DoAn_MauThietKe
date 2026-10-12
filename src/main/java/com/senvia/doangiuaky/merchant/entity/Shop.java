@@ -168,6 +168,19 @@ public class Shop {
         approvedAt = null;
     }
 
+    public void updateApprovedDetails(String shopName, String description, String logoUrl,
+                                      String logoPublicId, String phone, String address) {
+        if (status != ShopStatus.APPROVED) {
+            throw new IllegalStateException("Only an approved shop can update details");
+        }
+        this.shopName = Objects.requireNonNull(shopName, "Shop name must not be null");
+        this.description = description;
+        this.logoUrl = logoUrl;
+        this.logoPublicId = logoPublicId;
+        this.phone = Objects.requireNonNull(phone, "Shop phone must not be null");
+        this.address = Objects.requireNonNull(address, "Shop address must not be null");
+    }
+
     public void lock(Long adminId, String reason, Instant lockedAt) {
         Objects.requireNonNull(adminId, "Locking admin must not be null");
         Objects.requireNonNull(lockedAt, "Lock time must not be null");

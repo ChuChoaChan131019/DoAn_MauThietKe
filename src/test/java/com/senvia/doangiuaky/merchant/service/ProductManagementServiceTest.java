@@ -11,8 +11,12 @@ import com.senvia.doangiuaky.merchant.entity.Product;
 import com.senvia.doangiuaky.merchant.entity.ProductStatus;
 import com.senvia.doangiuaky.merchant.entity.Shop;
 import com.senvia.doangiuaky.merchant.repository.CategoryRepository;
+import com.senvia.doangiuaky.merchant.entity.ProductImage;
+import com.senvia.doangiuaky.merchant.repository.ProductImageRepository;
 import com.senvia.doangiuaky.merchant.repository.ProductRepository;
 import com.senvia.doangiuaky.merchant.repository.ShopRepository;
+import com.senvia.doangiuaky.merchant.service.image.MerchantImageAsset;
+import com.senvia.doangiuaky.merchant.service.image.MerchantImageStorage;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -20,16 +24,19 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
+import org.springframework.mock.web.MockMultipartFile;
 
 @ExtendWith(MockitoExtension.class)
 class ProductManagementServiceTest {
@@ -39,6 +46,9 @@ class ProductManagementServiceTest {
 
     @Mock
     private ProductRepository productRepository;
+
+    @Mock
+    private ProductImageRepository productImageRepository;
 
     @Mock
     private ShopRepository shopRepository;
@@ -53,6 +63,9 @@ class ProductManagementServiceTest {
     private IdentityApi identityApi;
 
     @Mock
+    private MerchantImageStorage imageStorage;
+
+    @Mock
     private Shop approvedShop;
 
     private ProductManagementService service;
@@ -60,7 +73,8 @@ class ProductManagementServiceTest {
     @BeforeEach
     void setUp() {
         service = new ProductManagementService(
-                productRepository, shopRepository, categoryRepository, categoryService, identityApi);
+                productRepository, productImageRepository, shopRepository, categoryRepository,
+                categoryService, identityApi, imageStorage);
         lenient().when(identityApi.findUser(OWNER_ID))
                 .thenReturn(Optional.of(new UserSummary(OWNER_ID, "Owner", UserRole.USER, AccountStatus.ACTIVE)));
         lenient().when(shopRepository.findByOwnerId(OWNER_ID)).thenReturn(Optional.of(approvedShop));
@@ -91,7 +105,7 @@ class ProductManagementServiceTest {
     @Test
     void createAssignsProductToShopResolvedFromOwner() {
         when(approvedShop.getId()).thenReturn(SHOP_ID);
-        Category category = category(40L, "Active category", true);
+        Category category = categoryWithId(40L);
         when(categoryService.requireActiveCategory(40L)).thenReturn(category);
         when(productRepository.saveAndFlush(any(Product.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
@@ -226,11 +240,114 @@ class ProductManagementServiceTest {
         verify(productRepository).saveAndFlush(product);
     }
 
+    @Test
+    void createWithImagesPersistsCloudinaryMetadataInDisplayOrder() {
+        when(approvedShop.getId()).thenReturn(SHOP_ID);
+        Category category = categoryWithId(40L);
+        when(categoryService.requireActiveCategory(40L)).thenReturn(category);
+        when(imageStorage.uploadProductImage(eq(OWNER_ID), any()))
+                .thenReturn(new MerchantImageAsset("https://cloudinary.test/one.png", "products/20/one"));
+        when(productRepository.saveAndFlush(any(Product.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        when(productImageRepository.saveAllAndFlush(any()))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        SellerProductView result = service.createWithImages(OWNER_ID,
+                productFormWithImages("Product", 40L, image("one.png")));
+
+        assertEquals("Product", result.name());
+        verify(imageStorage).uploadProductImage(eq(OWNER_ID), any());
+        var imageCaptor = org.mockito.ArgumentCaptor.forClass(List.class);
+        verify(productImageRepository).saveAllAndFlush(imageCaptor.capture());
+        ProductImage persistedImage = (ProductImage) imageCaptor.getValue().get(0);
+        assertEquals("https://cloudinary.test/one.png", persistedImage.getImageUrl());
+        assertEquals("products/20/one", persistedImage.getPublicId());
+        assertEquals(0, persistedImage.getDisplayOrder());
+    }
+
+    @Test
+    void createWithImagesCleansUploadedAssetsWhenDatabaseSaveFails() {
+        when(approvedShop.getId()).thenReturn(SHOP_ID);
+        Category category = categoryWithId(40L);
+        when(categoryService.requireActiveCategory(40L)).thenReturn(category);
+        when(imageStorage.uploadProductImage(eq(OWNER_ID), any()))
+                .thenReturn(new MerchantImageAsset("https://cloudinary.test/one.png", "products/20/one"));
+        when(productRepository.saveAndFlush(any(Product.class)))
+                .thenThrow(new IllegalStateException("database failure"));
+
+        assertThrows(IllegalStateException.class, () -> service.createWithImages(OWNER_ID,
+                productFormWithImages("Product", 40L, image("one.png"))));
+
+        verify(imageStorage).delete("products/20/one");
+    }
+
+    @Test
+    void updateWithImagesRequiresOwnershipOfRemovedImagesAndCleansOldAssetAfterCommit() {
+        when(approvedShop.getId()).thenReturn(SHOP_ID);
+        Product product = org.mockito.Mockito.mock(Product.class);
+        when(product.getId()).thenReturn(50L);
+        when(product.getCategoryId()).thenReturn(40L);
+        when(product.getName()).thenReturn("Product");
+        when(product.getPrice()).thenReturn(new BigDecimal("10.00"));
+        when(product.getStockQuantity()).thenReturn(1);
+        when(product.getStatus()).thenReturn(ProductStatus.ACTIVE);
+        ProductImage oldImage = org.mockito.Mockito.mock(ProductImage.class);
+        when(oldImage.getId()).thenReturn(91L);
+        when(oldImage.getPublicId()).thenReturn("products/20/old");
+        when(oldImage.getDisplayOrder()).thenReturn(0);
+        when(productRepository.findByIdAndShopId(50L, SHOP_ID)).thenReturn(Optional.of(product));
+        Category category = categoryWithId(40L);
+        when(categoryService.requireActiveCategory(40L)).thenReturn(category);
+        when(productImageRepository.findAllByProductIdOrderByDisplayOrderAscIdAsc(50L))
+                .thenReturn(List.of(oldImage));
+        when(imageStorage.uploadProductImage(eq(OWNER_ID), any()))
+                .thenReturn(new MerchantImageAsset("https://cloudinary.test/new.png", "products/20/new"));
+        when(productRepository.saveAndFlush(any(Product.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        when(productImageRepository.saveAllAndFlush(any()))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        ProductForm form = productFormWithImages("Updated", 40L, image("new.png"));
+        form.setRemovedImageIds(List.of(999L));
+
+        assertThrows(ProductImageManagementException.class,
+                () -> service.updateWithImages(OWNER_ID, 50L, form));
+        verify(imageStorage, never()).uploadProductImage(any(), any());
+
+        form.setRemovedImageIds(List.of(91L));
+        service.updateWithImages(OWNER_ID, 50L, form);
+
+        verify(imageStorage).delete("products/20/old");
+    }
+
+    private static ProductForm productFormWithImages(String name, Long categoryId,
+                                                      MockMultipartFile... images) {
+        ProductForm form = new ProductForm(name, "Description", categoryId,
+                new BigDecimal("10.00"), 1);
+        form.setImages(List.of(images));
+        return form;
+    }
+
+    private static MockMultipartFile image(String filename) {
+        return new MockMultipartFile(
+                "images",
+                filename,
+                "image/png",
+                java.util.Base64.getDecoder().decode(
+                        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="));
+    }
+
     private static Category category(Long id, String name, boolean active) {
         Category category = org.mockito.Mockito.mock(Category.class);
         when(category.getId()).thenReturn(id);
         when(category.getName()).thenReturn(name);
         when(category.isActive()).thenReturn(active);
+        return category;
+    }
+
+    private static Category categoryWithId(Long id) {
+        Category category = org.mockito.Mockito.mock(Category.class);
+        when(category.getId()).thenReturn(id);
         return category;
     }
 }
