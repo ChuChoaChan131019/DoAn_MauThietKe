@@ -222,6 +222,29 @@ class ProductControllerTest {
     }
 
     @Test
+    void ownerCanShowProduct() throws Exception {
+        mockMvc.perform(post("/merchant/products/10/show")
+                        .with(user(ownerPrincipal))
+                        .with(csrf()))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/merchant/products"))
+                .andExpect(flash().attribute("successMessage", "Đã bỏ ẩn sản phẩm thành công."));
+
+        verify(productService).show(1L, 10L);
+    }
+
+    @Test
+    void lockedShopCannotShowProduct() throws Exception {
+        doThrow(new ProductAuthorizationException("Gian hàng đang bị khóa."))
+                .when(productService).show(1L, 10L);
+
+        mockMvc.perform(post("/merchant/products/10/show")
+                        .with(user(ownerPrincipal))
+                        .with(csrf()))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
     void anonymousUserCannotOpenSellerProductFlow() throws Exception {
         mockMvc.perform(get("/merchant/products"))
                 .andExpect(status().is3xxRedirection())

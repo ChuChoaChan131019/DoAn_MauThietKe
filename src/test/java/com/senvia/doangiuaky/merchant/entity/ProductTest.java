@@ -71,6 +71,16 @@ class ProductTest {
         assertEquals(0, product.getStockQuantity());
     }
 
+    @Test
+    void hiddenProductCanBeShownAgain() {
+        Product product = product(new BigDecimal("10.00"), 2);
+
+        product.hide();
+        product.show();
+
+        assertEquals(ProductStatus.ACTIVE, product.getStatus());
+    }
+
     private static Product product(BigDecimal price, Integer stockQuantity) {
         return Product.create(
                 10L,

@@ -60,6 +60,10 @@
                                         <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
                                         <button type="submit" class="btn btn-sm btn-outline-danger rounded-0" onclick="return confirm('Bạn có chắc muốn ẩn sản phẩm này không?');">Ẩn</button>
                                     </form>
+                                    <form th:unless="${product.active}" th:action="@{/merchant/products/{id}/show(id=${product.id})}" method="post" class="d-inline">
+                                        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+                                        <button type="submit" class="btn btn-sm btn-outline-success rounded-0">Bỏ ẩn</button>
+                                    </form>
                                 </td>
                             </tr>
                             </tbody>

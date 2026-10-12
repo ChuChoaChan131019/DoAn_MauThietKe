@@ -207,8 +207,23 @@ class ProductManagementServiceTest {
                 () -> service.update(OWNER_ID, 50L, form));
         assertThrows(ProductAuthorizationException.class,
                 () -> service.hide(OWNER_ID, 50L));
+        assertThrows(ProductAuthorizationException.class,
+                () -> service.show(OWNER_ID, 50L));
 
         verifyNoInteractions(productRepository, categoryRepository, categoryService);
+    }
+
+    @Test
+    void ownerCanShowOwnedHiddenProduct() {
+        when(approvedShop.getId()).thenReturn(SHOP_ID);
+        Product product = Product.create(SHOP_ID, 42L, "Product", null, new BigDecimal("10.00"), 2);
+        product.hide();
+        when(productRepository.findByIdAndShopId(50L, SHOP_ID)).thenReturn(Optional.of(product));
+
+        service.show(OWNER_ID, 50L);
+
+        assertEquals(ProductStatus.ACTIVE, product.getStatus());
+        verify(productRepository).saveAndFlush(product);
     }
 
     private static Category category(Long id, String name, boolean active) {

@@ -85,6 +85,14 @@ public class ProductManagementService {
         productRepository.saveAndFlush(product);
     }
 
+    @Transactional
+    public void show(Long ownerId, Long productId) {
+        Shop shop = requireCatalogMutableShop(ownerId);
+        Product product = findOwnedProduct(productId, shop.getId());
+        product.show();
+        productRepository.saveAndFlush(product);
+    }
+
     private Shop requireCatalogMutableShop(Long ownerId) {
         return requireCatalogMutableShop(ownerId, false);
     }

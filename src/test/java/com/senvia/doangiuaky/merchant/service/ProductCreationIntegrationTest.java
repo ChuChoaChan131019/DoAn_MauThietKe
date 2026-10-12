@@ -59,6 +59,21 @@ class ProductCreationIntegrationTest {
         assertTrue(productRepository.findAllByShopIdOrderByIdAsc(fixture.shopId()).contains(product));
     }
 
+    @Test
+    void ownerCanHideAndShowOwnedProduct() {
+        Fixture fixture = fixture(ShopStatus.APPROVED);
+        Category category = categoryRepository.saveAndFlush(
+                Category.create("Visibility category " + fixture.suffix(), null));
+        SellerProductView created = productService.create(fixture.ownerId(), new ProductForm(
+                "Visibility product", null, category.getId(), new BigDecimal("10.00"), 1));
+
+        productService.hide(fixture.ownerId(), created.id());
+        assertEquals(ProductStatus.HIDDEN, productRepository.findById(created.id()).orElseThrow().getStatus());
+
+        productService.show(fixture.ownerId(), created.id());
+        assertEquals(ProductStatus.ACTIVE, productRepository.findById(created.id()).orElseThrow().getStatus());
+    }
+
     @ParameterizedTest
     @EnumSource(value = ShopStatus.class, names = {"PENDING", "REJECTED", "LOCKED"})
     void nonApprovedShopCannotCreateProduct(ShopStatus status) {
