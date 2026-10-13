@@ -103,6 +103,51 @@ public class CartService {
         }
     }
 
+    @Transactional
+    public void updateItemQuantity(Long currentUserId, Long cartItemId, int quantity) {
+        validatePositiveId(currentUserId, "Không xác định được người dùng.");
+        validatePositiveId(cartItemId, "Mục giỏ hàng không hợp lệ.");
+        if (quantity <= 0) {
+            throw new CartOperationException("Số lượng phải lớn hơn 0.");
+        }
+        UserSummary buyer = identityApi.findUser(currentUserId)
+                .orElseThrow(() -> new CartOperationException("Tài khoản không tồn tại."));
+        validateBuyer(buyer);
+
+        Cart cart = cartRepository.findByUserIdForUpdate(currentUserId)
+                .orElseThrow(CartItemNotFoundException::new);
+        CartItem item = cartItemRepository.findByIdAndCartId(cartItemId, cart.getId())
+                .orElseThrow(CartItemNotFoundException::new);
+        CartProductView product = merchantApiSupplier.get().findProductForCart(item.getProductId())
+                .orElseThrow(() -> new CartOperationException("Sản phẩm không còn tồn tại."));
+        validateSaleability(product);
+        if (currentUserId.equals(product.shopOwnerId())) {
+            throw new CartOperationException("Bạn không thể mua sản phẩm của chính shop mình.");
+        }
+        if (quantity > product.stockQuantity()) {
+            throw new CartOperationException("Số lượng vượt tồn kho hiện tại.");
+        }
+
+        item.setQuantity(quantity);
+        cartItemRepository.save(item);
+    }
+
+    @Transactional
+    public void removeItem(Long currentUserId, Long cartItemId) {
+        validatePositiveId(currentUserId, "Không xác định được người dùng.");
+        validatePositiveId(cartItemId, "Mục giỏ hàng không hợp lệ.");
+        UserSummary buyer = identityApi.findUser(currentUserId)
+                .orElseThrow(() -> new CartOperationException("Tài khoản không tồn tại."));
+        validateBuyer(buyer);
+
+        Cart cart = cartRepository.findByUserIdForUpdate(currentUserId)
+                .orElseThrow(CartItemNotFoundException::new);
+        CartItem item = cartItemRepository.findByIdAndCartId(cartItemId, cart.getId())
+                .orElseThrow(CartItemNotFoundException::new);
+        cartItemRepository.delete(item);
+        cartItemRepository.flush();
+    }
+
     private AddCartItemResult addItemInTransaction(Long currentUserId, Long productId, int requestedQuantity) {
         validatePositiveId(currentUserId, "Không xác định được người dùng.");
         validatePositiveId(productId, "Sản phẩm không hợp lệ.");
