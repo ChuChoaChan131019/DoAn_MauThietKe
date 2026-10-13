@@ -18,6 +18,7 @@ import com.senvia.doangiuaky.merchant.repository.ProductRepository;
 import com.senvia.doangiuaky.merchant.repository.ShopRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.annotation.Propagation;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -80,6 +81,15 @@ public class DemoMerchantApi implements MerchantApi {
             return Optional.empty();
         }
         return productRepository.findById(productId).flatMap(this::toCartProductView);
+    }
+
+    @Override
+    @Transactional(propagation = Propagation.MANDATORY)
+    public Optional<CartProductView> findProductForCartMutation(Long productId) {
+        if (productId == null || productId <= 0) {
+            return Optional.empty();
+        }
+        return productRepository.findByIdForUpdate(productId).flatMap(this::toCartProductView);
     }
 
     @Override

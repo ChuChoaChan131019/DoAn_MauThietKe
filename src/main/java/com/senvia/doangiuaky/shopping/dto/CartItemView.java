@@ -16,6 +16,7 @@ public record CartItemView(
         int quantity,
         BigDecimal subtotal,
         boolean available,
+        boolean quantityAdjustable,
         String availabilityMessage) {
 
     public static CartItemView from(CartItem item, CartProductView product) {
@@ -30,6 +31,7 @@ public record CartItemView(
                 product.stockQuantity(),
                 item.getQuantity(),
                 subtotal,
+                true,
                 true,
                 null);
     }
@@ -46,6 +48,23 @@ public record CartItemView(
                 item.getQuantity(),
                 BigDecimal.ZERO,
                 false,
+                false,
                 message);
+    }
+
+    public static CartItemView exceedsStock(CartItem item, CartProductView product) {
+        return new CartItemView(
+                item.getProductId(),
+                product.shopId(),
+                product.shopName(),
+                product.productName(),
+                product.imageUrl(),
+                product.currentPrice(),
+                product.stockQuantity(),
+                item.getQuantity(),
+                BigDecimal.ZERO,
+                false,
+                true,
+                "Số lượng trong giỏ vượt tồn kho hiện tại.");
     }
 }

@@ -3,7 +3,8 @@ package com.senvia.doangiuaky.shopping.controller;
 import com.senvia.doangiuaky.identity.api.IdentityApi;
 import com.senvia.doangiuaky.identity.api.UserSummary;
 import com.senvia.doangiuaky.shopping.dto.AddCartItemRequest;
-import com.senvia.doangiuaky.shopping.dto.AddCartItemResult;
+import com.senvia.doangiuaky.shopping.dto.CartItemMutationResult;
+import com.senvia.doangiuaky.shopping.dto.UpdateCartItemQuantityRequest;
 import com.senvia.doangiuaky.shopping.service.CartOperationException;
 import com.senvia.doangiuaky.shopping.service.CartService;
 import com.senvia.doangiuaky.shopping.service.FavoriteOperationException;
@@ -60,9 +61,31 @@ public class ShoppingController {
         }
 
         try {
-            AddCartItemResult result = cartService.addItem(
+            CartItemMutationResult result = cartService.addItem(
                     currentUserId(principal), request.getProductId(), request.getQuantity());
-            redirectAttributes.addFlashAttribute("cartSuccess", result.message());
+            addCartMutationMessage(redirectAttributes, result);
+        } catch (CartOperationException exception) {
+            redirectAttributes.addFlashAttribute("cartError", exception.getMessage());
+        }
+        return "redirect:/cart";
+    }
+
+    @PostMapping("/cart/items/{productId}/quantity")
+    public String updateCartItemQuantity(
+            Principal principal,
+            @PathVariable Long productId,
+            @Valid @ModelAttribute("updateCartItemQuantityRequest") UpdateCartItemQuantityRequest request,
+            BindingResult bindingResult,
+            RedirectAttributes redirectAttributes) {
+        if (bindingResult.hasErrors()) {
+            redirectAttributes.addFlashAttribute("cartError", firstValidationError(bindingResult));
+            return "redirect:/cart";
+        }
+
+        try {
+            CartItemMutationResult result = cartService.updateQuantity(
+                    currentUserId(principal), productId, request.getQuantity());
+            addCartMutationMessage(redirectAttributes, result);
         } catch (CartOperationException exception) {
             redirectAttributes.addFlashAttribute("cartError", exception.getMessage());
         }
@@ -124,5 +147,12 @@ public class ShoppingController {
                         ? "Dữ liệu giỏ hàng không hợp lệ."
                         : error.getDefaultMessage())
                 .orElse("Dữ liệu giỏ hàng không hợp lệ.");
+    }
+
+    private static void addCartMutationMessage(
+            RedirectAttributes redirectAttributes, CartItemMutationResult result) {
+        redirectAttributes.addFlashAttribute(
+                result.quantityClamped() ? "cartWarning" : "cartSuccess",
+                result.message());
     }
 }

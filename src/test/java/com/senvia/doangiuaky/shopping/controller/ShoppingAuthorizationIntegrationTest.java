@@ -40,6 +40,29 @@ class ShoppingAuthorizationIntegrationTest {
     }
 
     @Test
+    void guestAndAdminCannotUpdateCartQuantity() throws Exception {
+        mockMvc.perform(post("/cart/items/1/quantity")
+                        .with(csrf())
+                        .param("quantity", "1"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/login"));
+
+        mockMvc.perform(post("/cart/items/1/quantity")
+                        .with(user("admin@example.com").roles("ADMIN"))
+                        .with(csrf())
+                        .param("quantity", "1"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void cartQuantityUpdateRequiresCsrf() throws Exception {
+        mockMvc.perform(post("/cart/items/1/quantity")
+                        .with(user("buyer@example.com").roles("USER"))
+                        .param("quantity", "1"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
     void guestCannotAddFavorite() throws Exception {
         mockMvc.perform(post("/account/wishlist/1").with(csrf()))
                 .andExpect(status().is3xxRedirection())

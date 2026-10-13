@@ -12,6 +12,7 @@
         </div>
 
         <div th:if="${cartSuccess}" class="alert alert-success rounded-0" th:text="${cartSuccess}"></div>
+        <div th:if="${cartWarning}" class="alert alert-warning rounded-0" th:text="${cartWarning}"></div>
         <div th:if="${cartError}" class="alert alert-danger rounded-0" th:text="${cartError}"></div>
         <div th:if="${!cart.empty && cart.totalQuantity == 0}" class="alert alert-warning rounded-0">
             Một hoặc nhiều sản phẩm trong giỏ hiện không còn khả dụng. Vui lòng kiểm tra cảnh báo trước khi thanh toán.
@@ -34,9 +35,29 @@
                                 <div class="fw-medium text-plum" th:text="${item.productName}">Product</div>
                                 <div th:if="${item.available}" class="text-burgundy small">
                                     <span th:text="${#numbers.formatDecimal(item.currentPrice, 0, 'COMMA', 0, 'POINT')} + '₫'">0₫</span>
-                                    <span class="text-muted ms-2" th:text="'x ' + ${item.quantity}">x 1</span>
+                                    <span class="text-muted ms-2" th:text="'Còn ' + ${item.stockQuantity} + ' sản phẩm'">Còn 1 sản phẩm</span>
+                                    <form th:action="@{/cart/items/{productId}/quantity(productId=${item.productId})}"
+                                          method="post" class="d-flex align-items-center gap-2 mt-2">
+                                        <label th:for="'quantity-' + ${item.productId}" class="visually-hidden">Số lượng</label>
+                                        <input type="number" name="quantity"
+                                               th:id="'quantity-' + ${item.productId}"
+                                               min="1" th:max="${item.stockQuantity}" th:value="${item.quantity}"
+                                               class="form-control form-control-sm rounded-0" style="max-width: 90px;" required>
+                                        <button type="submit" class="btn btn-sm btn-outline-secondary rounded-0">Cập nhật</button>
+                                    </form>
                                 </div>
                                 <div th:unless="${item.available}" class="text-danger small" th:text="${item.availabilityMessage}">Không khả dụng</div>
+                                <form th:if="${!item.available && item.quantityAdjustable}"
+                                      th:action="@{/cart/items/{productId}/quantity(productId=${item.productId})}"
+                                      method="post" class="d-flex align-items-center gap-2 mt-2">
+                                    <label th:for="'quantity-' + ${item.productId}" class="small text-muted"
+                                           th:text="'Còn ' + ${item.stockQuantity} + ' sản phẩm'">Tồn kho</label>
+                                    <input type="number" name="quantity"
+                                           th:id="'quantity-' + ${item.productId}"
+                                           min="1" th:max="${item.stockQuantity}" th:value="${item.stockQuantity}"
+                                           class="form-control form-control-sm rounded-0" style="max-width: 90px;" required>
+                                    <button type="submit" class="btn btn-sm btn-outline-secondary rounded-0">Điều chỉnh</button>
+                                </form>
                             </div>
                             <div th:if="${item.available}" class="fw-bold text-burgundy"
                                  th:text="${#numbers.formatDecimal(item.subtotal, 0, 'COMMA', 0, 'POINT')} + '₫'">0₫</div>

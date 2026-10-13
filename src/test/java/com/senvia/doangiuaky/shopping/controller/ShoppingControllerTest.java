@@ -4,7 +4,7 @@ import com.senvia.doangiuaky.identity.api.AccountStatus;
 import com.senvia.doangiuaky.identity.api.IdentityApi;
 import com.senvia.doangiuaky.identity.api.UserRole;
 import com.senvia.doangiuaky.identity.api.UserSummary;
-import com.senvia.doangiuaky.shopping.dto.AddCartItemResult;
+import com.senvia.doangiuaky.shopping.dto.CartItemMutationResult;
 import com.senvia.doangiuaky.shopping.dto.CartItemView;
 import com.senvia.doangiuaky.shopping.dto.FavoriteItemView;
 import com.senvia.doangiuaky.shopping.service.CartService;
@@ -58,9 +58,9 @@ class ShoppingControllerTest {
         IdentityApi identityApi = mock(IdentityApi.class);
         when(identityApi.findUserByEmail("buyer@example.com"))
                 .thenReturn(java.util.Optional.of(new UserSummary(10L, "Buyer", UserRole.USER, AccountStatus.ACTIVE)));
-        when(cartService.addItem(10L, 20L, 2)).thenReturn(new AddCartItemResult(
+        when(cartService.addItem(10L, 20L, 2)).thenReturn(new CartItemMutationResult(
                 new CartItemView(20L, 30L, "Shop", "Product", null,
-                        new BigDecimal("100000"), 5, 2, new BigDecimal("200000"), true, null),
+                        new BigDecimal("100000"), 5, 2, new BigDecimal("200000"), true, true, null),
                 false,
                 "Đã thêm sản phẩm vào giỏ hàng."));
         MockMvc mvc = MockMvcBuilders.standaloneSetup(
@@ -74,6 +74,50 @@ class ShoppingControllerTest {
                 .andExpect(redirectedUrl("/cart"));
 
         verify(cartService).addItem(10L, 20L, 2);
+    }
+
+    @Test
+    void updateQuantityResolvesCurrentUserAndShowsClampAsWarning() throws Exception {
+        CartService cartService = mock(CartService.class);
+        FavoriteService favoriteService = mock(FavoriteService.class);
+        IdentityApi identityApi = mock(IdentityApi.class);
+        when(identityApi.findUserByEmail("buyer@example.com"))
+                .thenReturn(java.util.Optional.of(new UserSummary(10L, "Buyer", UserRole.USER, AccountStatus.ACTIVE)));
+        when(cartService.updateQuantity(10L, 20L, 9)).thenReturn(new CartItemMutationResult(
+                new CartItemView(20L, 30L, "Shop", "Product", null,
+                        new BigDecimal("100000"), 5, 5, new BigDecimal("500000"), true, true, null),
+                true,
+                "Số lượng đã được điều chỉnh còn 5 theo tồn kho hiện tại (5)."));
+        MockMvc mvc = MockMvcBuilders.standaloneSetup(
+                new ShoppingController(cartService, favoriteService, identityApi)).build();
+
+        mvc.perform(post("/cart/items/20/quantity")
+                        .principal(principal("buyer@example.com"))
+                        .param("quantity", "9"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/cart"))
+                .andExpect(flash().attribute("cartWarning",
+                        "Số lượng đã được điều chỉnh còn 5 theo tồn kho hiện tại (5)."));
+
+        verify(cartService).updateQuantity(10L, 20L, 9);
+    }
+
+    @Test
+    void invalidUpdateQuantityIsRejectedBeforeServiceCall() throws Exception {
+        CartService cartService = mock(CartService.class);
+        FavoriteService favoriteService = mock(FavoriteService.class);
+        IdentityApi identityApi = mock(IdentityApi.class);
+        MockMvc mvc = MockMvcBuilders.standaloneSetup(
+                new ShoppingController(cartService, favoriteService, identityApi)).build();
+
+        mvc.perform(post("/cart/items/20/quantity")
+                        .principal(principal("buyer@example.com"))
+                        .param("quantity", "0"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/cart"))
+                .andExpect(flash().attribute("cartError", "Số lượng phải lớn hơn 0."));
+
+        verify(cartService, never()).updateQuantity(eq(10L), eq(20L), eq(0));
     }
 
     @Test
