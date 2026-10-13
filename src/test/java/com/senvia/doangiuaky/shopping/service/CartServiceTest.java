@@ -166,6 +166,52 @@ class CartServiceTest {
         assertFalse(view.shops().getFirst().items().getFirst().available());
     }
 
+    @Test
+    void updateAndRemoveUseLockedOwnedCartItem() {
+        CartRepository carts = mock(CartRepository.class);
+        CartItemRepository items = mock(CartItemRepository.class);
+        IdentityApi identity = mock(IdentityApi.class);
+        MerchantApi merchant = mock(MerchantApi.class);
+        Cart cart = mockCart(99L);
+        CartItem item = new CartItem(99L, PRODUCT_ID, 2);
+        when(identity.findUser(BUYER_ID)).thenReturn(Optional.of(
+                user(BUYER_ID, UserRole.USER, AccountStatus.ACTIVE)));
+        when(carts.findByUserIdForUpdate(BUYER_ID)).thenReturn(Optional.of(cart));
+        when(items.findByIdAndCartId(77L, 99L)).thenReturn(Optional.of(item));
+        when(merchant.findProductForCart(PRODUCT_ID)).thenReturn(Optional.of(product(5, 120000)));
+        CartService service = new CartService(carts, items, identity, merchant);
+
+        service.updateItemQuantity(BUYER_ID, 77L, 4);
+        assertEquals(4, item.getQuantity());
+        verify(items).save(item);
+
+        service.removeItem(BUYER_ID, 77L);
+        verify(items).delete(item);
+        verify(items).flush();
+        verify(carts, org.mockito.Mockito.times(2)).findByUserIdForUpdate(BUYER_ID);
+    }
+
+    @Test
+    void foreignCartItemIsHiddenAsNotFoundAndNeverChanged() {
+        CartRepository carts = mock(CartRepository.class);
+        CartItemRepository items = mock(CartItemRepository.class);
+        IdentityApi identity = mock(IdentityApi.class);
+        MerchantApi merchant = mock(MerchantApi.class);
+        Cart cart = mockCart(99L);
+        when(identity.findUser(BUYER_ID)).thenReturn(Optional.of(
+                user(BUYER_ID, UserRole.USER, AccountStatus.ACTIVE)));
+        when(carts.findByUserIdForUpdate(BUYER_ID)).thenReturn(Optional.of(cart));
+        when(items.findByIdAndCartId(777L, 99L)).thenReturn(Optional.empty());
+        CartService service = new CartService(carts, items, identity, merchant);
+
+        assertThrows(CartItemNotFoundException.class,
+                () -> service.updateItemQuantity(BUYER_ID, 777L, 2));
+        assertThrows(CartItemNotFoundException.class,
+                () -> service.removeItem(BUYER_ID, 777L));
+        verify(items, never()).save(any());
+        verify(items, never()).delete(any());
+    }
+
     private static UserSummary user(Long id, UserRole role, AccountStatus status) {
         return new UserSummary(id, "Test User", role, status);
     }

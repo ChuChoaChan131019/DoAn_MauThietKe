@@ -21,9 +21,10 @@
 ### Contract checkout cho Ordering
 
 `shopping.api.CheckoutCartItem` gồm `Long cartItemId`, `Long productId`, `int quantity`.
-`shopping.api.CheckoutCartApi` cung cấp `List<CheckoutCartItem> getCheckoutSnapshot(Long buyerId)`
-và `void removePurchasedItems(Long buyerId, List<CheckoutCartItem> purchasedItems)`.
-`buyerId` phải lấy từ USER đã xác thực; Shopping kiểm tra quyền sở hữu giỏ.
+`shopping.api.CheckoutCartApi` cung cấp `List<CheckoutCartItem> getCheckoutSnapshot()`
+và `void removePurchasedItems(List<CheckoutCartItem> purchasedItems)`.
+Contract không nhận `buyerId`; Shopping lấy USER hiện tại qua `identity.api.CurrentUserApi`,
+kiểm tra USER ACTIVE và quyền sở hữu giỏ. Vì vậy client hoặc Ordering không thể chọn buyer mục tiêu.
 
 Hai phương thức yêu cầu transaction checkout đang mở (`Propagation.MANDATORY`) và
 khóa hàng cart đến hết transaction. Mọi thao tác sửa giỏ phải dùng cùng khóa cart.

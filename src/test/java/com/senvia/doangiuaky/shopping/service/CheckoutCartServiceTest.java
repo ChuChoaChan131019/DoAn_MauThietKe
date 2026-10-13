@@ -1,7 +1,7 @@
 package com.senvia.doangiuaky.shopping.service;
 
 import com.senvia.doangiuaky.identity.api.AccountStatus;
-import com.senvia.doangiuaky.identity.api.IdentityApi;
+import com.senvia.doangiuaky.identity.api.CurrentUserApi;
 import com.senvia.doangiuaky.identity.api.UserRole;
 import com.senvia.doangiuaky.identity.api.UserSummary;
 import com.senvia.doangiuaky.shopping.api.CheckoutCartItem;
@@ -30,18 +30,18 @@ class CheckoutCartServiceTest {
     void snapshotContainsOnlyItemsFromTheLockedBuyerCart() {
         CartRepository carts = mock(CartRepository.class);
         CartItemRepository items = mock(CartItemRepository.class);
-        IdentityApi identity = mock(IdentityApi.class);
+        CurrentUserApi currentUser = mock(CurrentUserApi.class);
         Cart cart = mock(Cart.class);
         CartItem first = item(101L, 201L, 2);
         CartItem second = item(102L, 202L, 3);
-        when(identity.findUser(BUYER_ID)).thenReturn(Optional.of(activeBuyer(BUYER_ID)));
+        when(currentUser.requireCurrentUser()).thenReturn(activeBuyer(BUYER_ID));
         when(carts.findByUserIdForUpdate(BUYER_ID)).thenReturn(Optional.of(cart));
         when(cart.getId()).thenReturn(99L);
         when(cart.getUserId()).thenReturn(BUYER_ID);
         when(items.findAllByCartIdOrderByIdAsc(99L)).thenReturn(List.of(first, second));
 
-        List<CheckoutCartItem> snapshot = new CheckoutCartService(carts, items, identity)
-                .getCheckoutSnapshot(BUYER_ID);
+        List<CheckoutCartItem> snapshot = new CheckoutCartService(carts, items, currentUser)
+                .getCheckoutSnapshot();
 
         assertEquals(List.of(
                 new CheckoutCartItem(101L, 201L, 2),
@@ -52,45 +52,40 @@ class CheckoutCartServiceTest {
 
     @Test
     void bothOperationsRejectInvalidMissingAdminLockedAndMismatchedBuyersBeforeCartAccess() {
-        assertBuyerRejected(null, null);
-        assertBuyerRejected(0L, null);
-        assertBuyerRejected(BUYER_ID, Optional.empty());
-        assertBuyerRejected(BUYER_ID,
-                Optional.of(new UserSummary(BUYER_ID, "Admin", UserRole.ADMIN, AccountStatus.ACTIVE)));
-        assertBuyerRejected(BUYER_ID,
-                Optional.of(new UserSummary(BUYER_ID, "Locked", UserRole.USER, AccountStatus.LOCKED)));
-        assertBuyerRejected(BUYER_ID, Optional.of(activeBuyer(BUYER_ID + 1)));
+        assertBuyerRejected(null);
+        assertBuyerRejected(new UserSummary(null, "Missing", UserRole.USER, AccountStatus.ACTIVE));
+        assertBuyerRejected(new UserSummary(0L, "Invalid", UserRole.USER, AccountStatus.ACTIVE));
+        assertBuyerRejected(new UserSummary(BUYER_ID, "Admin", UserRole.ADMIN, AccountStatus.ACTIVE));
+        assertBuyerRejected(new UserSummary(BUYER_ID, "Locked", UserRole.USER, AccountStatus.LOCKED));
     }
 
     @Test
     void foreignCartOwnershipIsRejectedBeforeItemsAreRead() {
         CartRepository carts = mock(CartRepository.class);
         CartItemRepository items = mock(CartItemRepository.class);
-        IdentityApi identity = mock(IdentityApi.class);
+        CurrentUserApi currentUser = mock(CurrentUserApi.class);
         Cart cart = mock(Cart.class);
-        when(identity.findUser(BUYER_ID)).thenReturn(Optional.of(activeBuyer(BUYER_ID)));
+        when(currentUser.requireCurrentUser()).thenReturn(activeBuyer(BUYER_ID));
         when(carts.findByUserIdForUpdate(BUYER_ID)).thenReturn(Optional.of(cart));
         when(cart.getUserId()).thenReturn(BUYER_ID + 1);
 
-        CheckoutCartService service = new CheckoutCartService(carts, items, identity);
+        CheckoutCartService service = new CheckoutCartService(carts, items, currentUser);
 
-        assertThrows(CartOperationException.class, () -> service.getCheckoutSnapshot(BUYER_ID));
+        assertThrows(CartOperationException.class, service::getCheckoutSnapshot);
         verify(items, never()).findAllByCartIdOrderByIdAsc(org.mockito.ArgumentMatchers.any());
     }
 
-    private static void assertBuyerRejected(Long buyerId, Optional<UserSummary> user) {
+    private static void assertBuyerRejected(UserSummary user) {
         CartRepository carts = mock(CartRepository.class);
         CartItemRepository items = mock(CartItemRepository.class);
-        IdentityApi identity = mock(IdentityApi.class);
-        if (buyerId != null && buyerId > 0) {
-            when(identity.findUser(buyerId)).thenReturn(user);
-        }
+        CurrentUserApi currentUser = mock(CurrentUserApi.class);
+        when(currentUser.requireCurrentUser()).thenReturn(user);
 
-        CheckoutCartService service = new CheckoutCartService(carts, items, identity);
+        CheckoutCartService service = new CheckoutCartService(carts, items, currentUser);
 
-        assertThrows(CartOperationException.class, () -> service.getCheckoutSnapshot(buyerId));
+        assertThrows(CartOperationException.class, service::getCheckoutSnapshot);
         assertThrows(CartOperationException.class, () -> service.removePurchasedItems(
-                buyerId, List.of(new CheckoutCartItem(1L, 1L, 1))));
+                List.of(new CheckoutCartItem(1L, 1L, 1))));
         verifyNoInteractions(carts, items);
     }
 
