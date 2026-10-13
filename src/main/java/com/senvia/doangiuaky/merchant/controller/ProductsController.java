@@ -1,6 +1,7 @@
 package com.senvia.doangiuaky.merchant.controller;
 
-import com.senvia.doangiuaky.merchant.dto.CatalogProductView;
+import com.senvia.doangiuaky.merchant.dto.CatalogProductCardView;
+import com.senvia.doangiuaky.merchant.dto.CatalogProductDetailView;
 import com.senvia.doangiuaky.merchant.service.CategoryManagementService;
 import com.senvia.doangiuaky.merchant.service.DemoMerchantApi;
 import org.springframework.http.HttpStatus;
@@ -42,8 +43,8 @@ public class ProductsController {
             @RequestParam(required = false, defaultValue = "1") Integer page,
             Model model) {
 
-        List<CatalogProductView> catalogProducts = catalogService.findSaleableCatalogProducts();
-        List<CatalogProductView> filteredProducts = catalogProducts.stream()
+        List<CatalogProductCardView> catalogProducts = catalogService.findSaleableCatalogProducts();
+        List<CatalogProductCardView> filteredProducts = catalogProducts.stream()
                 .filter(product -> q == null || q.isBlank()
                         || product.name().toLowerCase().contains(q.trim().toLowerCase()))
                 .filter(product -> min == null
@@ -52,14 +53,14 @@ public class ProductsController {
                         || product.price().compareTo(BigDecimal.valueOf(max)) <= 0)
                 .filter(product -> category == null || category.isBlank()
                         || "Tất cả sản phẩm".equals(category)
-                        || product.category().equals(category))
-                .filter(product -> brand == null || brand.isEmpty() || brand.contains(product.brand()))
+                        || product.categoryName().equals(category))
+                .filter(product -> brand == null || brand.isEmpty() || brand.contains(product.shopName()))
                 .collect(Collectors.toList());
 
         if ("price_asc".equals(sort)) {
-            filteredProducts.sort(Comparator.comparing(CatalogProductView::price));
+            filteredProducts.sort(Comparator.comparing(CatalogProductCardView::price));
         } else if ("price_desc".equals(sort)) {
-            filteredProducts.sort(Comparator.comparing(CatalogProductView::price).reversed());
+            filteredProducts.sort(Comparator.comparing(CatalogProductCardView::price).reversed());
         }
 
         int totalItems = filteredProducts.size();
@@ -73,12 +74,12 @@ public class ProductsController {
         model.addAttribute("totalPages", totalPages);
         model.addAttribute("currentPage", currentPage);
         model.addAttribute("sort", sort);
-        model.addAttribute("selectedBrands", brand != null ? brand : List.of());
+        model.addAttribute("selectedShops", brand != null ? brand : List.of());
         model.addAttribute("categories", categoryService.listActiveForProductSelection());
 
-        Map<String, Long> brandCounts = catalogProducts.stream()
-                .collect(Collectors.groupingBy(CatalogProductView::brand, Collectors.counting()));
-        model.addAttribute("brandCounts", brandCounts);
+        Map<String, Long> shopCounts = catalogProducts.stream()
+                .collect(Collectors.groupingBy(CatalogProductCardView::shopName, Collectors.counting()));
+        model.addAttribute("shopCounts", shopCounts);
         model.addAttribute("q", q);
         model.addAttribute("min", min);
         model.addAttribute("max", max);
@@ -88,10 +89,10 @@ public class ProductsController {
 
     @GetMapping("/products/{id}")
     public String productDetail(@PathVariable Long id, Model model) {
-        CatalogProductView product = catalogService.findSaleableCatalogProduct(id)
+        CatalogProductDetailView product = catalogService.findSaleableCatalogProduct(id)
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND, "Không tìm thấy sản phẩm"));
-        List<CatalogProductView> relatedProducts = catalogService.findSaleableCatalogProducts().stream()
+        List<CatalogProductCardView> relatedProducts = catalogService.findSaleableCatalogProducts().stream()
                 .filter(candidate -> !candidate.id().equals(id))
                 .limit(4)
                 .toList();

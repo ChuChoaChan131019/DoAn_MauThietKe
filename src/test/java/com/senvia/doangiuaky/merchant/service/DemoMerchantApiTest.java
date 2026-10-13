@@ -222,6 +222,46 @@ class DemoMerchantApiTest {
         assertTrue(merchantApi.findSaleableCatalogProduct(productId).isEmpty());
     }
 
+    @Test
+    void catalogDetailUsesDatabaseProductShopCategoryAndOrderedImages() {
+        Long productId = productRepository.findByName("Canvas Tote Bag").orElseThrow().getId();
+
+        var detail = merchantApi.findSaleableCatalogProduct(productId).orElseThrow();
+
+        assertEquals(productId, detail.id());
+        assertEquals("Canvas Tote Bag", detail.name());
+        assertEquals("NOLA Store", detail.shopName());
+        assertEquals("Thời trang", detail.categoryName());
+        assertEquals(45, detail.stock());
+        assertEquals("/images/product-placeholder.svg", detail.thumbnailUrl());
+        assertEquals(1, detail.images().size());
+        assertEquals(detail.thumbnailUrl(), detail.images().getFirst().imageUrl());
+        assertEquals(detail.shopId(), detail.shop().id());
+    }
+
+    @Test
+    void publicShopContainsOnlySaleableProductsFromThatShop() {
+        Long shopId = shopIdOf("Canvas Tote Bag");
+
+        var shop = merchantApi.findPublicShop(shopId).orElseThrow();
+        var products = merchantApi.findSaleableCatalogProductsByShop(shopId);
+
+        assertEquals(shopId, shop.id());
+        assertEquals("NOLA Store", shop.name());
+        assertTrue(products.stream().allMatch(product -> product.shopId().equals(shopId)));
+        assertTrue(products.stream().anyMatch(product -> product.name().equals("Canvas Tote Bag")));
+        assertTrue(products.stream().noneMatch(product -> product.name().equals("Linen Shirt")));
+    }
+
+    @Test
+    void publicShopIsHiddenWhenOwnerIsLocked() {
+        Long shopId = shopIdOf("Canvas Tote Bag");
+        lockOwner(shopId);
+
+        assertTrue(merchantApi.findPublicShop(shopId).isEmpty());
+        assertTrue(merchantApi.findSaleableCatalogProductsByShop(shopId).isEmpty());
+    }
+
     private Long shopIdOf(String productName) {
         Long productId = productRepository.findByName(productName).orElseThrow().getId();
         return jdbcTemplate.queryForObject(

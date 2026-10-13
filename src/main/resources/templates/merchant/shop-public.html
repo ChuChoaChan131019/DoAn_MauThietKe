@@ -1,138 +1,63 @@
 <!DOCTYPE html>
 <html lang="vi" xmlns:th="http://www.thymeleaf.org">
-<head th:replace="~{fragments/head :: head('Senvia - NOLA Official')}"></head>
+<head th:replace="~{fragments/head :: head('Senvia - Gian hàng')}"></head>
 <body>
     <div th:replace="~{fragments/header :: header}"></div>
-    
+
     <main class="w-100 bg-white">
-        <!-- Shop Header Banner -->
-        <section class="w-100 position-relative bg-plum" style="height: 250px;">
-            <img src="https://images.unsplash.com/photo-1441984904996-e0b6ba687e04?w=1200&q=80" alt="Shop Banner" class="w-100 h-100 object-fit-cover opacity-50" />
-            <div class="position-absolute bottom-0 start-0 w-100 p-4 pb-0">
-                <div class="max-w-1440 mx-auto px-3 px-md-4 d-flex align-items-end gap-4 position-relative" style="transform: translateY(30px);">
-                    <div class="bg-white p-1 shadow-sm border border-clay flex-shrink-0" style="width: 120px; height: 120px;">
-                        <img src="https://images.unsplash.com/photo-1540200049848-d9813ea0e120?w=200&q=80" alt="Shop Logo" class="w-100 h-100 object-fit-cover bg-ivory" />
+        <section class="w-100 position-relative bg-plum" style="min-height: 220px;">
+            <div class="max-w-1440 mx-auto px-3 px-md-4 py-5">
+                <div class="d-flex align-items-center gap-4">
+                    <div th:if="${shop.logoUrl != null}"
+                         class="bg-white p-1 shadow-sm border border-clay flex-shrink-0"
+                         style="width: 120px; height: 120px;">
+                        <img th:src="${shop.logoUrl}" th:alt="${shop.name}"
+                             class="w-100 h-100 object-fit-cover bg-ivory" />
                     </div>
-                    <div class="pb-4 text-white">
-                        <h2 class="text-serif fw-bold mb-1">NOLA Official</h2>
-                        <div class="d-flex align-items-center gap-3 small">
-                            <span><i class="bi bi-star-fill text-warning me-1"></i> 4.9/5.0</span>
-                            <span>|</span>
-                            <span><i class="bi bi-box-seam me-1"></i> 124 Sản phẩm</span>
-                            <span>|</span>
-                            <span><i class="bi bi-people me-1"></i> 1.2k Người theo dõi</span>
-                        </div>
+                    <div th:unless="${shop.logoUrl != null}"
+                         class="bg-white p-1 shadow-sm border border-clay d-flex align-items-center justify-content-center flex-shrink-0"
+                         style="width: 120px; height: 120px;">
+                        <i class="bi bi-shop text-plum" style="font-size: 3rem;"></i>
+                    </div>
+                    <div class="text-white">
+                        <h1 class="text-serif fw-bold mb-2" th:text="${shop.name}">Gian hàng</h1>
+                        <p class="mb-0" th:text="${shop.description}">Thông tin gian hàng</p>
                     </div>
                 </div>
             </div>
         </section>
 
-        <!-- Spacer for avatar overflow -->
-        <div style="height: 60px;"></div>
-
-        <!-- Shop Info & Filters -->
         <section class="max-w-1440 mx-auto px-3 px-md-4 py-4 border-bottom border-clay mb-5">
-            <div class="row align-items-center">
-                <div class="col-12 col-md-6 mb-4 mb-md-0">
-                    <p class="text-muted m-0">NOLA - Nâng tầm phong cách sống tối giản. Chuyên cung cấp các sản phẩm thời trang và phụ kiện được thiết kế tỉ mỉ, chất lượng cao.</p>
+            <div class="d-flex flex-column flex-md-row justify-content-between gap-3">
+                <div>
+                    <h2 class="fw-bold text-plum mb-2" th:text="${shop.name}">Gian hàng</h2>
+                    <p class="text-muted m-0" th:if="${shop.address != null}" th:text="${shop.address}">Địa chỉ shop</p>
                 </div>
-                <div class="col-12 col-md-6 d-flex justify-content-md-end gap-3">
-                    <button class="btn border border-plum text-plum rounded-0 fw-medium px-4 hover-bg-plum hover-text-white transition-colors"><i class="bi bi-plus-lg me-2"></i>Theo dõi</button>
-                    <button class="btn border border-clay text-muted rounded-0 px-3 hover-border-plum hover-text-plum transition-colors"><i class="bi bi-share"></i></button>
-                </div>
+                <a th:href="@{/products}" class="btn border border-plum text-plum rounded-0 fw-medium px-4 hover-bg-plum hover-text-white transition-colors align-self-start">
+                    Xem toàn bộ sản phẩm
+                </a>
             </div>
         </section>
 
-        <!-- Shop Products -->
         <section class="max-w-1440 mx-auto px-3 px-md-4 pb-5">
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <h4 class="fw-bold text-plum m-0">Tất cả sản phẩm</h4>
-                <select class="form-select w-auto bg-ivory border-0 rounded-0 shadow-none text-plum fw-medium px-4 py-2">
-                    <option value="newest">Mới nhất</option>
-                    <option value="popular">Bán chạy</option>
-                    <option value="price_asc">Giá: Thấp đến cao</option>
-                    <option value="price_desc">Giá: Cao đến thấp</option>
-                </select>
+            <h3 class="fw-bold text-plum mb-4">Sản phẩm đang bán</h3>
+
+            <div th:if="${products.isEmpty()}" class="text-center py-5 bg-ivory border border-clay">
+                <i class="bi bi-box-seam text-muted mb-3 d-block" style="font-size: 2rem;"></i>
+                <p class="text-muted mb-0">Gian hàng hiện chưa có sản phẩm đang bán.</p>
             </div>
 
-            <div class="row g-4 mb-5">
-                <!-- This would be dynamic via Thymeleaf loop -->
-                <div class="col-6 col-md-4 col-lg-3">
-                    <div class="card border-0 rounded-0 h-100 bg-transparent group">
-                        <div class="position-relative bg-ivory overflow-hidden mb-3">
-                            <a th:href="@{/products/4}"><img src="https://images.unsplash.com/photo-1541643600914-78b084683702?w=400&q=80" alt="Product" class="w-100 object-fit-cover hover-scale-105 transition-transform" style="aspect-ratio: 3/4;" onerror="this.src='https://placehold.co/300x400/f5f0ea/7c4a5e?text=SP'"></a>
-                        </div>
-                        <div class="card-body p-0">
-                            <a th:href="@{/products/4}" class="text-decoration-none">
-                                <h5 class="text-plum fs-6 fw-medium mb-1 hover-burgundy transition-colors line-clamp-2">Nước Hoa Le Labo Santal 33</h5>
-                                <div class="fw-bold text-burgundy mb-2">4.500.000₫</div>
-                                <div class="text-muted small">Đã bán: 120</div>
-                            </a>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-6 col-md-4 col-lg-3">
-                    <div class="card border-0 rounded-0 h-100 bg-transparent group">
-                        <div class="position-relative bg-ivory overflow-hidden mb-3">
-                            <a th:href="@{/products/7}"><img src="https://images.unsplash.com/photo-1627123424574-724758594e93?w=400&q=80" alt="Product" class="w-100 object-fit-cover hover-scale-105 transition-transform" style="aspect-ratio: 3/4;"></a>
-                        </div>
-                        <div class="card-body p-0">
-                            <a th:href="@{/products/7}" class="text-decoration-none">
-                                <h5 class="text-plum fs-6 fw-medium mb-1 hover-burgundy transition-colors line-clamp-2">Ví Da Thật Cao Cấp</h5>
-                                <div class="fw-bold text-burgundy mb-2">950.000₫</div>
-                                <div class="text-muted small">Đã bán: 85</div>
-                            </a>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-6 col-md-4 col-lg-3">
-                    <div class="card border-0 rounded-0 h-100 bg-transparent group">
-                        <div class="position-relative bg-ivory overflow-hidden mb-3">
-                            <a th:href="@{/products/1}"><img src="https://images.unsplash.com/photo-1591561954557-26941169b49e?w=400&q=80" alt="Product" class="w-100 object-fit-cover hover-scale-105 transition-transform" style="aspect-ratio: 3/4;"></a>
-                        </div>
-                        <div class="card-body p-0">
-                            <a th:href="@{/products/1}" class="text-decoration-none">
-                                <h5 class="text-plum fs-6 fw-medium mb-1 hover-burgundy transition-colors line-clamp-2">Canvas Tote Bag</h5>
-                                <div class="fw-bold text-burgundy mb-2">1.190.000₫</div>
-                                <div class="text-muted small">Đã bán: 340</div>
-                            </a>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-6 col-md-4 col-lg-3">
-                    <div class="card border-0 rounded-0 h-100 bg-transparent group">
-                        <div class="position-relative bg-ivory overflow-hidden mb-3">
-                            <a th:href="@{/products/2}"><img src="https://images.unsplash.com/photo-1596755094514-f87e32f85e2c?w=400&q=80" alt="Product" class="w-100 object-fit-cover hover-scale-105 transition-transform" style="aspect-ratio: 3/4;"></a>
-                            <div class="position-absolute top-0 start-0 m-2 bg-dark text-white px-2 py-1 small fw-bold">HẾT HÀNG</div>
-                        </div>
-                        <div class="card-body p-0">
-                            <a th:href="@{/products/2}" class="text-decoration-none opacity-75">
-                                <h5 class="text-plum fs-6 fw-medium mb-1 hover-burgundy transition-colors line-clamp-2">Linen Shirt</h5>
-                                <div class="fw-bold text-burgundy mb-2">890.000₫</div>
-                                <div class="text-muted small">Đã bán: 210</div>
-                            </a>
-                        </div>
-                    </div>
+            <div th:unless="${products.isEmpty()}" class="row g-4">
+                <div class="col-6 col-md-4 col-lg-3" th:each="product : ${products}">
+                    <div th:replace="~{fragments/product-card :: product-card(${product})}"></div>
                 </div>
             </div>
-
-            <!-- Pagination -->
-            <nav>
-                <ul class="pagination justify-content-center border-0 gap-2">
-                    <li class="page-item disabled"><a class="page-link border-0 text-muted shadow-none bg-transparent" href="#">&larr; Trước</a></li>
-                    <li class="page-item active"><a class="page-link border-0 bg-plum text-white rounded-circle shadow-none" href="#" style="width: 36px; height: 36px; display: flex; align-items: center; justify-content: center;">1</a></li>
-                    <li class="page-item"><a class="page-link border-0 text-plum hover-bg-ivory rounded-circle shadow-none transition-colors" href="#" style="width: 36px; height: 36px; display: flex; align-items: center; justify-content: center;">2</a></li>
-                    <li class="page-item"><a class="page-link border-0 text-plum hover-bg-ivory rounded-circle shadow-none transition-colors" href="#" style="width: 36px; height: 36px; display: flex; align-items: center; justify-content: center;">3</a></li>
-                    <li class="page-item"><a class="page-link border-0 text-plum shadow-none bg-transparent" href="#">Sau &rarr;</a></li>
-                </ul>
-            </nav>
         </section>
     </main>
-    
+
     <div th:replace="~{fragments/footer :: footer}"></div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script th:src="@{/js/main.js}"></script>
 </body>
 </html>
-
-

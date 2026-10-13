@@ -1,6 +1,6 @@
 package com.senvia.doangiuaky.merchant.controller;
 
-import com.senvia.doangiuaky.merchant.dto.CatalogProductView;
+import com.senvia.doangiuaky.merchant.dto.CatalogProductCardView;
 import com.senvia.doangiuaky.merchant.entity.Category;
 import com.senvia.doangiuaky.merchant.service.CategoryManagementService;
 import com.senvia.doangiuaky.merchant.service.DemoMerchantApi;
@@ -24,8 +24,8 @@ class HomeControllerTest {
         when(category.getName()).thenReturn("Nhà cửa");
         when(categoryService.listActiveForProductSelection()).thenReturn(List.of(category));
         when(catalogService.findSaleableCatalogProducts()).thenReturn(List.of(
-                new CatalogProductView(1L, "Product", "Shop", new BigDecimal("10.00"),
-                        false, 0, null, "image", "Description", 2, 0.0, 0, "Nhà cửa", List.of())));
+                new CatalogProductCardView(1L, "Product", new BigDecimal("10.00"),
+                        "image", "Nhà cửa", 1L, "Shop")));
 
         ExtendedModelMap model = new ExtendedModelMap();
         String view = new HomeController(catalogService, categoryService).home(model);
