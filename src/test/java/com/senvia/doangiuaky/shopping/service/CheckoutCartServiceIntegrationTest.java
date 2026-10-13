@@ -151,6 +151,25 @@ class CheckoutCartServiceIntegrationTest {
     }
 
     @Test
+    void replayedCleanupFailsSafelyWithoutDeletingAReplacementOrOtherItem() {
+        Fixture fixture = createFixture();
+        CheckoutCartItem purchased = new CheckoutCartItem(
+                fixture.firstItemId(), fixture.firstProductId(), 2);
+        inTransaction(() -> checkoutCartApi.removePurchasedItems(fixture.buyerId(), List.of(purchased)));
+
+        Cart cart = cartRepository.findByUserId(fixture.buyerId()).orElseThrow();
+        CartItem replacement = cartItemRepository.saveAndFlush(
+                new CartItem(cart.getId(), fixture.firstProductId(), 2));
+
+        assertThrows(CartOperationException.class,
+                () -> inTransaction(() -> checkoutCartApi.removePurchasedItems(
+                        fixture.buyerId(), List.of(purchased))));
+
+        assertTrue(cartItemRepository.existsById(replacement.getId()));
+        assertTrue(cartItemRepository.existsById(fixture.secondItemId()));
+    }
+
+    @Test
     void snapshotKeepsCartLockUntilCheckoutTransactionEnds() throws Exception {
         Fixture fixture = createFixture();
         CountDownLatch snapshotTaken = new CountDownLatch(1);
