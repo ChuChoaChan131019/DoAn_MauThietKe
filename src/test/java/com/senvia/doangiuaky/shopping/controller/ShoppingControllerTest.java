@@ -4,7 +4,7 @@ import com.senvia.doangiuaky.identity.api.AccountStatus;
 import com.senvia.doangiuaky.identity.api.IdentityApi;
 import com.senvia.doangiuaky.identity.api.UserRole;
 import com.senvia.doangiuaky.identity.api.UserSummary;
-import com.senvia.doangiuaky.shopping.dto.AddCartItemResult;
+import com.senvia.doangiuaky.shopping.dto.CartItemMutationResult;
 import com.senvia.doangiuaky.shopping.dto.CartItemView;
 import com.senvia.doangiuaky.shopping.dto.FavoriteItemView;
 import com.senvia.doangiuaky.shopping.service.CartService;
@@ -58,7 +58,7 @@ class ShoppingControllerTest {
         IdentityApi identityApi = mock(IdentityApi.class);
         when(identityApi.findUserByEmail("buyer@example.com"))
                 .thenReturn(java.util.Optional.of(new UserSummary(10L, "Buyer", UserRole.USER, AccountStatus.ACTIVE)));
-        when(cartService.addItem(10L, 20L, 2)).thenReturn(new AddCartItemResult(
+        when(cartService.addItem(10L, 20L, 2)).thenReturn(new CartItemMutationResult(
                 new CartItemView(99L, 20L, 30L, "Shop", "Product", null,
                         new BigDecimal("100000"), 5, 2, new BigDecimal("200000"), true, true, null),
                 false,
@@ -85,6 +85,11 @@ class ShoppingControllerTest {
                 .thenReturn(java.util.Optional.of(new UserSummary(
                         10L, "Buyer", UserRole.USER, AccountStatus.ACTIVE)));
         when(cartService.getCart(10L)).thenReturn(com.senvia.doangiuaky.shopping.dto.CartView.empty());
+        when(cartService.updateItemQuantity(10L, 77L, 3)).thenReturn(new CartItemMutationResult(
+                new CartItemView(77L, 20L, 30L, "Shop", "Product", null,
+                        new BigDecimal("100000"), 5, 3, new BigDecimal("300000"), true, true, null),
+                false,
+                "Đã cập nhật số lượng sản phẩm."));
         MockMvc mvc = MockMvcBuilders.standaloneSetup(
                 new ShoppingController(cartService, favoriteService, identityApi)).build();
 

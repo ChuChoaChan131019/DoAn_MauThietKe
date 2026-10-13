@@ -50,6 +50,44 @@ class ShoppingCartIntegrationTest {
         assertEquals(1, quantity);
     }
 
+    @Test
+    void userUpdateIsClampedToCurrentDatabaseStock() throws Exception {
+        String email = "cart-update-" + UUID.randomUUID() + "@example.com";
+        insertUser(email);
+        Long productId = insertSaleableProductFixture();
+
+        mockMvc.perform(post("/cart/items")
+                        .with(user(email).roles("USER"))
+                        .with(csrf())
+                        .param("productId", productId.toString())
+                        .param("quantity", "1"))
+                .andExpect(status().is3xxRedirection());
+
+        Long cartItemId = jdbcTemplate.queryForObject("""
+                select ci.id
+                from cart_items ci
+                join carts c on c.id = ci.cart_id
+                join users u on u.id = c.user_id
+                where u.email = ? and ci.product_id = ?
+                """, Long.class, email, productId);
+
+        mockMvc.perform(post("/cart/items/{cartItemId}/quantity", cartItemId)
+                        .with(user(email).roles("USER"))
+                        .with(csrf())
+                        .param("quantity", "99"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/cart"));
+
+        Integer quantity = jdbcTemplate.queryForObject("""
+                select ci.quantity
+                from cart_items ci
+                join carts c on c.id = ci.cart_id
+                join users u on u.id = c.user_id
+                where u.email = ? and ci.product_id = ?
+                """, Integer.class, email, productId);
+        assertEquals(5, quantity);
+    }
+
     private Long insertSaleableProductFixture() {
         String suffix = UUID.randomUUID().toString();
         String ownerEmail = "cart-owner-" + suffix + "@example.com";

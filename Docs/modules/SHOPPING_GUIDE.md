@@ -14,6 +14,7 @@
 
 - Dùng `identity.api` cho user hiện tại và role.
 - Dùng `merchant.api` cho product/shop, giá, stock và khả năng bán.
+- Add/update cart khóa theo thứ tự `cart → product`; sau khi khóa cart, gọi `MerchantApi#findProductForCartMutation` trong cùng transaction để đọc stock authoritative và giữ product row lock đến commit.
 - Dùng `ordering.api` cho lịch sử/chi tiết/cancel order của buyer.
 - Cung cấp `shopping.api`: checkout snapshot và xóa item sau checkout thành công.
 - Không tạo Order, Payment hoặc cập nhật stock.

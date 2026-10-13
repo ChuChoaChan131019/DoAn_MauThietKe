@@ -17,6 +17,7 @@ Merchant sở hữu vòng đời shop, category, product, ảnh và stock.
 - Cung cấp `merchant.api`: shop/product summary, giá, stock, khả năng bán, trừ/hoàn stock và product count.
 - `CartProductView#isSaleable()` là kết quả khả năng bán chuẩn trong public contract; module tiêu thụ không truy cập Entity/Repository/Service nội bộ.
 - `MerchantApi#findProductForCart` trả summary khi product tồn tại nhưng không bán được; `Optional.empty()` chỉ dành cho ID không hợp lệ hoặc product không tồn tại.
+- `MerchantApi#findProductForCartMutation` yêu cầu transaction đang mở, khóa pessimistic row `products` đến hết transaction và không thay đổi stock; Shopping dùng contract này sau khi khóa cart để add/update quantity bằng stock authoritative.
 - Phát event gửi/duyệt/từ chối shop có `eventId`.
 - Không công bố Entity, Repository, Service nội bộ hoặc Cloudinary secret.
 

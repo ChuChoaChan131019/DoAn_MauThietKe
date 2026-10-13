@@ -5,7 +5,7 @@ import com.senvia.doangiuaky.identity.api.IdentityApi;
 import com.senvia.doangiuaky.identity.api.UserRole;
 import com.senvia.doangiuaky.identity.api.UserSummary;
 import com.senvia.doangiuaky.shopping.dto.AddCartItemRequest;
-import com.senvia.doangiuaky.shopping.dto.AddCartItemResult;
+import com.senvia.doangiuaky.shopping.dto.CartItemMutationResult;
 import com.senvia.doangiuaky.shopping.dto.UpdateCartItemRequest;
 import com.senvia.doangiuaky.shopping.service.CartItemNotFoundException;
 import com.senvia.doangiuaky.shopping.service.CartOperationException;
@@ -65,9 +65,9 @@ public class ShoppingController {
         }
 
         try {
-            AddCartItemResult result = cartService.addItem(
+            CartItemMutationResult result = cartService.addItem(
                     currentUserId(principal), request.getProductId(), request.getQuantity());
-            redirectAttributes.addFlashAttribute("cartSuccess", result.message());
+            addCartMutationMessage(redirectAttributes, result);
         } catch (CartOperationException exception) {
             redirectAttributes.addFlashAttribute("cartError", exception.getMessage());
         }
@@ -86,8 +86,9 @@ public class ShoppingController {
             return "redirect:/cart";
         }
         try {
-            cartService.updateItemQuantity(currentUserId(principal), cartItemId, request.getQuantity());
-            redirectAttributes.addFlashAttribute("cartSuccess", "Đã cập nhật số lượng.");
+            CartItemMutationResult result = cartService.updateItemQuantity(
+                    currentUserId(principal), cartItemId, request.getQuantity());
+            addCartMutationMessage(redirectAttributes, result);
         } catch (CartItemNotFoundException exception) {
             throw exception;
         } catch (CartOperationException exception) {
@@ -170,5 +171,12 @@ public class ShoppingController {
                         ? "Dữ liệu giỏ hàng không hợp lệ."
                         : error.getDefaultMessage())
                 .orElse("Dữ liệu giỏ hàng không hợp lệ.");
+    }
+
+    private static void addCartMutationMessage(
+            RedirectAttributes redirectAttributes, CartItemMutationResult result) {
+        redirectAttributes.addFlashAttribute(
+                result.quantityClamped() ? "cartWarning" : "cartSuccess",
+                result.message());
     }
 }

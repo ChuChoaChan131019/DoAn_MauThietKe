@@ -12,6 +12,7 @@
         </div>
 
         <div th:if="${cartSuccess}" class="alert alert-success rounded-0" th:text="${cartSuccess}"></div>
+        <div th:if="${cartWarning}" class="alert alert-warning rounded-0" th:text="${cartWarning}"></div>
         <div th:if="${cartError}" class="alert alert-danger rounded-0" th:text="${cartError}"></div>
         <div th:if="${!cart.empty && cart.totalQuantity == 0}" class="alert alert-warning rounded-0">
             Một hoặc nhiều sản phẩm trong giỏ hiện không còn khả dụng. Vui lòng kiểm tra cảnh báo trước khi thanh toán.

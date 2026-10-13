@@ -6,8 +6,8 @@ import com.senvia.doangiuaky.identity.api.UserRole;
 import com.senvia.doangiuaky.identity.api.UserSummary;
 import com.senvia.doangiuaky.merchant.api.CartProductView;
 import com.senvia.doangiuaky.merchant.api.MerchantApi;
-import com.senvia.doangiuaky.shopping.dto.AddCartItemResult;
 import com.senvia.doangiuaky.shopping.dto.CartItemView;
+import com.senvia.doangiuaky.shopping.dto.CartItemMutationResult;
 import com.senvia.doangiuaky.shopping.dto.CartShopView;
 import com.senvia.doangiuaky.shopping.dto.CartView;
 import com.senvia.doangiuaky.shopping.entity.Cart;
@@ -74,7 +74,7 @@ public class CartService {
         this.transactionTemplate = transactionTemplate;
     }
 
-    public AddCartItemResult addItem(Long currentUserId, Long productId, int requestedQuantity) {
+    public CartItemMutationResult addItem(Long currentUserId, Long productId, Integer requestedQuantity) {
         if (transactionTemplate == null) {
             return addItemInTransaction(currentUserId, productId, requestedQuantity);
         }
@@ -103,8 +103,43 @@ public class CartService {
         }
     }
 
+    private CartItemMutationResult addItemInTransaction(Long currentUserId, Long productId, Integer requestedQuantity) {
+        validatePositiveId(currentUserId, "Không xác định được người dùng.");
+        validatePositiveId(productId, "Sản phẩm không hợp lệ.");
+        if (requestedQuantity == null || requestedQuantity <= 0) {
+            throw new CartOperationException("Số lượng phải lớn hơn 0.");
+        }
+
+        UserSummary buyer = identityApi.findUser(currentUserId)
+                .orElseThrow(() -> new CartOperationException("Tài khoản không tồn tại."));
+        validateBuyer(buyer);
+
+        Cart cart = cartRepository.findByUserIdForUpdate(currentUserId)
+                .orElseGet(() -> cartRepository.save(new Cart(currentUserId)));
+        CartProductView product = lockedProductForMutation(productId);
+        validateProductForBuyer(currentUserId, product);
+        CartItem item = cartItemRepository.findByCartIdAndProductId(cart.getId(), productId)
+                .orElseGet(() -> new CartItem(cart.getId(), productId, 0));
+
+        long requestedTotal = (long) item.getQuantity() + requestedQuantity;
+        int finalQuantity = (int) Math.min(requestedTotal, product.stockQuantity());
+        if (finalQuantity <= 0) {
+            throw new CartOperationException("Sản phẩm đã hết hàng.");
+        }
+
+        item.setQuantity(finalQuantity);
+        cartItemRepository.save(item);
+
+        boolean clamped = requestedTotal > product.stockQuantity();
+        String message = clamped
+                ? "Số lượng đã được điều chỉnh còn " + finalQuantity
+                    + " theo tồn kho hiện tại (" + product.stockQuantity() + ")."
+                : "Đã thêm sản phẩm vào giỏ hàng.";
+        return new CartItemMutationResult(CartItemView.from(item, product), clamped, message);
+    }
+
     @Transactional
-    public void updateItemQuantity(Long currentUserId, Long cartItemId, int quantity) {
+    public CartItemMutationResult updateItemQuantity(Long currentUserId, Long cartItemId, int quantity) {
         validatePositiveId(currentUserId, "Không xác định được người dùng.");
         validatePositiveId(cartItemId, "Mục giỏ hàng không hợp lệ.");
         if (quantity <= 0) {
@@ -118,18 +153,19 @@ public class CartService {
                 .orElseThrow(CartItemNotFoundException::new);
         CartItem item = cartItemRepository.findByIdAndCartId(cartItemId, cart.getId())
                 .orElseThrow(CartItemNotFoundException::new);
-        CartProductView product = merchantApiSupplier.get().findProductForCart(item.getProductId())
-                .orElseThrow(() -> new CartOperationException("Sản phẩm không còn tồn tại."));
-        validateSaleability(product);
-        if (currentUserId.equals(product.shopOwnerId())) {
-            throw new CartOperationException("Bạn không thể mua sản phẩm của chính shop mình.");
-        }
-        if (quantity > product.stockQuantity()) {
-            throw new CartOperationException("Số lượng vượt tồn kho hiện tại.");
-        }
+        CartProductView product = lockedProductForMutation(item.getProductId());
+        validateProductForBuyer(currentUserId, product);
 
-        item.setQuantity(quantity);
+        int finalQuantity = Math.min(quantity, product.stockQuantity());
+        item.setQuantity(finalQuantity);
         cartItemRepository.save(item);
+
+        boolean clamped = quantity > product.stockQuantity();
+        String message = clamped
+                ? "Số lượng đã được điều chỉnh còn " + finalQuantity
+                    + " theo tồn kho hiện tại (" + product.stockQuantity() + ")."
+                : "Đã cập nhật số lượng sản phẩm.";
+        return new CartItemMutationResult(CartItemView.from(item, product), clamped, message);
     }
 
     @Transactional
@@ -146,45 +182,6 @@ public class CartService {
                 .orElseThrow(CartItemNotFoundException::new);
         cartItemRepository.delete(item);
         cartItemRepository.flush();
-    }
-
-    private AddCartItemResult addItemInTransaction(Long currentUserId, Long productId, int requestedQuantity) {
-        validatePositiveId(currentUserId, "Không xác định được người dùng.");
-        validatePositiveId(productId, "Sản phẩm không hợp lệ.");
-        if (requestedQuantity <= 0) {
-            throw new CartOperationException("Số lượng phải lớn hơn 0.");
-        }
-
-        UserSummary buyer = identityApi.findUser(currentUserId)
-                .orElseThrow(() -> new CartOperationException("Tài khoản không tồn tại."));
-        validateBuyer(buyer);
-
-        CartProductView product = merchantApiSupplier.get().findProductForCart(productId)
-                .orElseThrow(() -> new CartOperationException("Sản phẩm không tồn tại."));
-        validateSaleability(product);
-        if (currentUserId.equals(product.shopOwnerId())) {
-            throw new CartOperationException("Bạn không thể mua sản phẩm của chính shop mình.");
-        }
-
-        Cart cart = cartRepository.findByUserIdForUpdate(currentUserId)
-                .orElseGet(() -> cartRepository.save(new Cart(currentUserId)));
-        CartItem item = cartItemRepository.findByCartIdAndProductId(cart.getId(), productId)
-                .orElseGet(() -> new CartItem(cart.getId(), productId, 0));
-
-        long requestedTotal = (long) item.getQuantity() + requestedQuantity;
-        int finalQuantity = (int) Math.min(requestedTotal, product.stockQuantity());
-        if (finalQuantity <= 0) {
-            throw new CartOperationException("Sản phẩm đã hết hàng.");
-        }
-
-        item.setQuantity(finalQuantity);
-        cartItemRepository.save(item);
-
-        boolean clamped = requestedTotal > product.stockQuantity();
-        String message = clamped
-                ? "Số lượng đã được điều chỉnh theo tồn kho hiện tại."
-                : "Đã thêm sản phẩm vào giỏ hàng.";
-        return new AddCartItemResult(CartItemView.from(item, product), clamped, message);
     }
 
     @Transactional(readOnly = true)
@@ -303,6 +300,18 @@ public class CartService {
         }
         if (buyer.accountStatus() != AccountStatus.ACTIVE) {
             throw new CartOperationException("Tài khoản đang bị khóa.");
+        }
+    }
+
+    private CartProductView lockedProductForMutation(Long productId) {
+        return merchantApiSupplier.get().findProductForCartMutation(productId)
+                .orElseThrow(() -> new CartOperationException("Sản phẩm không tồn tại."));
+    }
+
+    private static void validateProductForBuyer(Long currentUserId, CartProductView product) {
+        validateSaleability(product);
+        if (currentUserId.equals(product.shopOwnerId())) {
+            throw new CartOperationException("Bạn không thể mua sản phẩm của chính shop mình.");
         }
     }
 

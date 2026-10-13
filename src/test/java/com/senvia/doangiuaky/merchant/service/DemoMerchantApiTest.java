@@ -9,10 +9,14 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.annotation.Propagation;
+
+import org.springframework.transaction.IllegalTransactionStateException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 @SpringBootTest
 @Transactional
@@ -55,6 +59,23 @@ class DemoMerchantApiTest {
     @Test
     void returnsEmptyForUnknownProduct() {
         assertTrue(merchantApi.findProductForCart(Long.MAX_VALUE).isEmpty());
+    }
+
+    @Test
+    void cartMutationQueryReturnsLockedProductInsideCallerTransaction() {
+        Long productId = productRepository.findByName("Canvas Tote Bag").orElseThrow().getId();
+
+        var product = merchantApi.findProductForCartMutation(productId);
+
+        assertTrue(product.isPresent());
+        assertEquals(productId, product.orElseThrow().productId());
+    }
+
+    @Test
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    void cartMutationQueryRequiresCallerTransaction() {
+        assertThrows(IllegalTransactionStateException.class,
+                () -> merchantApi.findProductForCartMutation(1L));
     }
 
     @Test
