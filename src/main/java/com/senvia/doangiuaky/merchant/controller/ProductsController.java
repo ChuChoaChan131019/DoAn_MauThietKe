@@ -38,11 +38,13 @@ public class ProductsController {
             @RequestParam(required = false) Integer min,
             @RequestParam(required = false) Integer max,
             @RequestParam(required = false) String category,
-            @RequestParam(required = false) List<String> brand,
+            @RequestParam(required = false) List<String> shop,
+            @RequestParam(name = "brand", required = false) List<String> legacyBrand,
             @RequestParam(required = false, defaultValue = "newest") String sort,
             @RequestParam(required = false, defaultValue = "1") Integer page,
             Model model) {
 
+        List<String> selectedShops = shop != null ? shop : legacyBrand != null ? legacyBrand : List.of();
         List<CatalogProductCardView> catalogProducts = catalogService.findSaleableCatalogProducts();
         List<CatalogProductCardView> filteredProducts = catalogProducts.stream()
                 .filter(product -> q == null || q.isBlank()
@@ -54,7 +56,7 @@ public class ProductsController {
                 .filter(product -> category == null || category.isBlank()
                         || "Tất cả sản phẩm".equals(category)
                         || product.categoryName().equals(category))
-                .filter(product -> brand == null || brand.isEmpty() || brand.contains(product.shopName()))
+                .filter(product -> selectedShops.isEmpty() || selectedShops.contains(product.shopName()))
                 .collect(Collectors.toList());
 
         if ("price_asc".equals(sort)) {
@@ -74,7 +76,7 @@ public class ProductsController {
         model.addAttribute("totalPages", totalPages);
         model.addAttribute("currentPage", currentPage);
         model.addAttribute("sort", sort);
-        model.addAttribute("selectedShops", brand != null ? brand : List.of());
+        model.addAttribute("selectedShops", selectedShops);
         model.addAttribute("categories", categoryService.listActiveForProductSelection());
 
         Map<String, Long> shopCounts = catalogProducts.stream()

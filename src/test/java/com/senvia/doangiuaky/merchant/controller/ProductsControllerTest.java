@@ -32,7 +32,7 @@ class ProductsControllerTest {
 
         ExtendedModelMap model = new ExtendedModelMap();
         String view = new ProductsController(catalogService, categoryService).listProducts(
-                null, null, null, null, null, "newest", 1, model);
+                null, null, null, null, null, null, "newest", 1, model);
 
         assertEquals("products/list", view);
         assertEquals(List.of(activeCategory), model.get("categories"));

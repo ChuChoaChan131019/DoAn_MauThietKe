@@ -15,7 +15,6 @@ import com.senvia.doangiuaky.merchant.entity.Product;
 import com.senvia.doangiuaky.merchant.entity.ProductImage;
 import com.senvia.doangiuaky.merchant.entity.ProductStatus;
 import com.senvia.doangiuaky.merchant.entity.Shop;
-import com.senvia.doangiuaky.merchant.entity.ShopStatus;
 import com.senvia.doangiuaky.merchant.repository.CategoryRepository;
 import com.senvia.doangiuaky.merchant.repository.ProductImageRepository;
 import com.senvia.doangiuaky.merchant.repository.ProductRepository;
@@ -156,7 +155,7 @@ public class DemoMerchantApi implements MerchantApi {
                                     List<ProductImage> images = productImageRepository
                                             .findAllByProductIdOrderByDisplayOrderAscIdAsc(product.getId());
                                     boolean ownerActive = owner.accountStatus() == AccountStatus.ACTIVE;
-                                    boolean shopApproved = shop.getStatus() == ShopStatus.APPROVED;
+                                    boolean shopApproved = shop.canBePubliclyListed();
                                     return new ProductReadContext(
                                             product,
                                             shop,
@@ -209,7 +208,7 @@ public class DemoMerchantApi implements MerchantApi {
     }
 
     private Optional<PublicShopView> toPublicShopView(Shop shop) {
-        if (shop.getStatus() != ShopStatus.APPROVED) {
+        if (!shop.canBePubliclyListed()) {
             return Optional.empty();
         }
         return identityApi.findUser(shop.getOwnerId())

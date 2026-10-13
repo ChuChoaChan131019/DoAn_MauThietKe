@@ -11,6 +11,8 @@ public interface ShopState {
 
     boolean canReceiveOrder();
 
+    boolean canBePubliclyListed();
+
     boolean canResubmit();
 
     boolean canHandleExistingOrders();

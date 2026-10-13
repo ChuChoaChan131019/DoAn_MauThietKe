@@ -1,6 +1,8 @@
 package com.senvia.doangiuaky.merchant.service;
 
 import com.senvia.doangiuaky.merchant.repository.ProductRepository;
+import com.senvia.doangiuaky.merchant.entity.ProductImage;
+import com.senvia.doangiuaky.merchant.repository.ProductImageRepository;
 import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -27,6 +29,9 @@ class DemoMerchantApiTest {
 
     @Autowired
     private ProductRepository productRepository;
+
+    @Autowired
+    private ProductImageRepository productImageRepository;
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
@@ -237,6 +242,26 @@ class DemoMerchantApiTest {
         assertEquals(1, detail.images().size());
         assertEquals(detail.thumbnailUrl(), detail.images().getFirst().imageUrl());
         assertEquals(detail.shopId(), detail.shop().id());
+    }
+
+    @Test
+    void catalogImagesFollowDisplayOrderAndFirstImageBecomesThumbnail() {
+        var product = productRepository.findByName("Canvas Tote Bag").orElseThrow();
+        productImageRepository.saveAndFlush(ProductImage.create(
+                product, "https://example.test/second.jpg", "test/second", 2));
+        productImageRepository.saveAndFlush(ProductImage.create(
+                product, "https://example.test/first.jpg", "test/first", 1));
+
+        var detail = merchantApi.findSaleableCatalogProduct(product.getId()).orElseThrow();
+        var card = merchantApi.findSaleableCatalogProducts().stream()
+                .filter(candidate -> candidate.id().equals(product.getId()))
+                .findFirst().orElseThrow();
+
+        assertEquals("https://example.test/first.jpg", detail.thumbnailUrl());
+        assertEquals("https://example.test/first.jpg", card.thumbnailUrl());
+        assertEquals(2, detail.images().size());
+        assertEquals("https://example.test/first.jpg", detail.images().get(0).imageUrl());
+        assertEquals("https://example.test/second.jpg", detail.images().get(1).imageUrl());
     }
 
     @Test
