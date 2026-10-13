@@ -22,20 +22,80 @@
                     
                     <div class="row g-3 mb-5">
                         <div class="col-12 col-md-6">
-                            <label class="form-label text-uppercase fw-medium text-plum small mb-2">Họ và tên *</label>
-                            <input type="text" class="form-control bg-ivory border-0 rounded-0 px-4 py-3 shadow-none text-plum" value="Nguyễn Văn A" required>
+                            <label for="receiverName" class="form-label">
+                                Họ và tên *
+                            </label>
+
+                            <input type="text"
+                                    id="receiverName"
+                                    th:field="*{receiverName}"
+                                    maxlength="100"
+                                    autocomplete="name"
+                                    class="form-control bg-ivory border-0 rounded-0 px-4 py-3"
+                                    required>
+
+                            <div class="text-danger small mt-1"
+                                th:if="${#fields.hasErrors('receiverName')}"
+                                th:errors="*{receiverName}">
+                            </div>
                         </div>
+
                         <div class="col-12 col-md-6">
-                            <label class="form-label text-uppercase fw-medium text-plum small mb-2">Số điện thoại *</label>
-                            <input type="tel" class="form-control bg-ivory border-0 rounded-0 px-4 py-3 shadow-none text-plum" value="0901234567" required>
+                            <label for="receiverPhone" class="form-label">
+                                Số điện thoại *
+                            </label>
+
+                            <input type="tel"
+                                    id="receiverPhone"
+                                    th:field="*{receiverPhone}"
+                                    maxlength="20"
+                                    autocomplete="tel"
+                                    class="form-control bg-ivory border-0 rounded-0 px-4 py-3"
+                                    required>
+
+                            <div class="text-danger small mt-1"
+                                th:if="${#fields.hasErrors('receiverPhone')}"
+                                th:errors="*{receiverPhone}">
+                            </div>
                         </div>
+
                         <div class="col-12">
-                            <label class="form-label text-uppercase fw-medium text-plum small mb-2">Địa chỉ chi tiết *</label>
-                            <input type="text" class="form-control bg-ivory border-0 rounded-0 px-4 py-3 shadow-none text-plum" value="123 Lê Lợi, Q.1, TP. HCM" required>
+                            <label for="shippingAddress" class="form-label">
+                                Địa chỉ nhận hàng *
+                            </label>
+
+                            <textarea id="shippingAddress"
+                                    th:field="*{shippingAddress}"
+                                    rows="3"
+                                    maxlength="2000"
+                                    autocomplete="street-address"
+                                    class="form-control bg-ivory border-0 rounded-0 px-4 py-3"
+                                    required>
+                            </textarea>
+
+                            <div class="text-danger small mt-1"
+                                th:if="${#fields.hasErrors('shippingAddress')}"
+                                th:errors="*{shippingAddress}">
+                            </div>
                         </div>
+
                         <div class="col-12">
-                            <label class="form-label text-uppercase fw-medium text-plum small mb-2">Ghi chú (Tùy chọn)</label>
-                            <textarea class="form-control bg-ivory border-0 rounded-0 px-4 py-3 shadow-none text-plum" rows="2" placeholder="Lưu ý giao hàng..."></textarea>
+                            <label for="note" class="form-label">
+                                Ghi chú (tùy chọn)
+                            </label>
+
+                            <textarea id="note"
+                                    th:field="*{note}"
+                                    rows="2"
+                                    maxlength="2000"
+                                    placeholder="Lưu ý khi giao hàng..."
+                                    class="form-control bg-ivory border-0 rounded-0 px-4 py-3">
+                            </textarea>
+
+                            <div class="text-danger small mt-1"
+                                th:if="${#fields.hasErrors('note')}"
+                                th:errors="*{note}">
+                            </div>
                         </div>
                     </div>
 
@@ -146,6 +206,12 @@
                                 <span>30.000đ</span>
                             </div>
                         </div>
+
+                        <div th:if="${addressValidated}"
+                            class="alert alert-success"
+                            role="status">
+                            Thông tin nhận hàng hợp lệ.
+                        </div>
                         
                         <div class="d-flex justify-content-between mb-3 text-plum">
                             <span>Tổng tiền hàng</span>
@@ -162,7 +228,7 @@
                         </div>
 
                         <button type="submit" class="btn bg-burgundy text-white w-100 text-decoration-none border-0 rounded-0 py-3 fw-bold hover-bg-plum transition-colors">
-                            Kiểm tra phương thức thanh toán <!-- Khi triển khai checkout thật, đổi lại thành Xác nhận đặt hàng. -->
+                            Kiểm tra thông tin nhận hàng và thanh toán <!-- Khi triển khai checkout thật, đổi lại thành Xác nhận đặt hàng. -->
                         </button>
                     </div>
                 </div>
