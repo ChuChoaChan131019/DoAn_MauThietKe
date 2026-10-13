@@ -15,7 +15,11 @@ Trang quản trị tài khoản Identity được đặt tại `/identity/admin/
 
 ## Public contract
 
-`identity.api` cung cấp `IdentityApi.findUser`, `findUserByEmail`, `userExists`, `isUserActive` và `findActiveAdmins`. DTO `UserSummary` chỉ có user ID, tên công khai, role và account status; không công bố password hash, User Entity/Repository hoặc principal nội bộ.
+`identity.api` cung cấp `IdentityApi.findUser`, `findUserByEmail`, `userExists`, `isUserActive`,
+`findActiveAdmins` và `CurrentUserApi.requireCurrentUser`. `CurrentUserApi` lấy account từ authenticated
+principal và đọc lại trạng thái hiện tại trong database; module sử dụng không được truyền user ID do client
+kiểm soát để thay thế danh tính này. DTO `UserSummary` chỉ có user ID, tên công khai, role và account
+status; không công bố password hash, User Entity/Repository hoặc principal nội bộ.
 
 ## Thứ tự feature
 

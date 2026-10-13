@@ -59,7 +59,7 @@ class ShoppingControllerTest {
         when(identityApi.findUserByEmail("buyer@example.com"))
                 .thenReturn(java.util.Optional.of(new UserSummary(10L, "Buyer", UserRole.USER, AccountStatus.ACTIVE)));
         when(cartService.addItem(10L, 20L, 2)).thenReturn(new CartItemMutationResult(
-                new CartItemView(20L, 30L, "Shop", "Product", null,
+                new CartItemView(99L, 20L, 30L, "Shop", "Product", null,
                         new BigDecimal("100000"), 5, 2, new BigDecimal("200000"), true, true, null),
                 false,
                 "Đã thêm sản phẩm vào giỏ hàng."));
@@ -77,47 +77,41 @@ class ShoppingControllerTest {
     }
 
     @Test
-    void updateQuantityResolvesCurrentUserAndShowsClampAsWarning() throws Exception {
+    void cartReadUpdateAndRemoveAlwaysUseAuthenticatedUser() throws Exception {
         CartService cartService = mock(CartService.class);
         FavoriteService favoriteService = mock(FavoriteService.class);
         IdentityApi identityApi = mock(IdentityApi.class);
         when(identityApi.findUserByEmail("buyer@example.com"))
-                .thenReturn(java.util.Optional.of(new UserSummary(10L, "Buyer", UserRole.USER, AccountStatus.ACTIVE)));
-        when(cartService.updateQuantity(10L, 20L, 9)).thenReturn(new CartItemMutationResult(
-                new CartItemView(20L, 30L, "Shop", "Product", null,
-                        new BigDecimal("100000"), 5, 5, new BigDecimal("500000"), true, true, null),
-                true,
-                "Số lượng đã được điều chỉnh còn 5 theo tồn kho hiện tại (5)."));
+                .thenReturn(java.util.Optional.of(new UserSummary(
+                        10L, "Buyer", UserRole.USER, AccountStatus.ACTIVE)));
+        when(cartService.getCart(10L)).thenReturn(com.senvia.doangiuaky.shopping.dto.CartView.empty());
+        when(cartService.updateItemQuantity(10L, 77L, 3)).thenReturn(new CartItemMutationResult(
+                new CartItemView(77L, 20L, 30L, "Shop", "Product", null,
+                        new BigDecimal("100000"), 5, 3, new BigDecimal("300000"), true, true, null),
+                false,
+                "Đã cập nhật số lượng sản phẩm."));
         MockMvc mvc = MockMvcBuilders.standaloneSetup(
                 new ShoppingController(cartService, favoriteService, identityApi)).build();
 
-        mvc.perform(post("/cart/items/20/quantity")
+        mvc.perform(get("/cart")
                         .principal(principal("buyer@example.com"))
-                        .param("quantity", "9"))
-                .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/cart"))
-                .andExpect(flash().attribute("cartWarning",
-                        "Số lượng đã được điều chỉnh còn 5 theo tồn kho hiện tại (5)."));
-
-        verify(cartService).updateQuantity(10L, 20L, 9);
-    }
-
-    @Test
-    void invalidUpdateQuantityIsRejectedBeforeServiceCall() throws Exception {
-        CartService cartService = mock(CartService.class);
-        FavoriteService favoriteService = mock(FavoriteService.class);
-        IdentityApi identityApi = mock(IdentityApi.class);
-        MockMvc mvc = MockMvcBuilders.standaloneSetup(
-                new ShoppingController(cartService, favoriteService, identityApi)).build();
-
-        mvc.perform(post("/cart/items/20/quantity")
+                        .param("buyerId", "999"))
+                .andExpect(status().isOk());
+        mvc.perform(post("/cart/items/77/quantity")
                         .principal(principal("buyer@example.com"))
-                        .param("quantity", "0"))
+                        .param("buyerId", "999")
+                        .param("quantity", "3"))
                 .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/cart"))
-                .andExpect(flash().attribute("cartError", "Số lượng phải lớn hơn 0."));
+                .andExpect(redirectedUrl("/cart"));
+        mvc.perform(post("/cart/items/77/remove")
+                        .principal(principal("buyer@example.com"))
+                        .param("buyerId", "999"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/cart"));
 
-        verify(cartService, never()).updateQuantity(eq(10L), eq(20L), eq(0));
+        verify(cartService).getCart(10L);
+        verify(cartService).updateItemQuantity(10L, 77L, 3);
+        verify(cartService).removeItem(10L, 77L);
     }
 
     @Test

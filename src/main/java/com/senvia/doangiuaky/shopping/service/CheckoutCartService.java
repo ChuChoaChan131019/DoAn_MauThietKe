@@ -1,7 +1,7 @@
 package com.senvia.doangiuaky.shopping.service;
 
 import com.senvia.doangiuaky.identity.api.AccountStatus;
-import com.senvia.doangiuaky.identity.api.IdentityApi;
+import com.senvia.doangiuaky.identity.api.CurrentUserApi;
 import com.senvia.doangiuaky.identity.api.UserRole;
 import com.senvia.doangiuaky.identity.api.UserSummary;
 import com.senvia.doangiuaky.shopping.api.CheckoutCartApi;
@@ -26,21 +26,21 @@ public class CheckoutCartService implements CheckoutCartApi {
 
     private final CartRepository cartRepository;
     private final CartItemRepository cartItemRepository;
-    private final IdentityApi identityApi;
+    private final CurrentUserApi currentUserApi;
 
     public CheckoutCartService(
             CartRepository cartRepository,
             CartItemRepository cartItemRepository,
-            IdentityApi identityApi) {
+            CurrentUserApi currentUserApi) {
         this.cartRepository = cartRepository;
         this.cartItemRepository = cartItemRepository;
-        this.identityApi = identityApi;
+        this.currentUserApi = currentUserApi;
     }
 
     @Override
     @Transactional(propagation = Propagation.MANDATORY)
-    public List<CheckoutCartItem> getCheckoutSnapshot(Long buyerId) {
-        validateBuyer(buyerId);
+    public List<CheckoutCartItem> getCheckoutSnapshot() {
+        Long buyerId = currentBuyerId();
         Cart cart = lockedCart(buyerId);
         if (cart == null) {
             return List.of();
@@ -52,8 +52,8 @@ public class CheckoutCartService implements CheckoutCartApi {
 
     @Override
     @Transactional(propagation = Propagation.MANDATORY)
-    public void removePurchasedItems(Long buyerId, List<CheckoutCartItem> purchasedItems) {
-        validateBuyer(buyerId);
+    public void removePurchasedItems(List<CheckoutCartItem> purchasedItems) {
+        Long buyerId = currentBuyerId();
         List<CheckoutCartItem> requested = validateItems(purchasedItems);
         Cart cart = lockedCart(buyerId);
         if (cart == null) {
@@ -86,16 +86,15 @@ public class CheckoutCartService implements CheckoutCartApi {
         return cart;
     }
 
-    private void validateBuyer(Long buyerId) {
-        if (buyerId == null || buyerId <= 0) {
+    private Long currentBuyerId() {
+        UserSummary buyer = currentUserApi.requireCurrentUser();
+        if (buyer == null || buyer.userId() == null || buyer.userId() <= 0) {
             throw new CartOperationException("Không xác định được người mua.");
         }
-        UserSummary buyer = identityApi.findUser(buyerId)
-                .orElseThrow(() -> new CartOperationException("Tài khoản không tồn tại."));
-        if (!buyerId.equals(buyer.userId()) || buyer.role() != UserRole.USER
-                || buyer.accountStatus() != AccountStatus.ACTIVE) {
+        if (buyer.role() != UserRole.USER || buyer.accountStatus() != AccountStatus.ACTIVE) {
             throw new CartOperationException("Tài khoản không được phép mua hàng.");
         }
+        return buyer.userId();
     }
 
     private static List<CheckoutCartItem> validateItems(List<CheckoutCartItem> purchasedItems) {

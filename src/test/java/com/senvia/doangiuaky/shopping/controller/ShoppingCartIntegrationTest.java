@@ -63,7 +63,15 @@ class ShoppingCartIntegrationTest {
                         .param("quantity", "1"))
                 .andExpect(status().is3xxRedirection());
 
-        mockMvc.perform(post("/cart/items/{productId}/quantity", productId)
+        Long cartItemId = jdbcTemplate.queryForObject("""
+                select ci.id
+                from cart_items ci
+                join carts c on c.id = ci.cart_id
+                join users u on u.id = c.user_id
+                where u.email = ? and ci.product_id = ?
+                """, Long.class, email, productId);
+
+        mockMvc.perform(post("/cart/items/{cartItemId}/quantity", cartItemId)
                         .with(user(email).roles("USER"))
                         .with(csrf())
                         .param("quantity", "99"))

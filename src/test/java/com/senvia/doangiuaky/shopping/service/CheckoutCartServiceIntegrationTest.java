@@ -7,12 +7,16 @@ import com.senvia.doangiuaky.shopping.entity.CartItem;
 import com.senvia.doangiuaky.shopping.repository.CartItemRepository;
 import com.senvia.doangiuaky.shopping.repository.CartRepository;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.AfterEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.IllegalTransactionStateException;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
+import org.springframework.security.authentication.TestingAuthenticationToken;
+import org.springframework.security.authentication.AuthenticationCredentialsNotFoundException;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.util.Arrays;
 import java.util.List;
@@ -34,103 +38,93 @@ class CheckoutCartServiceIntegrationTest {
 
     @Autowired
     private CheckoutCartApi checkoutCartApi;
-
     @Autowired
     private CartRepository cartRepository;
-
     @Autowired
     private CartItemRepository cartItemRepository;
-
     @Autowired
     private JdbcTemplate jdbcTemplate;
-
     @Autowired
     private PlatformTransactionManager transactionManager;
+
+    @AfterEach
+    void clearSecurityContext() {
+        SecurityContextHolder.clearContext();
+    }
 
     @Test
     void bothCallsRequireAnExistingTransaction() {
         assertThrows(IllegalTransactionStateException.class,
-                () -> checkoutCartApi.getCheckoutSnapshot(1L));
+                checkoutCartApi::getCheckoutSnapshot);
         assertThrows(IllegalTransactionStateException.class,
-                () -> checkoutCartApi.removePurchasedItems(1L, List.of()));
+                () -> checkoutCartApi.removePurchasedItems(List.of()));
+    }
+
+    @Test
+    void snapshotRequiresAuthenticatedPrincipalInsideCheckoutTransaction() {
+        SecurityContextHolder.clearContext();
+        assertThrows(AuthenticationCredentialsNotFoundException.class,
+                () -> inTransaction(checkoutCartApi::getCheckoutSnapshot));
     }
 
     @Test
     void snapshotOfMissingOrEmptyCartIsEmpty() {
         Long buyerId = insertUser();
-        inTransaction(() -> assertTrue(checkoutCartApi.getCheckoutSnapshot(buyerId).isEmpty()));
-
+        authenticate(buyerId);
+        inTransaction(() -> assertTrue(checkoutCartApi.getCheckoutSnapshot().isEmpty()));
         cartRepository.saveAndFlush(new Cart(buyerId));
-        inTransaction(() -> assertTrue(checkoutCartApi.getCheckoutSnapshot(buyerId).isEmpty()));
-        assertThrows(CartOperationException.class,
-                () -> inTransaction(() -> checkoutCartApi.removePurchasedItems(buyerId, List.of())));
+        inTransaction(() -> assertTrue(checkoutCartApi.getCheckoutSnapshot().isEmpty()));
     }
 
     @Test
     void removesOnlySelectedItemsAndRollsBackWithCheckoutTransaction() {
         Fixture fixture = createFixture();
+        authenticate(fixture.buyerId());
         List<CheckoutCartItem> snapshot = transaction().execute(status ->
-                checkoutCartApi.getCheckoutSnapshot(fixture.buyerId()));
+                checkoutCartApi.getCheckoutSnapshot());
         assertEquals(List.of(
                 new CheckoutCartItem(fixture.firstItemId(), fixture.firstProductId(), 2),
                 new CheckoutCartItem(fixture.secondItemId(), fixture.secondProductId(), 3)), snapshot);
 
         transaction().executeWithoutResult(status -> {
-            checkoutCartApi.removePurchasedItems(fixture.buyerId(), List.of(snapshot.getFirst()));
+            checkoutCartApi.removePurchasedItems(List.of(snapshot.getFirst()));
             assertFalse(cartItemRepository.existsById(fixture.firstItemId()));
             status.setRollbackOnly();
         });
         assertTrue(cartItemRepository.existsById(fixture.firstItemId()));
         assertTrue(cartItemRepository.existsById(fixture.secondItemId()));
 
-        inTransaction(() -> checkoutCartApi.removePurchasedItems(fixture.buyerId(), List.of(snapshot.getFirst())));
+        inTransaction(() -> checkoutCartApi.removePurchasedItems(List.of(snapshot.getFirst())));
         assertFalse(cartItemRepository.existsById(fixture.firstItemId()));
         assertTrue(cartItemRepository.existsById(fixture.secondItemId()));
     }
 
     @Test
-    void rejectsInvalidAndDuplicateInputWithoutRemovingAnything() {
+    void rejectsInvalidDuplicateForeignAndChangedItemsWithoutPartialRemoval() {
         Fixture fixture = createFixture();
+        authenticate(fixture.buyerId());
         CheckoutCartItem first = new CheckoutCartItem(fixture.firstItemId(), fixture.firstProductId(), 2);
         List<List<CheckoutCartItem>> invalidInputs = Arrays.asList(
-                null,
-                List.of(),
-                Arrays.asList((CheckoutCartItem) null),
+                null, List.of(), Arrays.asList((CheckoutCartItem) null),
                 List.of(new CheckoutCartItem(null, fixture.firstProductId(), 2)),
                 List.of(new CheckoutCartItem(fixture.firstItemId(), null, 2)),
                 List.of(new CheckoutCartItem(fixture.firstItemId(), fixture.firstProductId(), 0)),
                 List.of(first, first));
-
         for (List<CheckoutCartItem> invalid : invalidInputs) {
             assertThrows(CartOperationException.class,
-                    () -> inTransaction(() -> checkoutCartApi.removePurchasedItems(fixture.buyerId(), invalid)));
+                    () -> inTransaction(() -> checkoutCartApi.removePurchasedItems(invalid)));
         }
-        assertTrue(cartItemRepository.existsById(fixture.firstItemId()));
-        assertTrue(cartItemRepository.existsById(fixture.secondItemId()));
-    }
 
-    @Test
-    void rejectsForeignOrChangedItemsAndRollsBackWholeRemoval() {
-        Fixture fixture = createFixture();
         Long otherBuyerId = insertUser();
         Cart otherCart = cartRepository.saveAndFlush(new Cart(otherBuyerId));
         CartItem foreignItem = cartItemRepository.saveAndFlush(
                 new CartItem(otherCart.getId(), fixture.firstProductId(), 1));
-        CheckoutCartItem first = new CheckoutCartItem(fixture.firstItemId(), fixture.firstProductId(), 2);
-
-        List<CheckoutCartItem> foreign = List.of(first,
-                new CheckoutCartItem(foreignItem.getId(), fixture.firstProductId(), 1));
-        assertThrows(CartOperationException.class,
-                () -> inTransaction(() -> checkoutCartApi.removePurchasedItems(fixture.buyerId(), foreign)));
-        assertThrows(CartOperationException.class,
-                () -> inTransaction(() -> checkoutCartApi.removePurchasedItems(fixture.buyerId(),
-                        List.of(new CheckoutCartItem(fixture.firstItemId(), fixture.secondProductId(), 2)))));
-        assertThrows(CartOperationException.class,
-                () -> inTransaction(() -> checkoutCartApi.removePurchasedItems(fixture.buyerId(),
-                        List.of(new CheckoutCartItem(fixture.firstItemId(), fixture.firstProductId(), 99)))));
-        assertThrows(CartOperationException.class,
-                () -> inTransaction(() -> checkoutCartApi.removePurchasedItems(fixture.buyerId(),
-                        List.of(new CheckoutCartItem(Long.MAX_VALUE, fixture.firstProductId(), 2)))));
+        assertThrows(CartOperationException.class, () -> inTransaction(() -> checkoutCartApi.removePurchasedItems(
+                List.of(first, new CheckoutCartItem(foreignItem.getId(), fixture.firstProductId(), 1)))));
+        assertThrows(CartOperationException.class, () -> inTransaction(() -> checkoutCartApi.removePurchasedItems(
+                List.of(new CheckoutCartItem(fixture.firstItemId(), fixture.secondProductId(), 2)))));
+        assertThrows(CartOperationException.class, () -> inTransaction(() -> checkoutCartApi.removePurchasedItems(
+                List.of(new CheckoutCartItem(fixture.firstItemId(), fixture.firstProductId(), 99)))));
 
         assertTrue(cartItemRepository.existsById(fixture.firstItemId()));
         assertTrue(cartItemRepository.existsById(fixture.secondItemId()));
@@ -138,33 +132,24 @@ class CheckoutCartServiceIntegrationTest {
     }
 
     @Test
-    void failedRemovalRollsBackEarlierCartChangesInCheckoutTransaction() {
+    void failedRemovalRollsBackEarlierChangesAndReplayDoesNotDeleteReplacement() {
         Fixture fixture = createFixture();
+        authenticate(fixture.buyerId());
+        CheckoutCartItem purchased = new CheckoutCartItem(fixture.firstItemId(), fixture.firstProductId(), 2);
         assertThrows(CartOperationException.class, () -> inTransaction(() -> {
             CartItem changed = cartItemRepository.findById(fixture.firstItemId()).orElseThrow();
             changed.setQuantity(4);
             cartItemRepository.saveAndFlush(changed);
-            checkoutCartApi.removePurchasedItems(fixture.buyerId(), List.of(
-                    new CheckoutCartItem(fixture.firstItemId(), fixture.firstProductId(), 2)));
+            checkoutCartApi.removePurchasedItems(List.of(purchased));
         }));
         assertEquals(2, cartItemRepository.findById(fixture.firstItemId()).orElseThrow().getQuantity());
-    }
 
-    @Test
-    void replayedCleanupFailsSafelyWithoutDeletingAReplacementOrOtherItem() {
-        Fixture fixture = createFixture();
-        CheckoutCartItem purchased = new CheckoutCartItem(
-                fixture.firstItemId(), fixture.firstProductId(), 2);
-        inTransaction(() -> checkoutCartApi.removePurchasedItems(fixture.buyerId(), List.of(purchased)));
-
+        inTransaction(() -> checkoutCartApi.removePurchasedItems(List.of(purchased)));
         Cart cart = cartRepository.findByUserId(fixture.buyerId()).orElseThrow();
         CartItem replacement = cartItemRepository.saveAndFlush(
                 new CartItem(cart.getId(), fixture.firstProductId(), 2));
-
-        assertThrows(CartOperationException.class,
-                () -> inTransaction(() -> checkoutCartApi.removePurchasedItems(
-                        fixture.buyerId(), List.of(purchased))));
-
+        assertThrows(CartOperationException.class, () -> inTransaction(() ->
+                checkoutCartApi.removePurchasedItems(List.of(purchased))));
         assertTrue(cartItemRepository.existsById(replacement.getId()));
         assertTrue(cartItemRepository.existsById(fixture.secondItemId()));
     }
@@ -177,20 +162,16 @@ class CheckoutCartServiceIntegrationTest {
         CountDownLatch competingLockAttempt = new CountDownLatch(1);
         ExecutorService executor = Executors.newFixedThreadPool(2);
         try {
-            Future<?> checkout = executor.submit(() -> {
-                transaction().executeWithoutResult(status -> {
-                    checkoutCartApi.getCheckoutSnapshot(fixture.buyerId());
+            Future<?> checkout = executor.submit(() -> transaction().executeWithoutResult(status -> {
+                authenticate(fixture.buyerId());
+                try {
+                    checkoutCartApi.getCheckoutSnapshot();
                     snapshotTaken.countDown();
-                    try {
-                        if (!finishCheckout.await(5, TimeUnit.SECONDS)) {
-                            throw new IllegalStateException("Timed out waiting to finish checkout");
-                        }
-                    } catch (InterruptedException exception) {
-                        Thread.currentThread().interrupt();
-                        throw new IllegalStateException(exception);
-                    }
-                });
-            });
+                    await(finishCheckout);
+                } finally {
+                    SecurityContextHolder.clearContext();
+                }
+            }));
             assertTrue(snapshotTaken.await(5, TimeUnit.SECONDS));
             Future<?> competingEdit = executor.submit(() -> transaction().executeWithoutResult(status -> {
                 competingLockAttempt.countDown();
@@ -207,6 +188,17 @@ class CheckoutCartServiceIntegrationTest {
         }
     }
 
+    private static void await(CountDownLatch latch) {
+        try {
+            if (!latch.await(5, TimeUnit.SECONDS)) {
+                throw new IllegalStateException("Timed out waiting to finish checkout");
+            }
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException(exception);
+        }
+    }
+
     private void inTransaction(Runnable action) {
         transaction().executeWithoutResult(status -> action.run());
     }
@@ -215,13 +207,22 @@ class CheckoutCartServiceIntegrationTest {
         return new TransactionTemplate(transactionManager);
     }
 
+    private void authenticate(Long buyerId) {
+        String email = jdbcTemplate.queryForObject(
+                "select email from users where id = ?", String.class, buyerId);
+        SecurityContextHolder.getContext().setAuthentication(
+                new TestingAuthenticationToken(email, null, "ROLE_USER"));
+    }
+
     private Fixture createFixture() {
         Long buyerId = insertUser();
         Long ownerId = insertUser();
         String suffix = UUID.randomUUID().toString();
         jdbcTemplate.update("""
-                insert into shops (owner_id, shop_name, phone, address, status, created_at, updated_at)
-                values (?, ?, '0900000000', 'Test address', 'APPROVED', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                insert into shops (owner_id, shop_name, phone, address, status,
+                                   submitted_at, approved_at, created_at, updated_at)
+                values (?, ?, '0900000000', 'Test address', 'APPROVED',
+                        CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
                 """, ownerId, "checkout-shop-" + suffix);
         Long shopId = jdbcTemplate.queryForObject("select id from shops where shop_name = ?", Long.class,
                 "checkout-shop-" + suffix);

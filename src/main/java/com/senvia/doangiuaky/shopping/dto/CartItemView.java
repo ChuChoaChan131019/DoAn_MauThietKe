@@ -6,6 +6,7 @@ import com.senvia.doangiuaky.shopping.entity.CartItem;
 import java.math.BigDecimal;
 
 public record CartItemView(
+        Long cartItemId,
         Long productId,
         Long shopId,
         String shopName,
@@ -22,6 +23,7 @@ public record CartItemView(
     public static CartItemView from(CartItem item, CartProductView product) {
         BigDecimal subtotal = product.currentPrice().multiply(BigDecimal.valueOf(item.getQuantity()));
         return new CartItemView(
+                item.getId(),
                 item.getProductId(),
                 product.shopId(),
                 product.shopName(),
@@ -38,6 +40,7 @@ public record CartItemView(
 
     public static CartItemView unavailable(CartItem item, String message) {
         return new CartItemView(
+                item.getId(),
                 item.getProductId(),
                 null,
                 "Sản phẩm không khả dụng",
@@ -52,8 +55,9 @@ public record CartItemView(
                 message);
     }
 
-    public static CartItemView exceedsStock(CartItem item, CartProductView product) {
+    public static CartItemView overStock(CartItem item, CartProductView product, String message) {
         return new CartItemView(
+                item.getId(),
                 item.getProductId(),
                 product.shopId(),
                 product.shopName(),
@@ -65,6 +69,6 @@ public record CartItemView(
                 BigDecimal.ZERO,
                 false,
                 true,
-                "Số lượng trong giỏ vượt tồn kho hiện tại.");
+                message);
     }
 }

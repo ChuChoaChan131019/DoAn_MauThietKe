@@ -8,6 +8,7 @@ import com.senvia.doangiuaky.merchant.api.CartProductView;
 import com.senvia.doangiuaky.merchant.api.MerchantApi;
 import com.senvia.doangiuaky.shopping.dto.CartItemMutationResult;
 import com.senvia.doangiuaky.shopping.dto.CartView;
+import com.senvia.doangiuaky.shopping.dto.CartItemView;
 import com.senvia.doangiuaky.shopping.entity.Cart;
 import com.senvia.doangiuaky.shopping.entity.CartItem;
 import com.senvia.doangiuaky.shopping.repository.CartItemRepository;
@@ -128,20 +129,20 @@ class CartServiceTest {
     }
 
     @Test
-    void updateQuantityUsesAbsoluteValueAndClampsToLockedStock() {
+    void updateItemQuantityUsesAbsoluteValueAndClampsToLockedStock() {
         CartRepository carts = mock(CartRepository.class);
         CartItemRepository items = mock(CartItemRepository.class);
         IdentityApi identity = mock(IdentityApi.class);
         MerchantApi merchant = mock(MerchantApi.class);
         Cart cart = mockCart(99L);
-        CartItem existing = new CartItem(99L, PRODUCT_ID, 2);
+        CartItem existing = new CartItem(77L, PRODUCT_ID, 2);
         when(identity.findUser(BUYER_ID)).thenReturn(Optional.of(user(BUYER_ID, UserRole.USER, AccountStatus.ACTIVE)));
         when(carts.findByUserIdForUpdate(BUYER_ID)).thenReturn(Optional.of(cart));
-        when(items.findByCartIdAndProductId(99L, PRODUCT_ID)).thenReturn(Optional.of(existing));
+        when(items.findByIdAndCartId(77L, 99L)).thenReturn(Optional.of(existing));
         when(merchant.findProductForCartMutation(PRODUCT_ID)).thenReturn(Optional.of(product(5, 120000)));
 
         CartItemMutationResult result = new CartService(carts, items, identity, merchant)
-                .updateQuantity(BUYER_ID, PRODUCT_ID, 9);
+                .updateItemQuantity(BUYER_ID, 77L, 9);
 
         assertEquals(5, existing.getQuantity());
         assertTrue(result.quantityClamped());
@@ -150,20 +151,20 @@ class CartServiceTest {
     }
 
     @Test
-    void updateQuantityBelowStockPersistsRequestedAbsoluteValue() {
+    void updateItemQuantityBelowStockPersistsRequestedAbsoluteValue() {
         CartRepository carts = mock(CartRepository.class);
         CartItemRepository items = mock(CartItemRepository.class);
         IdentityApi identity = mock(IdentityApi.class);
         MerchantApi merchant = mock(MerchantApi.class);
         Cart cart = mockCart(99L);
-        CartItem existing = new CartItem(99L, PRODUCT_ID, 4);
+        CartItem existing = new CartItem(77L, PRODUCT_ID, 4);
         when(identity.findUser(BUYER_ID)).thenReturn(Optional.of(user(BUYER_ID, UserRole.USER, AccountStatus.ACTIVE)));
         when(carts.findByUserIdForUpdate(BUYER_ID)).thenReturn(Optional.of(cart));
-        when(items.findByCartIdAndProductId(99L, PRODUCT_ID)).thenReturn(Optional.of(existing));
+        when(items.findByIdAndCartId(77L, 99L)).thenReturn(Optional.of(existing));
         when(merchant.findProductForCartMutation(PRODUCT_ID)).thenReturn(Optional.of(product(5, 120000)));
 
         CartItemMutationResult result = new CartService(carts, items, identity, merchant)
-                .updateQuantity(BUYER_ID, PRODUCT_ID, 2);
+                .updateItemQuantity(BUYER_ID, 77L, 2);
 
         assertEquals(2, existing.getQuantity());
         assertFalse(result.quantityClamped());
@@ -177,20 +178,20 @@ class CartServiceTest {
         IdentityApi identity = mock(IdentityApi.class);
         MerchantApi merchant = mock(MerchantApi.class);
         Cart cart = mockCart(99L);
-        CartItem existing = new CartItem(99L, PRODUCT_ID, 2);
+        CartItem existing = new CartItem(77L, PRODUCT_ID, 2);
         when(identity.findUser(BUYER_ID)).thenReturn(Optional.of(user(BUYER_ID, UserRole.USER, AccountStatus.ACTIVE)));
         when(carts.findByUserIdForUpdate(BUYER_ID)).thenReturn(Optional.of(cart));
-        when(items.findByCartIdAndProductId(99L, PRODUCT_ID)).thenReturn(Optional.empty());
+        when(items.findByIdAndCartId(77L, 99L)).thenReturn(Optional.empty());
 
         CartService service = new CartService(carts, items, identity, merchant);
         assertThrows(CartOperationException.class,
-                () -> service.updateQuantity(BUYER_ID, PRODUCT_ID, 3));
+                () -> service.updateItemQuantity(BUYER_ID, 77L, 3));
         verify(merchant, never()).findProductForCartMutation(any());
 
-        when(items.findByCartIdAndProductId(99L, PRODUCT_ID)).thenReturn(Optional.of(existing));
+        when(items.findByIdAndCartId(77L, 99L)).thenReturn(Optional.of(existing));
         when(merchant.findProductForCartMutation(PRODUCT_ID)).thenReturn(Optional.of(product(0, 120000)));
         assertThrows(CartOperationException.class,
-                () -> service.updateQuantity(BUYER_ID, PRODUCT_ID, 3));
+                () -> service.updateItemQuantity(BUYER_ID, 77L, 3));
         assertEquals(2, existing.getQuantity());
         verify(items, never()).save(any());
     }
@@ -204,8 +205,8 @@ class CartServiceTest {
         CartService service = new CartService(carts, items, identity, merchant);
 
         assertThrows(CartOperationException.class, () -> service.addItem(BUYER_ID, PRODUCT_ID, null));
-        assertThrows(CartOperationException.class, () -> service.updateQuantity(BUYER_ID, PRODUCT_ID, 0));
-        assertThrows(CartOperationException.class, () -> service.updateQuantity(BUYER_ID, PRODUCT_ID, -1));
+        assertThrows(CartOperationException.class, () -> service.updateItemQuantity(BUYER_ID, 77L, 0));
+        assertThrows(CartOperationException.class, () -> service.updateItemQuantity(BUYER_ID, 77L, -1));
         verify(items, never()).save(any());
     }
 
@@ -269,6 +270,52 @@ class CartServiceTest {
         assertEquals(2, item.stockQuantity());
         assertEquals(5, existing.getQuantity());
         verify(items, never()).save(any());
+    }
+
+    @Test
+    void updateAndRemoveUseLockedOwnedCartItem() {
+        CartRepository carts = mock(CartRepository.class);
+        CartItemRepository items = mock(CartItemRepository.class);
+        IdentityApi identity = mock(IdentityApi.class);
+        MerchantApi merchant = mock(MerchantApi.class);
+        Cart cart = mockCart(99L);
+        CartItem item = new CartItem(99L, PRODUCT_ID, 2);
+        when(identity.findUser(BUYER_ID)).thenReturn(Optional.of(
+                user(BUYER_ID, UserRole.USER, AccountStatus.ACTIVE)));
+        when(carts.findByUserIdForUpdate(BUYER_ID)).thenReturn(Optional.of(cart));
+        when(items.findByIdAndCartId(77L, 99L)).thenReturn(Optional.of(item));
+        when(merchant.findProductForCartMutation(PRODUCT_ID)).thenReturn(Optional.of(product(5, 120000)));
+        CartService service = new CartService(carts, items, identity, merchant);
+
+        service.updateItemQuantity(BUYER_ID, 77L, 4);
+        assertEquals(4, item.getQuantity());
+        verify(items).save(item);
+
+        service.removeItem(BUYER_ID, 77L);
+        verify(items).delete(item);
+        verify(items).flush();
+        verify(carts, org.mockito.Mockito.times(2)).findByUserIdForUpdate(BUYER_ID);
+    }
+
+    @Test
+    void foreignCartItemIsHiddenAsNotFoundAndNeverChanged() {
+        CartRepository carts = mock(CartRepository.class);
+        CartItemRepository items = mock(CartItemRepository.class);
+        IdentityApi identity = mock(IdentityApi.class);
+        MerchantApi merchant = mock(MerchantApi.class);
+        Cart cart = mockCart(99L);
+        when(identity.findUser(BUYER_ID)).thenReturn(Optional.of(
+                user(BUYER_ID, UserRole.USER, AccountStatus.ACTIVE)));
+        when(carts.findByUserIdForUpdate(BUYER_ID)).thenReturn(Optional.of(cart));
+        when(items.findByIdAndCartId(777L, 99L)).thenReturn(Optional.empty());
+        CartService service = new CartService(carts, items, identity, merchant);
+
+        assertThrows(CartItemNotFoundException.class,
+                () -> service.updateItemQuantity(BUYER_ID, 777L, 2));
+        assertThrows(CartItemNotFoundException.class,
+                () -> service.removeItem(BUYER_ID, 777L));
+        verify(items, never()).save(any());
+        verify(items, never()).delete(any());
     }
 
     private static UserSummary user(Long id, UserRole role, AccountStatus status) {

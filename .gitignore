@@ -62,3 +62,6 @@ build/
 
 ### VS Code ###
 .vscode/
+
+### Local planning documents ###
+/Docs/Linh/
