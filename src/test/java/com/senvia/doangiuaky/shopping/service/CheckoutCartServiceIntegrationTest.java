@@ -232,9 +232,10 @@ class CheckoutCartServiceIntegrationTest {
 
     private Long insertProduct(Long shopId, Long categoryId, String name) {
         jdbcTemplate.update("""
-                insert into products (shop_id, category_id, name, price, stock_quantity, status,
+                insert into products (shop_id, category_id, name, description, price, stock_quantity, status,
                                       created_at, updated_at)
-                values (?, ?, ?, 100.00, 10, 'ACTIVE', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                values (?, ?, ?, 'Checkout integration test product', 100.00, 10, 'ACTIVE',
+                        CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
                 """, shopId, categoryId, name);
         return jdbcTemplate.queryForObject("select id from products where name = ?", Long.class, name);
     }
