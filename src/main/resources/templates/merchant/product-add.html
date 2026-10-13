@@ -8,7 +8,7 @@
     <a th:href="@{/merchant/products}" class="text-muted text-decoration-none">← Quay lại sản phẩm</a>
     <h2 class="text-serif text-plum my-4">Thêm sản phẩm mới</h2>
 
-    <form th:action="@{/merchant/products}" th:object="${productForm}" method="post" class="bg-white p-4 border border-clay shadow-sm">
+    <form th:action="@{/merchant/products}" th:object="${productForm}" method="post" enctype="multipart/form-data" class="bg-white p-4 border border-clay shadow-sm">
         <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
         <div class="mb-3">
             <label for="productName" class="form-label">Tên sản phẩm</label>
@@ -17,7 +17,8 @@
         </div>
         <div class="mb-3">
             <label for="productDescription" class="form-label">Mô tả</label>
-            <textarea id="productDescription" th:field="*{description}" class="form-control" rows="4"></textarea>
+            <textarea id="productDescription" th:field="*{description}" class="form-control" rows="4" required></textarea>
+            <div th:if="${#fields.hasErrors('description')}" th:errors="*{description}" class="text-danger small mt-1"></div>
         </div>
         <div class="row g-3 mb-3">
             <div class="col-md-6">
@@ -39,7 +40,13 @@
                 <div th:if="${#fields.hasErrors('stockQuantity')}" th:errors="*{stockQuantity}" class="text-danger small mt-1"></div>
             </div>
         </div>
-        <div class="alert alert-info">Ảnh sản phẩm sẽ được tích hợp cùng luồng Cloudinary của issue PROD 03.</div>
+        <div class="mb-3">
+            <label for="productImages" class="form-label">Ảnh sản phẩm</label>
+            <input id="productImages" type="file" name="images" class="form-control"
+                   accept="image/jpeg,image/png" multiple required>
+            <div th:if="${#fields.hasErrors('images')}" th:errors="*{images}" class="text-danger small mt-1"></div>
+            <div class="form-text">Tối đa 5 ảnh, mỗi ảnh không quá 2MB. Chỉ nhận JPEG hoặc PNG.</div>
+        </div>
         <button type="submit" class="btn bg-burgundy text-white rounded-0">Lưu sản phẩm</button>
     </form>
 </main>

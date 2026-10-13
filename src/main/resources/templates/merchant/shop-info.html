@@ -2,65 +2,86 @@
 <html lang="vi" xmlns:th="http://www.thymeleaf.org">
 <head th:replace="~{fragments/head :: head('Senvia - Thông Tin Gian Hàng')}"></head>
 <body>
-    <div th:replace="~{fragments/header :: header}"></div>
-    
-    <main class="w-100 mx-auto px-3 px-md-4 py-5 max-w-1440">
-        <div class="row gx-lg-5">
-            <div class="col-12 col-md-3 mb-5 mb-md-0">
-                <div class="d-flex flex-column gap-3 sticky-top" style="top: 100px;">
-                    <h4 class="text-serif text-plum mb-4">Kênh Người Bán</h4>
-                    <a th:href="@{/merchant/dashboard}" class="text-muted hover-plum text-decoration-none transition-colors pb-2 d-inline-block w-100"><i class="bi bi-graph-up me-2"></i>Thống kê</a>
-                    <a th:href="@{/merchant/products}" class="text-muted hover-plum text-decoration-none transition-colors pb-2 d-inline-block w-100"><i class="bi bi-box-seam me-2"></i>Quản lý sản phẩm</a>
-                    <a th:href="@{/merchant/orders}" class="text-muted hover-plum text-decoration-none transition-colors pb-2 d-inline-block w-100"><i class="bi bi-receipt me-2"></i>Quản lý đơn hàng</a>
-                    <a th:href="@{/merchant/profile}" class="fw-bold text-burgundy text-decoration-none border-bottom border-burgundy pb-2 d-inline-block w-100"><i class="bi bi-shop me-2"></i>Thông tin gian hàng</a>
+<div th:replace="~{fragments/header :: header}"></div>
+
+<main class="w-100 mx-auto px-3 px-md-4 py-5" style="max-width: 1440px;">
+    <div class="row gx-lg-5">
+        <aside class="col-12 col-md-3 mb-5 mb-md-0">
+            <div class="d-flex flex-column gap-3 sticky-top" style="top: 100px;">
+                <h4 class="text-serif text-plum mb-4">Kênh Người Bán</h4>
+                <a th:href="@{/merchant/dashboard}" class="text-muted text-decoration-none pb-2 d-inline-block w-100">Thống kê</a>
+                <a th:href="@{/merchant/products}" class="text-muted text-decoration-none pb-2 d-inline-block w-100">Quản lý sản phẩm</a>
+                <a th:href="@{/merchant/orders}" class="text-muted text-decoration-none pb-2 d-inline-block w-100">Quản lý đơn hàng</a>
+                <a th:href="@{/merchant/profile}" class="fw-bold text-burgundy text-decoration-none border-bottom border-burgundy pb-2 d-inline-block w-100">Thông tin gian hàng</a>
+            </div>
+        </aside>
+
+        <div class="col-12 col-md-9">
+            <h2 class="text-serif text-plum mb-4">Hồ Sơ Gian Hàng</h2>
+            <div th:if="${success}" class="alert alert-success" role="alert" th:text="${success}"></div>
+            <div th:if="${profileError}" class="alert alert-danger" role="alert" th:text="${profileError}"></div>
+
+            <form th:action="@{/merchant/profile}" th:object="${shopUpdateForm}"
+                  method="post" enctype="multipart/form-data"
+                  class="bg-white p-4 p-md-5 border border-clay shadow-sm">
+                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+
+                <div class="mb-4 d-flex align-items-center gap-4">
+                    <div class="position-relative" style="width: 100px; height: 100px;">
+                        <img th:if="${ownedShop.logoUrl != null}" th:src="${ownedShop.logoUrl}"
+                             alt="Logo gian hàng" class="w-100 h-100 rounded-circle object-fit-cover border border-clay">
+                        <div th:unless="${ownedShop.logoUrl != null}"
+                             class="w-100 h-100 rounded-circle border border-clay d-flex align-items-center justify-content-center text-muted">
+                            Chưa có logo
+                        </div>
+                    </div>
+                    <div class="flex-grow-1">
+                        <label for="shopLogo" class="form-label text-plum">Thay logo</label>
+                        <input id="shopLogo" type="file" th:field="*{logo}" class="form-control"
+                               accept="image/jpeg,image/png">
+                        <div th:if="${#fields.hasErrors('logo')}" th:errors="*{logo}" class="text-danger small mt-1"></div>
+                        <div class="form-text">Tối đa 2MB, định dạng JPEG hoặc PNG.</div>
+                        <label th:if="${ownedShop.logoUrl != null}" class="form-check mt-2">
+                            <input class="form-check-input" type="checkbox" th:field="*{removeLogo}">
+                            <span class="form-check-label">Xóa logo hiện tại</span>
+                        </label>
+                    </div>
                 </div>
-            </div>
-            <div class="col-12 col-md-9">
-                <h2 class="text-serif text-plum mb-4">Hồ Sơ Gian Hàng</h2>
-                <form class="bg-white p-4 p-md-5 border border-clay shadow-sm">
-                    <div class="mb-4 d-flex align-items-center gap-4">
-                        <div class="position-relative" style="width: 100px; height: 100px;">
-                            <img src="https://images.unsplash.com/photo-1540200049848-d9813ea0e120?w=200&q=80" alt="Logo" class="w-100 h-100 rounded-circle object-fit-cover border border-clay">
-                        </div>
-                        <div class="flex-grow-1 position-relative">
-                            <label class="btn border border-clay text-plum rounded-0 hover-border-plum transition-colors cursor-pointer">
-                                Thay đổi Logo
-                                <input type="file" class="d-none" accept="image/*">
-                            </label>
-                            <div class="text-muted small mt-2">Dung lượng tối đa 2MB, định dạng JPEG/PNG.</div>
-                        </div>
-                    </div>
-                    
-                    <div class="mb-4">
-                        <label class="form-label text-uppercase fw-medium text-plum small mb-2">Tên Gian Hàng *</label>
-                        <input type="text" class="form-control bg-ivory border-0 rounded-0 px-4 py-3 shadow-none text-plum" value="NOLA Official" required>
-                    </div>
 
-                    <div class="mb-4">
-                        <label class="form-label text-uppercase fw-medium text-plum small mb-2">Mô tả gian hàng</label>
-                        <textarea class="form-control bg-ivory border-0 rounded-0 px-4 py-3 shadow-none text-plum" rows="4">Chuyên cung cấp các sản phẩm phụ kiện thời trang cao cấp.</textarea>
-                    </div>
+                <div class="mb-4">
+                    <label for="shopName" class="form-label text-uppercase fw-medium text-plum small mb-2">Tên gian hàng *</label>
+                    <input id="shopName" type="text" th:field="*{shopName}" class="form-control bg-ivory border-0 rounded-0 px-4 py-3 shadow-none text-plum" required>
+                    <div th:if="${#fields.hasErrors('shopName')}" th:errors="*{shopName}" class="text-danger small mt-1"></div>
+                </div>
 
-                    <h5 class="fw-bold text-plum mb-4 pb-2 border-bottom mt-5">Thông tin liên hệ</h5>
+                <div class="mb-4">
+                    <label for="shopDescription" class="form-label text-uppercase fw-medium text-plum small mb-2">Mô tả gian hàng *</label>
+                    <textarea id="shopDescription" th:field="*{description}" class="form-control bg-ivory border-0 rounded-0 px-4 py-3 shadow-none text-plum" rows="4" required></textarea>
+                    <div th:if="${#fields.hasErrors('description')}" th:errors="*{description}" class="text-danger small mt-1"></div>
+                </div>
 
-                    <div class="mb-4">
-                        <label class="form-label text-uppercase fw-medium text-plum small mb-2">Số điện thoại *</label>
-                        <input type="text" class="form-control bg-ivory border-0 rounded-0 px-4 py-3 shadow-none text-plum" value="0901234567" required>
-                    </div>
+                <h5 class="fw-bold text-plum mb-4 pb-2 border-bottom mt-5">Thông tin liên hệ</h5>
 
-                    <div class="mb-5">
-                        <label class="form-label text-uppercase fw-medium text-plum small mb-2">Địa chỉ lấy hàng *</label>
-                        <input type="text" class="form-control bg-ivory border-0 rounded-0 px-4 py-3 shadow-none text-plum" value="123 Đường Lê Lợi, Phường Bến Thành, Quận 1, TPHCM" required>
-                    </div>
+                <div class="mb-4">
+                    <label for="shopPhone" class="form-label text-uppercase fw-medium text-plum small mb-2">Số điện thoại *</label>
+                    <input id="shopPhone" type="text" th:field="*{phone}" class="form-control bg-ivory border-0 rounded-0 px-4 py-3 shadow-none text-plum" required>
+                    <div th:if="${#fields.hasErrors('phone')}" th:errors="*{phone}" class="text-danger small mt-1"></div>
+                </div>
 
-                    <div class="d-flex justify-content-end gap-3">
-                        <button type="submit" class="btn bg-burgundy text-white rounded-0 fw-medium px-5 py-3 border-0 hover-bg-plum transition-colors">Lưu Thay Đổi</button>
-                    </div>
-                </form>
-            </div>
+                <div class="mb-5">
+                    <label for="shopAddress" class="form-label text-uppercase fw-medium text-plum small mb-2">Địa chỉ lấy hàng *</label>
+                    <input id="shopAddress" type="text" th:field="*{address}" class="form-control bg-ivory border-0 rounded-0 px-4 py-3 shadow-none text-plum" required>
+                    <div th:if="${#fields.hasErrors('address')}" th:errors="*{address}" class="text-danger small mt-1"></div>
+                </div>
+
+                <div class="d-flex justify-content-end gap-3">
+                    <button type="submit" class="btn bg-burgundy text-white rounded-0 fw-medium px-5 py-3 border-0">Lưu thay đổi</button>
+                </div>
+            </form>
         </div>
-    </main>
-    <div th:replace="~{fragments/footer :: footer}"></div>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    </div>
+</main>
+
+<div th:replace="~{fragments/footer :: footer}"></div>
 </body>
 </html>

@@ -26,4 +26,12 @@ public interface ShopState {
     default ShopStatus resubmit() {
         throw new InvalidShopStateTransitionException(status(), ShopStatus.PENDING);
     }
+
+    default ShopStatus lock() {
+        throw new InvalidShopStateTransitionException(status(), ShopStatus.LOCKED);
+    }
+
+    default ShopStatus unlock() {
+        throw new InvalidShopStateTransitionException(status(), ShopStatus.APPROVED);
+    }
 }

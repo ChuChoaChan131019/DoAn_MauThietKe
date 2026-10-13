@@ -5,6 +5,7 @@ import com.senvia.doangiuaky.identity.api.IdentityApi;
 import com.senvia.doangiuaky.identity.api.UserSummary;
 import com.senvia.doangiuaky.merchant.api.CartProductView;
 import com.senvia.doangiuaky.merchant.api.MerchantApi;
+import com.senvia.doangiuaky.merchant.api.ShopOrderCapabilities;
 import com.senvia.doangiuaky.merchant.dto.CatalogProductView;
 import com.senvia.doangiuaky.merchant.entity.Category;
 import com.senvia.doangiuaky.merchant.entity.Product;
@@ -12,6 +13,7 @@ import com.senvia.doangiuaky.merchant.entity.ProductStatus;
 import com.senvia.doangiuaky.merchant.entity.Shop;
 import com.senvia.doangiuaky.merchant.entity.ShopStatus;
 import com.senvia.doangiuaky.merchant.repository.CategoryRepository;
+import com.senvia.doangiuaky.merchant.repository.ProductImageRepository;
 import com.senvia.doangiuaky.merchant.repository.ProductRepository;
 import com.senvia.doangiuaky.merchant.repository.ShopRepository;
 import org.springframework.stereotype.Service;
@@ -53,16 +55,19 @@ public class DemoMerchantApi implements MerchantApi {
                     "https://images.unsplash.com/photo-1588345921523-c2dcdb7f1dcd?w=600&q=80", false, 0, null, 4.7, 18));
 
     private final ProductRepository productRepository;
+    private final ProductImageRepository productImageRepository;
     private final CategoryRepository categoryRepository;
     private final ShopRepository shopRepository;
     private final IdentityApi identityApi;
 
     public DemoMerchantApi(
             ProductRepository productRepository,
+            ProductImageRepository productImageRepository,
             CategoryRepository categoryRepository,
             ShopRepository shopRepository,
             IdentityApi identityApi) {
         this.productRepository = productRepository;
+        this.productImageRepository = productImageRepository;
         this.categoryRepository = categoryRepository;
         this.shopRepository = shopRepository;
         this.identityApi = identityApi;
@@ -75,6 +80,23 @@ public class DemoMerchantApi implements MerchantApi {
             return Optional.empty();
         }
         return productRepository.findById(productId).flatMap(this::toCartProductView);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<ShopOrderCapabilities> findShopOrderCapabilities(Long shopId) {
+        if (shopId == null || shopId <= 0) {
+            return Optional.empty();
+        }
+        return shopRepository.findById(shopId).map(shop -> {
+            boolean ownerActive = identityApi.findUser(shop.getOwnerId())
+                    .map(owner -> owner.accountStatus() == AccountStatus.ACTIVE)
+                    .orElse(false);
+            return new ShopOrderCapabilities(
+                    shop.getId(),
+                    ownerActive && shop.canReceiveOrder(),
+                    shop.canHandleExistingOrders());
+        });
     }
 
     @Transactional(readOnly = true)
@@ -119,7 +141,7 @@ public class DemoMerchantApi implements MerchantApi {
                 productShop.getOwnerId(),
                 productShop.getShopName(),
                 product.getName(),
-                metadata.image(),
+                imageUrl(product, metadata.image()),
                 product.getPrice(),
                 product.getStockQuantity(),
                 owner.get().accountStatus() == AccountStatus.ACTIVE,
@@ -144,7 +166,7 @@ public class DemoMerchantApi implements MerchantApi {
                 metadata.isNew(),
                 metadata.discount(),
                 metadata.oldPrice(),
-                metadata.image(),
+                imageUrl(product, metadata.image()),
                 product.getDescription(),
                 product.getStockQuantity(),
                 metadata.rating(),
@@ -156,6 +178,14 @@ public class DemoMerchantApi implements MerchantApi {
     private static PresentationMetadata metadataFor(String productName) {
         return PRESENTATION.getOrDefault(productName,
                 new PresentationMetadata(FALLBACK_IMAGE, false, 0, null, 0.0, 0));
+    }
+
+    private String imageUrl(Product product, String fallback) {
+        return productImageRepository.findAllByProductIdOrderByDisplayOrderAscIdAsc(product.getId())
+                .stream()
+                .findFirst()
+                .map(image -> image.getImageUrl())
+                .orElse(fallback);
     }
 
     private static String brandName(String shopName) {

@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/head :: head('Senvia - Chi Tiết Gian Hàng')}"></head>
+<body>
+    <div th:replace="~{fragments/header :: header}"></div>
+
+    <main class="w-100 mx-auto px-3 px-md-4 py-5 max-w-1440">
+        <div class="row gx-lg-5">
+            <div class="col-12 col-md-3 mb-5 mb-md-0">
+                <div class="d-flex flex-column gap-3 sticky-top" style="top: 100px;">
+                    <h4 class="text-serif text-plum mb-4">Quản Trị</h4>
+                    <a th:href="@{/admin/dashboard}" class="text-muted hover-plum text-decoration-none pb-2 d-inline-block w-100">
+                        <i class="bi bi-speedometer2 me-2"></i>Tổng quan
+                    </a>
+                    <a th:href="@{/admin/accounts}" class="text-muted hover-plum text-decoration-none pb-2 d-inline-block w-100">
+                        <i class="bi bi-people me-2"></i>Tài khoản
+                    </a>
+                    <a th:href="@{/admin/shop-requests}" class="text-muted hover-plum text-decoration-none pb-2 d-inline-block w-100">
+                        <i class="bi bi-shop me-2"></i>Duyệt gian hàng
+                    </a>
+                    <a th:href="@{/admin/shops}" class="fw-bold text-burgundy text-decoration-none border-bottom border-burgundy pb-2 d-inline-block w-100">
+                        <i class="bi bi-buildings me-2"></i>Quản lý gian hàng
+                    </a>
+                    <a th:href="@{/admin/categories}" class="text-muted hover-plum text-decoration-none pb-2 d-inline-block w-100">
+                        <i class="bi bi-tags me-2"></i>Danh mục
+                    </a>
+                    <a th:href="@{/admin/orders}" class="text-muted hover-plum text-decoration-none pb-2 d-inline-block w-100">
+                        <i class="bi bi-receipt-cutoff me-2"></i>Giám sát đơn hàng
+                    </a>
+                </div>
+            </div>
+
+            <div class="col-12 col-md-9">
+                <div class="mb-4">
+                    <a th:href="@{/admin/shops}" class="text-muted text-decoration-none hover-plum transition-colors">
+                        <i class="bi bi-arrow-left me-2"></i>Quay lại danh sách gian hàng
+                    </a>
+                </div>
+
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+                    <h2 class="text-serif text-plum mb-0">Chi Tiết Gian Hàng</h2>
+                    <span th:if="${shop.status.name() == 'APPROVED'}"
+                          class="badge bg-success rounded-0 px-3 py-2">APPROVED</span>
+                    <span th:if="${shop.status.name() == 'LOCKED'}"
+                          class="badge bg-dark rounded-0 px-3 py-2">LOCKED</span>
+                </div>
+
+                <div th:if="${successMessage}" class="alert alert-success rounded-0" role="alert"
+                     th:text="${successMessage}"></div>
+                <div th:if="${errorMessage}" class="alert alert-danger rounded-0" role="alert"
+                     th:text="${errorMessage}"></div>
+
+                <div class="bg-white p-4 p-md-5 border border-clay shadow-sm">
+                    <div class="row">
+                        <div class="col-md-7 mb-4">
+                            <h5 class="fw-bold text-plum border-bottom pb-2 mb-3">Thông tin gian hàng</h5>
+                            <div class="mb-2"><span class="text-muted small d-inline-block" style="min-width: 130px;">Tên shop:</span> <span class="fw-medium text-plum" th:text="${shop.shopName}">Tên shop</span></div>
+                            <div class="mb-2"><span class="text-muted small d-inline-block" style="min-width: 130px;">Chủ gian hàng:</span> <span class="text-plum" th:text="${shop.ownerName}">Chủ gian hàng</span></div>
+                            <div class="mb-2"><span class="text-muted small d-inline-block" style="min-width: 130px;">Mô tả:</span> <span class="text-plum" th:text="${shop.description}">Mô tả</span></div>
+                            <div class="mb-2"><span class="text-muted small d-inline-block" style="min-width: 130px;">Số điện thoại:</span> <span class="text-plum" th:text="${shop.phone}">Số điện thoại</span></div>
+                            <div class="mb-2"><span class="text-muted small d-inline-block" style="min-width: 130px;">Địa chỉ:</span> <span class="text-plum" th:text="${shop.address}">Địa chỉ</span></div>
+                        </div>
+                        <div class="col-md-5 mb-4">
+                            <div th:if="${shop.logoUrl != null and !#strings.isEmpty(shop.logoUrl)}">
+                                <span class="text-muted small d-block mb-2">Logo gian hàng</span>
+                                <img th:src="${shop.logoUrl}" alt="Logo gian hàng"
+                                     class="img-fluid border border-clay"
+                                     style="max-height: 180px; max-width: 100%; object-fit: contain;">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="border-top pt-4 mt-2">
+                        <h5 class="fw-bold text-plum mb-3">Thông tin xét duyệt</h5>
+                        <div class="mb-2"><span class="text-muted small d-inline-block" style="min-width: 150px;">Người phê duyệt:</span> <span class="text-plum" th:text="${shop.approvedByName ?: 'Không xác định'}">Admin</span></div>
+                        <div class="mb-2"><span class="text-muted small d-inline-block" style="min-width: 150px;">Thời điểm duyệt:</span> <span class="text-plum" th:text="${shop.approvedAt}">Thời điểm duyệt</span></div>
+                    </div>
+
+                    <div th:if="${shop.status.name() == 'LOCKED'}" class="alert alert-dark rounded-0 mt-4 mb-0">
+                        <h5 class="fw-bold mb-3">Thông tin khóa gian hàng</h5>
+                        <div class="mb-2"><span class="d-inline-block" style="min-width: 150px;">Lý do:</span> <span th:text="${shop.lockReason}">Lý do khóa</span></div>
+                        <div class="mb-2"><span class="d-inline-block" style="min-width: 150px;">Người khóa:</span> <span th:text="${shop.lockedByName ?: 'Không xác định'}">Admin</span></div>
+                        <div><span class="d-inline-block" style="min-width: 150px;">Thời điểm khóa:</span> <span th:text="${shop.lockedAt}">Thời điểm khóa</span></div>
+                    </div>
+
+                    <div class="border-top pt-4 mt-4">
+                        <form th:if="${shop.status.name() == 'APPROVED'}"
+                              th:action="@{/admin/shops/{id}/lock(id=${shop.shopId})}"
+                              th:object="${shopLockForm}"
+                              method="post"
+                              onsubmit="return confirm('Bạn có chắc muốn khóa gian hàng này không?');">
+                            <label for="lockReason" class="form-label fw-bold text-plum">
+                                Lý do khóa <span class="text-danger">*</span>
+                            </label>
+                            <textarea id="lockReason" th:field="*{reason}" rows="4"
+                                      class="form-control rounded-0"
+                                      required maxlength="500"
+                                      placeholder="Mô tả vi phạm hoặc lý do cần tạm khóa gian hàng."></textarea>
+                            <div th:if="${#fields.hasErrors('reason')}" th:errors="*{reason}"
+                                 class="text-danger small mt-2"></div>
+                            <button type="submit" class="btn btn-outline-danger rounded-0 px-4 mt-3">
+                                <i class="bi bi-lock me-1"></i>Khóa gian hàng
+                            </button>
+                        </form>
+
+                        <form th:if="${shop.status.name() == 'LOCKED'}"
+                              th:action="@{/admin/shops/{id}/unlock(id=${shop.shopId})}"
+                              method="post"
+                              onsubmit="return confirm('Bạn có chắc muốn mở khóa gian hàng này không?');">
+                            <p class="text-muted">Mở khóa sẽ đưa gian hàng trở lại trạng thái hoạt động và xóa metadata khóa hiện tại.</p>
+                            <button type="submit" class="btn bg-burgundy text-white rounded-0 px-4">
+                                <i class="bi bi-unlock me-1"></i>Mở khóa gian hàng
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <div th:replace="~{fragments/footer :: footer}"></div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

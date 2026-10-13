@@ -8,8 +8,10 @@ import com.senvia.doangiuaky.merchant.service.CategoryManagementService;
 import com.senvia.doangiuaky.merchant.service.CategoryNotFoundException;
 import com.senvia.doangiuaky.merchant.service.InactiveCategoryException;
 import com.senvia.doangiuaky.merchant.service.ProductAuthorizationException;
+import com.senvia.doangiuaky.merchant.service.ProductImageManagementException;
 import com.senvia.doangiuaky.merchant.service.ProductManagementService;
 import com.senvia.doangiuaky.merchant.service.ProductNotFoundException;
+import com.senvia.doangiuaky.merchant.service.image.MerchantImageStorageException;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -66,6 +68,9 @@ public class ProductController {
                          BindingResult bindingResult,
                          Model model,
                          RedirectAttributes redirectAttributes) {
+        if (form.getImages() == null || form.getImages().stream().noneMatch(file -> file != null && !file.isEmpty())) {
+            bindingResult.rejectValue("images", "images", "Vui lòng chọn ít nhất một ảnh sản phẩm.");
+        }
         if (bindingResult.hasErrors()) {
             return renderCreateForm(principal, form, model);
         }
@@ -75,6 +80,9 @@ public class ProductController {
             return "redirect:/merchant/products";
         } catch (InactiveCategoryException | CategoryNotFoundException exception) {
             bindingResult.rejectValue("categoryId", "category", exception.getMessage());
+            return renderCreateForm(principal, form, model);
+        } catch (ProductImageManagementException | MerchantImageStorageException exception) {
+            bindingResult.rejectValue("images", "images", exception.getMessage());
             return renderCreateForm(principal, form, model);
         } catch (ProductAuthorizationException exception) {
             throw forbidden(exception);
@@ -108,11 +116,14 @@ public class ProductController {
             return renderEditForm(principal, id, form, model);
         }
         try {
-            productService.update(principal.getUserId(), id, form);
+            productService.updateWithImages(principal.getUserId(), id, form);
             redirectAttributes.addFlashAttribute("successMessage", "Đã cập nhật sản phẩm thành công.");
             return "redirect:/merchant/products";
         } catch (InactiveCategoryException | CategoryNotFoundException exception) {
             bindingResult.rejectValue("categoryId", "category", exception.getMessage());
+            return renderEditForm(principal, id, form, model);
+        } catch (ProductImageManagementException | MerchantImageStorageException exception) {
+            bindingResult.rejectValue("images", "images", exception.getMessage());
             return renderEditForm(principal, id, form, model);
         } catch (ProductNotFoundException exception) {
             throw notFound(exception);
@@ -128,6 +139,21 @@ public class ProductController {
         try {
             productService.hide(principal.getUserId(), id);
             redirectAttributes.addFlashAttribute("successMessage", "Đã ẩn sản phẩm thành công.");
+            return "redirect:/merchant/products";
+        } catch (ProductNotFoundException exception) {
+            throw notFound(exception);
+        } catch (ProductAuthorizationException exception) {
+            throw forbidden(exception);
+        }
+    }
+
+    @PostMapping("/{id}/show")
+    public String show(@PathVariable Long id,
+                       @AuthenticationPrincipal IdentityPrincipal principal,
+                       RedirectAttributes redirectAttributes) {
+        try {
+            productService.show(principal.getUserId(), id);
+            redirectAttributes.addFlashAttribute("successMessage", "Đã bỏ ẩn sản phẩm thành công.");
             return "redirect:/merchant/products";
         } catch (ProductNotFoundException exception) {
             throw notFound(exception);

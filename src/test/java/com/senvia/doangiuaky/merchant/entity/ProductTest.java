@@ -51,6 +51,14 @@ class ProductTest {
     }
 
     @Test
+    void rejectsNullOrBlankDescription() {
+        assertThrows(IllegalArgumentException.class, () -> Product.create(
+                10L, 20L, "Test product", null, new BigDecimal("10.00"), 1));
+        assertThrows(IllegalArgumentException.class, () -> Product.create(
+                10L, 20L, "Test product", "   ", new BigDecimal("10.00"), 1));
+    }
+
+    @Test
     void invalidUpdateLeavesExistingPriceAndStockUnchanged() {
         Product product = product(new BigDecimal("125.50"), 8);
 
@@ -69,6 +77,16 @@ class ProductTest {
 
         assertEquals(new BigDecimal("99.90"), product.getPrice());
         assertEquals(0, product.getStockQuantity());
+    }
+
+    @Test
+    void hiddenProductCanBeShownAgain() {
+        Product product = product(new BigDecimal("10.00"), 2);
+
+        product.hide();
+        product.show();
+
+        assertEquals(ProductStatus.ACTIVE, product.getStatus());
     }
 
     private static Product product(BigDecimal price, Integer stockQuantity) {
