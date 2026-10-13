@@ -32,11 +32,23 @@
                                  class="bg-ivory object-fit-cover" style="width: 72px; height: 90px;">
                             <div class="flex-grow-1">
                                 <div class="fw-medium text-plum" th:text="${item.productName}">Product</div>
-                                <div th:if="${item.available}" class="text-burgundy small">
+                                <div th:if="${item.available}" class="text-burgundy small mb-2">
                                     <span th:text="${#numbers.formatDecimal(item.currentPrice, 0, 'COMMA', 0, 'POINT')} + '₫'">0₫</span>
-                                    <span class="text-muted ms-2" th:text="'x ' + ${item.quantity}">x 1</span>
                                 </div>
                                 <div th:unless="${item.available}" class="text-danger small" th:text="${item.availabilityMessage}">Không khả dụng</div>
+                                <div class="d-flex gap-2 align-items-center mt-2">
+                                    <form th:if="${item.quantityAdjustable}"
+                                          th:action="@{/cart/items/{id}/quantity(id=${item.cartItemId})}" method="post"
+                                          class="d-flex gap-2 align-items-center">
+                                        <input type="number" name="quantity" min="1" th:max="${item.stockQuantity}"
+                                               th:value="${item.quantity}" class="form-control form-control-sm rounded-0"
+                                               style="width: 84px;" aria-label="Số lượng">
+                                        <button type="submit" class="btn btn-sm btn-outline-secondary rounded-0">Cập nhật</button>
+                                    </form>
+                                    <form th:action="@{/cart/items/{id}/remove(id=${item.cartItemId})}" method="post">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger rounded-0">Xóa</button>
+                                    </form>
+                                </div>
                             </div>
                             <div th:if="${item.available}" class="fw-bold text-burgundy"
                                  th:text="${#numbers.formatDecimal(item.subtotal, 0, 'COMMA', 0, 'POINT')} + '₫'">0₫</div>

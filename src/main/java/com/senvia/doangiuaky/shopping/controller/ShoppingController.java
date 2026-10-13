@@ -1,22 +1,27 @@
 package com.senvia.doangiuaky.shopping.controller;
 
+import com.senvia.doangiuaky.identity.api.AccountStatus;
 import com.senvia.doangiuaky.identity.api.IdentityApi;
+import com.senvia.doangiuaky.identity.api.UserRole;
 import com.senvia.doangiuaky.identity.api.UserSummary;
 import com.senvia.doangiuaky.shopping.dto.AddCartItemRequest;
 import com.senvia.doangiuaky.shopping.dto.AddCartItemResult;
+import com.senvia.doangiuaky.shopping.dto.UpdateCartItemRequest;
+import com.senvia.doangiuaky.shopping.service.CartItemNotFoundException;
 import com.senvia.doangiuaky.shopping.service.CartOperationException;
 import com.senvia.doangiuaky.shopping.service.CartService;
 import com.senvia.doangiuaky.shopping.service.FavoriteOperationException;
 import com.senvia.doangiuaky.shopping.service.FavoriteService;
 import jakarta.validation.Valid;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
+import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
-import org.springframework.validation.BindingResult;
 
 import java.security.Principal;
 
@@ -69,6 +74,44 @@ public class ShoppingController {
         return "redirect:/cart";
     }
 
+    @PostMapping("/cart/items/{cartItemId}/quantity")
+    public String updateCartItem(
+            Principal principal,
+            @PathVariable Long cartItemId,
+            @Valid @ModelAttribute UpdateCartItemRequest request,
+            BindingResult bindingResult,
+            RedirectAttributes redirectAttributes) {
+        if (bindingResult.hasErrors()) {
+            redirectAttributes.addFlashAttribute("cartError", firstValidationError(bindingResult));
+            return "redirect:/cart";
+        }
+        try {
+            cartService.updateItemQuantity(currentUserId(principal), cartItemId, request.getQuantity());
+            redirectAttributes.addFlashAttribute("cartSuccess", "Đã cập nhật số lượng.");
+        } catch (CartItemNotFoundException exception) {
+            throw exception;
+        } catch (CartOperationException exception) {
+            redirectAttributes.addFlashAttribute("cartError", exception.getMessage());
+        }
+        return "redirect:/cart";
+    }
+
+    @PostMapping("/cart/items/{cartItemId}/remove")
+    public String removeCartItem(
+            Principal principal,
+            @PathVariable Long cartItemId,
+            RedirectAttributes redirectAttributes) {
+        try {
+            cartService.removeItem(currentUserId(principal), cartItemId);
+            redirectAttributes.addFlashAttribute("cartSuccess", "Đã xóa sản phẩm khỏi giỏ hàng.");
+        } catch (CartItemNotFoundException exception) {
+            throw exception;
+        } catch (CartOperationException exception) {
+            redirectAttributes.addFlashAttribute("cartError", exception.getMessage());
+        }
+        return "redirect:/cart";
+    }
+
     @GetMapping("/account/wishlist")
     public String wishlist(Principal principal, Model model) {
         try {
@@ -110,10 +153,13 @@ public class ShoppingController {
 
     private Long currentUserId(Principal principal) {
         if (principal == null || principal.getName() == null || principal.getName().isBlank()) {
-            throw new CartOperationException("Bạn cần đăng nhập để tiếp tục.");
+            throw new AccessDeniedException("Bạn cần đăng nhập để tiếp tục.");
         }
         UserSummary user = identityApi.findUserByEmail(principal.getName())
-                .orElseThrow(() -> new CartOperationException("Không xác định được tài khoản hiện tại."));
+                .orElseThrow(() -> new AccessDeniedException("Không xác định được tài khoản hiện tại."));
+        if (user.role() != UserRole.USER || user.accountStatus() != AccountStatus.ACTIVE) {
+            throw new AccessDeniedException("Tài khoản không được phép thao tác giỏ hàng.");
+        }
         return user.userId();
     }
 

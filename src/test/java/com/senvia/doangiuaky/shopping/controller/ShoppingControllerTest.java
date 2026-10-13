@@ -59,8 +59,8 @@ class ShoppingControllerTest {
         when(identityApi.findUserByEmail("buyer@example.com"))
                 .thenReturn(java.util.Optional.of(new UserSummary(10L, "Buyer", UserRole.USER, AccountStatus.ACTIVE)));
         when(cartService.addItem(10L, 20L, 2)).thenReturn(new AddCartItemResult(
-                new CartItemView(20L, 30L, "Shop", "Product", null,
-                        new BigDecimal("100000"), 5, 2, new BigDecimal("200000"), true, null),
+                new CartItemView(99L, 20L, 30L, "Shop", "Product", null,
+                        new BigDecimal("100000"), 5, 2, new BigDecimal("200000"), true, true, null),
                 false,
                 "Đã thêm sản phẩm vào giỏ hàng."));
         MockMvc mvc = MockMvcBuilders.standaloneSetup(
@@ -74,6 +74,39 @@ class ShoppingControllerTest {
                 .andExpect(redirectedUrl("/cart"));
 
         verify(cartService).addItem(10L, 20L, 2);
+    }
+
+    @Test
+    void cartReadUpdateAndRemoveAlwaysUseAuthenticatedUser() throws Exception {
+        CartService cartService = mock(CartService.class);
+        FavoriteService favoriteService = mock(FavoriteService.class);
+        IdentityApi identityApi = mock(IdentityApi.class);
+        when(identityApi.findUserByEmail("buyer@example.com"))
+                .thenReturn(java.util.Optional.of(new UserSummary(
+                        10L, "Buyer", UserRole.USER, AccountStatus.ACTIVE)));
+        when(cartService.getCart(10L)).thenReturn(com.senvia.doangiuaky.shopping.dto.CartView.empty());
+        MockMvc mvc = MockMvcBuilders.standaloneSetup(
+                new ShoppingController(cartService, favoriteService, identityApi)).build();
+
+        mvc.perform(get("/cart")
+                        .principal(principal("buyer@example.com"))
+                        .param("buyerId", "999"))
+                .andExpect(status().isOk());
+        mvc.perform(post("/cart/items/77/quantity")
+                        .principal(principal("buyer@example.com"))
+                        .param("buyerId", "999")
+                        .param("quantity", "3"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/cart"));
+        mvc.perform(post("/cart/items/77/remove")
+                        .principal(principal("buyer@example.com"))
+                        .param("buyerId", "999"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/cart"));
+
+        verify(cartService).getCart(10L);
+        verify(cartService).updateItemQuantity(10L, 77L, 3);
+        verify(cartService).removeItem(10L, 77L);
     }
 
     @Test
