@@ -60,7 +60,7 @@ class ShoppingControllerTest {
                 .thenReturn(java.util.Optional.of(new UserSummary(10L, "Buyer", UserRole.USER, AccountStatus.ACTIVE)));
         when(cartService.addItem(10L, 20L, 2)).thenReturn(new AddCartItemResult(
                 new CartItemView(99L, 20L, 30L, "Shop", "Product", null,
-                        new BigDecimal("100000"), 5, 2, new BigDecimal("200000"), true, null),
+                        new BigDecimal("100000"), 5, 2, new BigDecimal("200000"), true, true, null),
                 false,
                 "Đã thêm sản phẩm vào giỏ hàng."));
         MockMvc mvc = MockMvcBuilders.standaloneSetup(

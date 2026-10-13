@@ -8,6 +8,7 @@ import com.senvia.doangiuaky.merchant.api.CartProductView;
 import com.senvia.doangiuaky.merchant.api.MerchantApi;
 import com.senvia.doangiuaky.shopping.dto.AddCartItemResult;
 import com.senvia.doangiuaky.shopping.dto.CartView;
+import com.senvia.doangiuaky.shopping.dto.CartItemView;
 import com.senvia.doangiuaky.shopping.entity.Cart;
 import com.senvia.doangiuaky.shopping.entity.CartItem;
 import com.senvia.doangiuaky.shopping.repository.CartItemRepository;
@@ -164,6 +165,27 @@ class CartServiceTest {
         assertFalse(view.hasCheckoutableItems());
         assertEquals(0, view.totalQuantity());
         assertFalse(view.shops().getFirst().items().getFirst().available());
+    }
+
+    @Test
+    void overStockItemRemainsAdjustableFromTheCart() {
+        CartRepository carts = mock(CartRepository.class);
+        CartItemRepository items = mock(CartItemRepository.class);
+        IdentityApi identity = mock(IdentityApi.class);
+        MerchantApi merchant = mock(MerchantApi.class);
+        Cart cart = mockCart(99L);
+        when(identity.findUser(BUYER_ID)).thenReturn(Optional.of(user(BUYER_ID, UserRole.USER, AccountStatus.ACTIVE)));
+        when(carts.findByUserId(BUYER_ID)).thenReturn(Optional.of(cart));
+        when(items.findAllByCartIdOrderByIdAsc(99L))
+                .thenReturn(java.util.List.of(new CartItem(99L, PRODUCT_ID, 5)));
+        when(merchant.findProductForCart(PRODUCT_ID)).thenReturn(Optional.of(product(2, 135000)));
+
+        CartItemView item = new CartService(carts, items, identity, merchant)
+                .getCart(BUYER_ID).shops().getFirst().items().getFirst();
+
+        assertFalse(item.available());
+        assertTrue(item.quantityAdjustable());
+        assertEquals(2, item.stockQuantity());
     }
 
     @Test

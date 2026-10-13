@@ -17,6 +17,7 @@ public record CartItemView(
         int quantity,
         BigDecimal subtotal,
         boolean available,
+        boolean quantityAdjustable,
         String availabilityMessage) {
 
     public static CartItemView from(CartItem item, CartProductView product) {
@@ -32,6 +33,7 @@ public record CartItemView(
                 product.stockQuantity(),
                 item.getQuantity(),
                 subtotal,
+                true,
                 true,
                 null);
     }
@@ -49,6 +51,24 @@ public record CartItemView(
                 item.getQuantity(),
                 BigDecimal.ZERO,
                 false,
+                false,
+                message);
+    }
+
+    public static CartItemView overStock(CartItem item, CartProductView product, String message) {
+        return new CartItemView(
+                item.getId(),
+                item.getProductId(),
+                product.shopId(),
+                product.shopName(),
+                product.productName(),
+                product.imageUrl(),
+                product.currentPrice(),
+                product.stockQuantity(),
+                item.getQuantity(),
+                BigDecimal.ZERO,
+                false,
+                true,
                 message);
     }
 }

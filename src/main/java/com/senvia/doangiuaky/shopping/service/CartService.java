@@ -215,7 +215,7 @@ public class CartService {
                 continue;
             }
             if (item.getQuantity() > productView.stockQuantity()) {
-                unavailableItems.add(CartItemView.unavailable(item,
+                unavailableItems.add(CartItemView.overStock(item, productView,
                         "Số lượng trong giỏ vượt tồn kho hiện tại."));
                 continue;
             }
