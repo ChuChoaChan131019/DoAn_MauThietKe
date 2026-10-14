@@ -22,7 +22,7 @@
                         <input type="hidden" name="sort" th:if="${param.sort}" th:value="${param.sort}">
                         <input type="hidden" name="min" th:if="${param.min}" th:value="${param.min}">
                         <input type="hidden" name="max" th:if="${param.max}" th:value="${param.max}">
-                        <th:block th:each="b : ${selectedBrands}"><input type="hidden" name="brand" th:value="${b}"></th:block>
+                        <th:block th:each="shopName : ${selectedShops}"><input type="hidden" name="shop" th:value="${shopName}"></th:block>
                         <button type="submit" class="btn border border-clay bg-ivory text-plum rounded-0 hover-burgundy transition-colors flex-shrink-0"><i class="bi bi-search"></i></button>
                     </form>
 
@@ -31,7 +31,7 @@
                         <input type="hidden" name="category" th:if="${param.category}" th:value="${param.category}">
                         <input type="hidden" name="min" th:if="${param.min}" th:value="${param.min}">
                         <input type="hidden" name="max" th:if="${param.max}" th:value="${param.max}">
-                        <th:block th:each="b : ${selectedBrands}"><input type="hidden" name="brand" th:value="${b}"></th:block>
+                        <th:block th:each="shopName : ${selectedShops}"><input type="hidden" name="shop" th:value="${shopName}"></th:block>
                         <select name="sort" onchange="this.form.submit()" class="form-select bg-white text-plum fw-bold rounded-0 shadow-none products-sort" style="max-width: 100%; font-size: 0.875rem;">
                             <option value="newest" th:selected="${sort == 'newest'}">Mới nhất</option>
                             <option value="price_asc" th:selected="${sort == 'price_asc'}">Giá: Thấp → Cao</option>
@@ -50,9 +50,9 @@
                         <div>
                             <h3 class="fw-bold text-plum mb-4 products-sidebar-title">Danh mục</h3>
                             <ul class="list-unstyled d-flex flex-column gap-3 text-plum products-sidebar-list">
-                                <li><a th:href="@{/products(q=${param.q}, sort=${param.sort}, min=${param.min}, max=${param.max}, brand=${param.brand})}" class="text-decoration-none text-burgundy fw-bold cursor-pointer py-1 d-block">Tất cả sản phẩm</a></li>
+                                <li><a th:href="@{/products(q=${param.q}, sort=${param.sort}, min=${param.min}, max=${param.max}, shop=${selectedShops})}" class="text-decoration-none text-burgundy fw-bold cursor-pointer py-1 d-block">Tất cả sản phẩm</a></li>
                                 <li th:each="availableCategory : ${categories}">
-                                    <a th:href="@{/products(category=${availableCategory.name}, q=${param.q}, sort=${param.sort}, min=${param.min}, max=${param.max}, brand=${param.brand})}"
+                                    <a th:href="@{/products(category=${availableCategory.name}, q=${param.q}, sort=${param.sort}, min=${param.min}, max=${param.max}, shop=${selectedShops})}"
                                        th:text="${availableCategory.name}"
                                        class="text-decoration-none text-plum hover-burgundy transition-colors cursor-pointer py-1 d-block"></a>
                                 </li>
@@ -66,7 +66,7 @@
                                 <input type="hidden" name="q" th:if="${param.q}" th:value="${param.q}">
                                 <input type="hidden" name="category" th:if="${param.category}" th:value="${param.category}">
                                 <input type="hidden" name="sort" th:if="${param.sort}" th:value="${param.sort}">
-                                <th:block th:each="b : ${selectedBrands}"><input type="hidden" name="brand" th:value="${b}"></th:block>
+                                <th:block th:each="shopName : ${selectedShops}"><input type="hidden" name="shop" th:value="${shopName}"></th:block>
                                 <div class="d-flex align-items-center gap-2">
                                     <input type="number" name="min" class="form-control rounded-0 border-clay text-plum" placeholder="Từ" style="width: 80px;" th:value="${param.min}">
                                     <span class="text-muted">-</span>
@@ -77,7 +77,7 @@
                         </div>
 
                         <div class="border-top pt-4 products-sidebar-divider">
-                            <h3 class="fw-bold text-plum mb-4 products-sidebar-title">Thương hiệu</h3>
+                            <h3 class="fw-bold text-plum mb-4 products-sidebar-title">Gian hàng</h3>
                             <form th:action="@{/products}" method="get">
                                 <input type="hidden" name="q" th:if="${param.q}" th:value="${param.q}">
                                 <input type="hidden" name="category" th:if="${param.category}" th:value="${param.category}">
@@ -85,26 +85,17 @@
                                 <input type="hidden" name="min" th:if="${param.min}" th:value="${param.min}">
                                 <input type="hidden" name="max" th:if="${param.max}" th:value="${param.max}">
                                 <ul class="list-unstyled d-flex flex-column gap-3 text-plum products-sidebar-list">
-                                    <li class="hover-burgundy transition-colors cursor-pointer d-flex justify-content-between align-items-center">
+                                    <li th:each="shopEntry : ${shopCounts}"
+                                        class="hover-burgundy transition-colors cursor-pointer d-flex justify-content-between align-items-center">
                                         <div class="form-check m-0 d-flex align-items-center gap-2">
-                                            <input type="checkbox" name="brand" value="NOLA" th:checked="${selectedBrands != null and selectedBrands.contains('NOLA')}" onchange="this.form.submit()" class="form-check-input m-0 rounded-0 products-filter-checkbox" />
-                                            <label class="form-check-label products-filter-label">NOLA</label>
+                                            <input type="checkbox" name="shop" th:value="${shopEntry.key}"
+                                                   th:checked="${selectedShops.contains(shopEntry.key)}"
+                                                   onchange="this.form.submit()"
+                                                   class="form-check-input m-0 rounded-0 products-filter-checkbox" />
+                                            <label class="form-check-label products-filter-label" th:text="${shopEntry.key}">Shop</label>
                                         </div>
-                                        <span class="text-muted products-filter-count" th:text="'(' + (${brandCounts.get('NOLA')} ?: 0) + ')'">(12)</span>
-                                    </li>
-                                    <li class="hover-burgundy transition-colors cursor-pointer d-flex justify-content-between align-items-center">
-                                        <div class="form-check m-0 d-flex align-items-center gap-2">
-                                            <input type="checkbox" name="brand" value="MORI" th:checked="${selectedBrands != null and selectedBrands.contains('MORI')}" onchange="this.form.submit()" class="form-check-input m-0 rounded-0 products-filter-checkbox" />
-                                            <label class="form-check-label products-filter-label">MORI</label>
-                                        </div>
-                                        <span class="text-muted products-filter-count" th:text="'(' + (${brandCounts.get('MORI')} ?: 0) + ')'">(8)</span>
-                                    </li>
-                                    <li class="hover-burgundy transition-colors cursor-pointer d-flex justify-content-between align-items-center">
-                                        <div class="form-check m-0 d-flex align-items-center gap-2">
-                                            <input type="checkbox" name="brand" value="MAISON 28" th:checked="${selectedBrands != null and selectedBrands.contains('MAISON 28')}" onchange="this.form.submit()" class="form-check-input m-0 rounded-0 products-filter-checkbox" />
-                                            <label class="form-check-label products-filter-label">MAISON 28</label>
-                                        </div>
-                                        <span class="text-muted products-filter-count" th:text="'(' + (${brandCounts.get('MAISON 28')} ?: 0) + ')'">(15)</span>
+                                        <span class="text-muted products-filter-count"
+                                              th:text="'(' + ${shopEntry.value} + ')'">(0)</span>
                                     </li>
                                 </ul>
                             </form>
@@ -134,15 +125,15 @@
                         <!-- Pagination -->
                         <div th:if="${totalPages > 1}" class="d-flex justify-content-center mt-5 pt-5 border-top products-pagination-container">
                             <div class="d-flex gap-2">
-                                <a th:if="${currentPage > 1}" th:href="@{/products(page=${currentPage - 1}, q=${param.q}, category=${param.category}, sort=${sort}, min=${param.min}, max=${param.max}, brand=${param.brand})}" class="btn border border-clay text-plum hover-burgundy hover-border-burgundy rounded-0 d-flex align-items-center justify-content-center p-0 transition-colors products-page-btn text-decoration-none">&larr;</a>
+                                <a th:if="${currentPage > 1}" th:href="@{/products(page=${currentPage - 1}, q=${param.q}, category=${param.category}, sort=${sort}, min=${param.min}, max=${param.max}, shop=${selectedShops})}" class="btn border border-clay text-plum hover-burgundy hover-border-burgundy rounded-0 d-flex align-items-center justify-content-center p-0 transition-colors products-page-btn text-decoration-none">&larr;</a>
 
                                 <a th:each="i : ${#numbers.sequence(1, totalPages)}"
-                                   th:href="@{/products(page=${i}, q=${param.q}, category=${param.category}, sort=${sort}, min=${param.min}, max=${param.max}, brand=${param.brand})}"
+                                   th:href="@{/products(page=${i}, q=${param.q}, category=${param.category}, sort=${sort}, min=${param.min}, max=${param.max}, shop=${selectedShops})}"
                                    th:text="${i}"
                                    th:class="${i == currentPage} ? 'btn border-0 text-white rounded-0 d-flex align-items-center justify-content-center p-0 fw-bold products-page-btn-active text-decoration-none' : 'btn border border-clay text-plum hover-burgundy hover-border-burgundy rounded-0 d-flex align-items-center justify-content-center p-0 transition-colors products-page-btn text-decoration-none'"
                                    th:style="${i == currentPage} ? 'background-color: var(--color-burgundy);' : ''">1</a>
 
-                                <a th:if="${currentPage < totalPages}" th:href="@{/products(page=${currentPage + 1}, q=${param.q}, category=${param.category}, sort=${sort}, min=${param.min}, max=${param.max}, brand=${param.brand})}" class="btn border border-clay text-plum hover-burgundy hover-border-burgundy rounded-0 d-flex align-items-center justify-content-center p-0 transition-colors products-page-btn text-decoration-none">&rarr;</a>
+                                <a th:if="${currentPage < totalPages}" th:href="@{/products(page=${currentPage + 1}, q=${param.q}, category=${param.category}, sort=${sort}, min=${param.min}, max=${param.max}, shop=${selectedShops})}" class="btn border border-clay text-plum hover-burgundy hover-border-burgundy rounded-0 d-flex align-items-center justify-content-center p-0 transition-colors products-page-btn text-decoration-none">&rarr;</a>
                             </div>
                         </div>
                     </div>

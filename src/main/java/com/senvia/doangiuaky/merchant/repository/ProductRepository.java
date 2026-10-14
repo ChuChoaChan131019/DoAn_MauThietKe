@@ -1,6 +1,7 @@
 package com.senvia.doangiuaky.merchant.repository;
 
 import com.senvia.doangiuaky.merchant.entity.Product;
+import com.senvia.doangiuaky.merchant.entity.ProductStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
@@ -14,6 +15,9 @@ import java.util.Optional;
 public interface ProductRepository extends JpaRepository<Product, Long> {
 
     List<Product> findAllByOrderByIdAsc();
+
+    List<Product> findAllByStatusAndStockQuantityGreaterThanOrderByIdAsc(
+            ProductStatus status, int stockQuantity);
 
     List<Product> findAllByShopIdOrderByIdAsc(Long shopId);
 

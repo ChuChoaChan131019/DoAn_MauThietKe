@@ -1,12 +1,14 @@
 package com.senvia.doangiuaky.merchant.controller;
 
 import com.senvia.doangiuaky.identity.security.IdentityPrincipal;
+import com.senvia.doangiuaky.merchant.dto.PublicShopView;
 import com.senvia.doangiuaky.merchant.dto.ShopUpdateForm;
 import com.senvia.doangiuaky.merchant.entity.Shop;
 import com.senvia.doangiuaky.merchant.service.ShopNotFoundException;
 import com.senvia.doangiuaky.merchant.service.ShopProfileAuthorizationException;
 import com.senvia.doangiuaky.merchant.service.ShopProfileException;
 import com.senvia.doangiuaky.merchant.service.ShopProfileService;
+import com.senvia.doangiuaky.merchant.service.DemoMerchantApi;
 import com.senvia.doangiuaky.merchant.service.image.MerchantImageStorageException;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -15,18 +17,23 @@ import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
+import java.util.Optional;
+
 @Controller
 public class SellerController {
 
     private final ShopProfileService shopProfileService;
+    private final DemoMerchantApi catalogService;
 
-    public SellerController(ShopProfileService shopProfileService) {
+    public SellerController(ShopProfileService shopProfileService, DemoMerchantApi catalogService) {
         this.shopProfileService = shopProfileService;
+        this.catalogService = catalogService;
     }
 
     @GetMapping("/seller")
@@ -35,7 +42,20 @@ public class SellerController {
     }
 
     @GetMapping("/merchant/shop-public")
-    public String shopPublic() { return "merchant/shop-public"; }
+    public String shopPublic(@RequestParam(required = false) Long shopId,
+                             @AuthenticationPrincipal IdentityPrincipal principal,
+                             Model model) {
+        Optional<PublicShopView> publicShop = shopId != null
+                ? catalogService.findPublicShop(shopId)
+                : catalogService.findPublicShopForOwner(
+                        principal == null ? null : principal.getUserId());
+        PublicShopView shop = publicShop.orElseThrow(() -> new ResponseStatusException(
+                HttpStatus.NOT_FOUND, "Không tìm thấy gian hàng công khai"));
+
+        model.addAttribute("shop", shop);
+        model.addAttribute("products", catalogService.findSaleableCatalogProductsByShop(shop.id()));
+        return "merchant/shop-public";
+    }
 
     @GetMapping("/merchant/dashboard")
     public String merchantDashboard() { return "merchant/dashboard"; }

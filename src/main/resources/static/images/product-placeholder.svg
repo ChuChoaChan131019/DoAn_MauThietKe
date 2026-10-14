@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 750" role="img" aria-labelledby="title">
+  <title id="title">Chưa có ảnh sản phẩm</title>
+  <rect width="600" height="750" fill="#f5f0ea"/>
+  <path d="M160 500h280M205 500V270h190v230M245 270v-55h110v55M250 335h100M250 390h100" fill="none" stroke="#7c4a5e" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="300" y="585" text-anchor="middle" fill="#7c4a5e" font-family="Arial,sans-serif" font-size="28">SENVIA</text>
+</svg>

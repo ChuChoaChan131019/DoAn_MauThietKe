@@ -204,6 +204,7 @@ public class Shop {
 
     public boolean canAddProduct() { return state().canAddProduct(); }
     public boolean canReceiveOrder() { return state().canReceiveOrder(); }
+    public boolean canBePubliclyListed() { return state().canBePubliclyListed(); }
     public boolean canResubmit() { return state().canResubmit(); }
     public boolean canHandleExistingOrders() { return state().canHandleExistingOrders(); }
 

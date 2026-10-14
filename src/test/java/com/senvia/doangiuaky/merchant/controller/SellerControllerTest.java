@@ -3,6 +3,8 @@ package com.senvia.doangiuaky.merchant.controller;
 import com.senvia.doangiuaky.identity.security.IdentityPrincipal;
 import com.senvia.doangiuaky.identity.security.SecurityConfig;
 import com.senvia.doangiuaky.merchant.entity.Shop;
+import com.senvia.doangiuaky.merchant.dto.PublicShopView;
+import com.senvia.doangiuaky.merchant.service.DemoMerchantApi;
 import com.senvia.doangiuaky.merchant.service.ShopProfileAuthorizationException;
 import com.senvia.doangiuaky.merchant.service.ShopProfileService;
 import org.junit.jupiter.api.BeforeEach;
@@ -17,6 +19,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -29,6 +32,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.model;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.view;
 
@@ -41,6 +45,9 @@ class SellerControllerTest {
 
     @MockitoBean
     private ShopProfileService shopProfileService;
+
+    @MockitoBean
+    private DemoMerchantApi catalogService;
 
     private IdentityPrincipal ownerPrincipal;
 
@@ -93,6 +100,27 @@ class SellerControllerTest {
                 .andExpect(status().isForbidden());
 
         verify(shopProfileService, never()).update(any(), any());
+    }
+
+    @Test
+    void anonymousBuyerCanOpenApprovedPublicShop() throws Exception {
+        PublicShopView shop = new PublicShopView(10L, "NOLA Store", "Mô tả", null, "Địa chỉ");
+        when(catalogService.findPublicShop(10L)).thenReturn(Optional.of(shop));
+        when(catalogService.findSaleableCatalogProductsByShop(10L)).thenReturn(List.of());
+
+        mockMvc.perform(get("/merchant/shop-public").param("shopId", "10"))
+                .andExpect(status().isOk())
+                .andExpect(view().name("merchant/shop-public"))
+                .andExpect(model().attribute("shop", shop))
+                .andExpect(model().attribute("products", List.of()));
+    }
+
+    @Test
+    void unavailablePublicShopReturnsNotFound() throws Exception {
+        when(catalogService.findPublicShop(99L)).thenReturn(Optional.empty());
+
+        mockMvc.perform(get("/merchant/shop-public").param("shopId", "99"))
+                .andExpect(status().isNotFound());
     }
 
     private static Shop approvedShop() {
