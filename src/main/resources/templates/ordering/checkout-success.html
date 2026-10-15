@@ -1,85 +1,158 @@
 <!DOCTYPE html>
-<html lang="vi" xmlns:th="http://www.thymeleaf.org">
-<head th:replace="~{fragments/head :: head('Senvia - Kết Quả Đặt Hàng')}"></head>
+<html lang="vi"
+      xmlns:th="http://www.thymeleaf.org">
+
+<head th:replace="~{fragments/head :: head('Senvia - Đặt hàng thành công')}">
+</head>
+
 <body>
-    <div th:replace="~{fragments/header :: header}"></div>
-    
-    <main class="w-100 mx-auto px-3 px-md-4 py-5 max-w-1440 text-center">
-        <div style="max-width: 800px; margin: 0 auto;">
-            <div class="mb-4">
-                <div class="rounded-circle bg-success text-white d-inline-flex align-items-center justify-content-center mx-auto mb-4" style="width: 80px; height: 80px;">
-                    <i class="bi bi-check-lg" style="font-size: 2.5rem;"></i>
-                </div>
-                <h2 class="text-serif text-plum mb-3">Đặt Hàng Thành Công</h2>
-                <p class="text-muted fs-5">Cảm ơn bạn đã mua sắm tại Senvia. Đơn hàng của bạn đã được ghi nhận.</p>
+
+<div th:replace="~{fragments/header :: header}"></div>
+
+<main class="w-100 mx-auto px-3 px-md-4 py-5 max-w-1440"
+      th:if="${checkoutReceipt != null}">
+
+    <div class="mx-auto" style="max-width: 800px">
+
+        <div class="text-center mb-5">
+
+            <div class="rounded-circle bg-success text-white
+                        d-inline-flex align-items-center
+                        justify-content-center mb-4"
+                 style="width: 80px; height: 80px">
+
+                <i class="bi bi-check-lg"
+                   style="font-size: 2.5rem"></i>
             </div>
 
-            <div class="bg-white border border-clay p-4 text-start mb-5">
-                <h4 class="fw-bold text-plum mb-4 border-bottom pb-3">Chi tiết thanh toán & mã đơn hàng</h4>
-                
-                <!-- Order from Shop 1 -->
-                <div class="mb-4 pb-4 border-bottom">
-                    <div class="d-flex justify-content-between align-items-start mb-3">
-                        <div>
-                            <div class="fw-bold text-plum fs-5"><i class="bi bi-shop me-2"></i>NOLA Official</div>
-                            <div class="text-muted small mt-1">Mã đơn: <span class="fw-bold text-plum">#ORD-20231025-001</span></div>
-                        </div>
-                        <div class="text-end">
-                            <div class="fw-bold text-burgundy fs-5">4.530.000₫</div>
-                            <span class="badge bg-warning text-dark border border-warning rounded-0 mt-1">Chờ thanh toán chuyển khoản</span>
-                        </div>
-                    </div>
-                    
-                    <!-- Bank Transfer Instructions -->
-                    <div class="bg-ivory p-4 border border-clay">
-                        <h6 class="fw-bold text-plum mb-3"><i class="bi bi-bank me-2"></i>Hướng dẫn chuyển khoản</h6>
-                        <div class="row text-plum small mb-2">
-                            <div class="col-4 text-muted">Ngân hàng:</div>
-                            <div class="col-8 fw-bold">Vietcombank (VCB)</div>
-                        </div>
-                        <div class="row text-plum small mb-2">
-                            <div class="col-4 text-muted">Số tài khoản:</div>
-                            <div class="col-8 fw-bold">0123456789</div>
-                        </div>
-                        <div class="row text-plum small mb-2">
-                            <div class="col-4 text-muted">Chủ tài khoản:</div>
-                            <div class="col-8 fw-bold text-uppercase">CÔNG TY TNHH SENVIA</div>
-                        </div>
-                        <div class="row text-plum small mb-3">
-                            <div class="col-4 text-muted">Nội dung chuyển khoản:</div>
-                            <div class="col-8 fw-bold text-burgundy fs-6 bg-white border border-clay p-2 text-center mt-1">ORD-20231025-001</div>
-                        </div>
-                        <div class="alert alert-info border-0 rounded-0 bg-white mb-0 small">
-                            <i class="bi bi-info-circle me-1"></i> Đơn hàng sẽ được chủ gian hàng kiểm tra và xác nhận sau khi nhận được khoản chuyển khoản mô phỏng.
-                        </div>
-                    </div>
-                </div>
+            <h2 class="text-serif text-plum mb-3">
+                Đặt hàng thành công
+            </h2>
 
-                <!-- Order from Shop 2 -->
-                <div class="mb-2">
-                    <div class="d-flex justify-content-between align-items-start mb-3">
-                        <div>
-                            <div class="fw-bold text-plum fs-5"><i class="bi bi-shop me-2"></i>ASTER</div>
-                            <div class="text-muted small mt-1">Mã đơn: <span class="fw-bold text-plum">#ORD-20231025-002</span></div>
-                        </div>
-                        <div class="text-end">
-                            <div class="fw-bold text-burgundy fs-5">1.250.000₫</div>
-                            <span class="badge bg-success border border-success rounded-0 mt-1">Thanh toán khi nhận hàng (COD)</span>
-                        </div>
-                    </div>
-                    <p class="text-muted small mb-0"><i class="bi bi-box-seam me-1"></i> Gian hàng đang chuẩn bị sản phẩm để giao cho bạn.</p>
-                </div>
+            <p class="text-muted">
+                Đơn hàng của bạn đã được ghi nhận.
+                Thông tin thanh toán được tạo
+                riêng cho từng gian hàng.
+            </p>
+        </div>
+
+        <div th:each="item : ${checkoutReceipt.orders()}"
+             class="border border-clay p-4 mb-3">
+
+            <h4 class="fw-bold text-plum mb-3">
+                <i class="bi bi-shop me-2"></i>
+                <span th:text="${item.shopName()}">
+                    Gian hàng
+                </span>
+            </h4>
+
+            <div class="mb-2">
+                Mã đơn:
+
+                <strong class="text-plum"
+                        th:text="${item.orderCode()}">
+                    ORD-...
+                </strong>
             </div>
 
-            <div class="d-flex justify-content-center gap-3">
-                <a th:href="@{/account/orders}" class="btn bg-burgundy text-white rounded-0 fw-medium px-4 py-3 border-0 hover-bg-plum transition-colors">Theo dõi đơn hàng</a>
-                <a th:href="@{/}" class="btn border border-plum text-plum rounded-0 fw-medium px-4 py-3 hover-bg-plum hover-text-white transition-colors">Tiếp tục mua sắm</a>
+            <div class="mb-3">
+                Giá trị đơn:
+
+                <strong class="text-burgundy"
+                        th:text="${#numbers.formatDecimal(
+                            item.amount(), 0, 'COMMA', 0, 'POINT'
+                        )} + '₫'">
+                    0₫
+                </strong>
+            </div>
+
+            <!-- COD -->
+            <div th:if="${item.method().name() == 'COD'}"
+                 class="alert alert-info rounded-0">
+
+                <i class="bi bi-cash-coin me-2"></i>
+
+                Thanh toán khi nhận hàng (COD).
+
+                <p class="mb-0 mt-2 small">
+                    Trạng thái thanh toán:
+                    Chờ thu tiền khi giao hàng.
+                </p>
+            </div>
+
+            <!-- BANK TRANSFER -->
+            <div th:if="${item.method().name() == 'BANK_TRANSFER'}"
+                 class="bg-ivory border border-clay p-3">
+
+                <h6 class="fw-bold text-plum">
+                    <i class="bi bi-bank me-2"></i>
+                    Chuyển khoản mô phỏng
+                </h6>
+
+                <p class="text-muted small mb-2">
+                    Trạng thái: Chờ xác nhận thanh toán.
+                </p>
+
+                <div class="bg-white border border-clay p-3">
+
+                    <div class="small text-muted mb-1">
+                        Mã tham chiếu
+                    </div>
+
+                    <strong class="text-burgundy"
+                            th:text="${item.transactionReference()}">
+                        SENVIA-ORD-...
+                    </strong>
+                </div>
+
+                <p class="text-muted small mt-3 mb-0">
+                    Đây là thanh toán mô phỏng.
+                    Không thực hiện chuyển tiền thật.
+                </p>
+            </div>
+
+        </div>
+
+        <div class="bg-ivory border border-clay p-4 mt-4">
+
+            <div class="d-flex justify-content-between
+                        align-items-center">
+
+                <span class="fw-bold text-plum">
+                    Tổng giá trị đơn hàng
+                </span>
+
+                <strong class="text-burgundy fs-4"
+                        th:text="${#numbers.formatDecimal(
+                            checkoutReceipt.grandTotal(),
+                            0, 'COMMA', 0, 'POINT'
+                        )} + '₫'">
+                    0₫
+                </strong>
             </div>
         </div>
-    </main>
-    
-    <div th:replace="~{fragments/footer :: footer}"></div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+        <div class="d-flex flex-wrap gap-3 mt-4">
+
+            <a th:href="@{/account/orders}"
+               class="btn bg-burgundy text-white
+                      px-4 py-3 rounded-0">
+
+                Xem đơn hàng
+            </a>
+
+            <a th:href="@{/}"
+               class="btn border border-plum
+                      text-plum px-4 py-3 rounded-0">
+
+                Tiếp tục mua sắm
+            </a>
+        </div>
+
+    </div>
+</main>
+
+<div th:replace="~{fragments/footer :: footer}"></div>
+
 </body>
 </html>

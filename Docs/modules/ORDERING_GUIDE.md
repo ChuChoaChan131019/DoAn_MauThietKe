@@ -44,6 +44,12 @@
 - Cancel hoàn stock và cập nhật payment đúng một lần.
 - Revenue chỉ tính order COMPLETED của đúng shop.
 
+## Trạng thái giao diện checkout hiện tại
+
+- Trang giỏ cho buyer chọn các `cartItemId` hợp lệ và chuyển chúng tới `GET /checkout`; form giữ danh sách này khi gửi `POST /checkout`.
+- `POST /checkout` kiểm tra lựa chọn và biểu mẫu PAY 01/PAY 03, lấy lại đúng các mục đã chọn qua `shopping.api`, đọc lại giá, trạng thái, tồn kho và shop qua `merchant.api`, rồi hiển thị bản xem trước theo từng shop.
+- Bản xem trước chỉ phản ánh dữ liệu tại thời điểm kiểm tra; chưa tạo `orders`/`payments`, chưa trừ kho và chưa xóa giỏ. Mục không chọn vẫn ở giỏ. Phí vận chuyển và tổng thanh toán cuối cùng chưa được tính.
+
 ## Kiểm thử/bàn giao
 
 Test multi-shop rollback, Strategy, payment/order transition, ownership, cancel/idempotency, transaction/concurrency và statistics. Đỗ Đặng Diệu Linh review cart/Buyer Flow; Trần Thị Phương Trang review stock; Huỳnh Thiên Phúc review event/statistics.

@@ -1,13 +1,14 @@
 <!DOCTYPE html>
 <html lang="vi" xmlns:th="http://www.thymeleaf.org">
-<head th:replace="~{fragments/head :: head('Senvia - Thanh toán')}"></head>
+<head th:replace="~{fragments/head :: head('Senvia - Xem trước đơn hàng')}"></head>
 <body>
     <div th:replace="~{fragments/header :: header}"></div>
     
     <main class="w-100 bg-white py-5">
         <div class="max-w-1440 mx-auto px-3 px-md-4">
             
-            <h1 class="fw-bold text-plum mb-5 border-bottom pb-4">Thanh toán</h1>
+            <h1 class="fw-bold text-plum mb-3 border-bottom pb-4">Kiểm tra và xem trước đơn hàng</h1>
+            <p class="text-muted mb-4">Bước này kiểm tra các sản phẩm đã chọn; chưa tạo đơn hàng hoặc yêu cầu thanh toán.</p>
             
             <form th:action="@{/checkout}" th:object="${checkoutPaymentForm}" method="post" class="row gx-lg-5 gy-5">
                 <input th:each="itemId : ${selectedItemIds}" type="hidden" name="itemIds" th:value="${itemId}">
@@ -16,6 +17,20 @@
                     
                     <div th:if="${checkoutSelectionError}" class="alert alert-danger border-0 rounded-0 mb-4"
                          th:text="${checkoutSelectionError}">
+                    </div>
+                    <div th:if="${checkoutError}" class="alert alert-danger border-0 rounded-0 mb-4" role="alert">
+                        <span th:text="${checkoutError}"></span>
+                        <a th:href="@{/cart}" class="alert-link d-block mt-2">Quay lại kiểm tra giỏ hàng</a>
+                    </div>
+
+                    <div th:if="${checkoutPreview != null}"
+                        class="alert alert-info border-0 rounded-0 mb-4"
+                        role="status">
+
+                        Đây là báo giá mới nhất tại thời điểm kiểm tra.
+
+                        Chỉ nhấn Xác nhận đặt hàng nếu bạn đồng ý
+                        với giá và phương thức thanh toán hiển thị bên dưới.
                     </div>
 
                     <h4 class="fw-bold text-plum mb-4 pb-2 border-bottom">Thông tin giao hàng</h4>
@@ -134,7 +149,7 @@
                                     Chuyển khoản ngân hàng
                                 </div>
                                 <div class="text-muted small">
-                                    Thanh toán bằng chuyển khoản ngân hàng.
+                            Chọn phương thức chuyển khoản mô phỏng.
                                 </div>
                             </div>
                         </label>
@@ -153,32 +168,25 @@
                         hidden>
                         <strong>Chuyển khoản ngân hàng</strong>
                         <p class="mb-0 mt-2">
-                            Sau khi đặt hàng thành công, hệ thống sẽ
-                            hiển thị thông tin hướng dẫn và mã tham
-                            chiếu riêng cho từng đơn hàng.
-                            Không cần thực hiện chuyển tiền thật.
+                            Chuyển khoản mô phỏng; mã tham chiếu
+                            được tạo sau khi đặt hàng.
+
+                            Không chuyển tiền thật vào bất kỳ
+                            tài khoản minh họa nào.
                         </p>
                     </div>
 
-                    <!-- Thông báo sau khi backend kiểm tra -->
-                    <div th:if="${paymentValidated}"
-                        class="alert alert-success"
-                        role="status">
-                        Phương thức thanh toán hợp lệ.
-                        Đây là bước kiểm tra PAY 03,
-                        chưa tạo đơn hàng thực tế.
-                    </div>
                 </div>
 
                 <!-- Order Summary by Shop -->
                 <div class="col-12 col-lg-5">
                     <div class="p-4 p-md-5 bg-ivory border border-clay position-sticky" style="top: 100px;">
-                        <h4 class="fw-bold text-plum border-bottom pb-3 mb-4">Đơn hàng của bạn</h4>
+                        <h4 class="fw-bold text-plum border-bottom pb-3 mb-4">Xem trước đơn hàng</h4>
                         
                         <div th:if="${checkoutSelection == null}" class="text-danger small mb-4">
                             Chưa có sản phẩm hợp lệ được chọn. Vui lòng quay lại giỏ hàng.
                         </div>
-                        <div th:each="shop : ${checkoutSelection?.shops()}" class="mb-4 pb-4 border-bottom border-clay">
+                        <div th:if="${checkoutPreview == null}" th:each="shop : ${checkoutSelection?.shops()}" class="mb-4 pb-4 border-bottom border-clay">
                             <div class="fw-bold text-plum mb-3">
                                 <i class="bi bi-shop me-2"></i><span th:text="${shop.shopName}">Gian hàng</span>
                             </div>
@@ -191,35 +199,96 @@
                                       th:text="${#numbers.formatDecimal(item.subtotal, 0, 'COMMA', 0, 'POINT')} + '₫'">0₫</span>
                             </div>
                         </div>
+                        <div th:each="shop : ${checkoutPreview?.shopOrders()}"
+                             class="mb-4 pb-4 border-bottom border-clay">
+                            <div class="fw-bold text-plum mb-3">
+                                <i class="bi bi-shop me-2"></i><span th:text="${shop.shopNameSnapshot()}">Gian hàng</span>
+                            </div>
+                            <div th:each="line : ${shop.items()}" class="mb-3">
+                                <div class="d-flex justify-content-between gap-2">
+                                    <span class="text-plum" th:text="${line.productNameSnapshot()}">Sản phẩm</span>
+                                    <span class="fw-bold text-plum" th:text="${#numbers.formatDecimal(line.subtotal(), 0, 'COMMA', 0, 'POINT')} + '₫'">0₫</span>
+                                </div>
+                                <div class="text-muted small">
+                                    <span th:text="${line.quantity()}">1</span> ×
+                                    <span th:text="${#numbers.formatDecimal(line.unitPrice(), 0, 'COMMA', 0, 'POINT')} + '₫'">0₫</span>
+                                </div>
+                            </div>
+                            <div class="d-flex justify-content-between border-top border-clay pt-2">
+                                <span>Tổng tiền shop</span>
+                                <strong th:text="${#numbers.formatDecimal(shop.totalAmount(), 0, 'COMMA', 0, 'POINT')} + '₫'">0₫</strong>
+                            </div>
+                        </div>
 
-                        <div th:if="${addressValidated}"
-                            class="alert alert-success"
-                            role="status">
-                            Thông tin nhận hàng hợp lệ.
+                        <div th:if="${checkoutPreview != null}" class="mb-4 pb-3 border-bottom border-clay">
+                            <div class="fw-bold text-plum mb-2">Thông tin nhận hàng</div>
+                            <div th:text="${checkoutPreview.delivery().receiverName()}"></div>
+                            <div th:text="${checkoutPreview.delivery().receiverPhone()}"></div>
+                            <div th:text="${checkoutPreview.delivery().shippingAddress()}"></div>
+                            <div th:if="${checkoutPreview.delivery().note() != null}" th:text="${checkoutPreview.delivery().note()}"></div>
+                            <div class="mt-2" th:text="${checkoutPreview.paymentMethod().name() == 'COD' ? 'Thanh toán khi nhận hàng (COD)' : 'Chuyển khoản ngân hàng'}"></div>
                         </div>
                         
                         <div class="d-flex justify-content-between mb-3 text-plum">
                             <span>Tổng tiền hàng</span>
-                            <span class="fw-bold" th:if="${checkoutSelection != null}"
-                                  th:text="${#numbers.formatDecimal(checkoutSelection.subtotal, 0, 'COMMA', 0, 'POINT')} + '₫'">0₫</span>
+                            <span class="fw-bold" th:if="${checkoutSelection != null || checkoutPreview != null}"
+                                  th:text="${#numbers.formatDecimal(checkoutPreview != null ? checkoutPreview.grandTotal() : checkoutSelection.subtotal(), 0, 'COMMA', 0, 'POINT')} + '₫'">0₫</span>
                         </div>
                         
                         <div class="d-flex justify-content-between align-items-end mb-4">
                             <span class="fw-bold text-plum">Tạm tính</span>
-                            <span class="fw-bold text-burgundy fs-4" th:if="${checkoutSelection != null}"
-                                  th:text="${#numbers.formatDecimal(checkoutSelection.subtotal, 0, 'COMMA', 0, 'POINT')} + '₫'">0₫</span>
+                            <span class="fw-bold text-burgundy fs-4" th:if="${checkoutSelection != null || checkoutPreview != null}"
+                                  th:text="${#numbers.formatDecimal(checkoutPreview != null ? checkoutPreview.grandTotal() : checkoutSelection.subtotal(), 0, 'COMMA', 0, 'POINT')} + '₫'">0₫</span>
                         </div>
-                        <p th:if="${checkoutSelection != null}" class="text-muted small">
-                            Giá được đọc lại từ sản phẩm hiện tại. Chưa tính phí vận chuyển.
+
+                        <p th:if="${checkoutSelection != null}"
+                        class="text-muted small">
+
+                            Giá được đọc lại từ sản phẩm hiện tại.
+
+                            Phí vận chuyển chưa được hỗ trợ;
+                            số tiền hiển thị là tổng tiền cần
+                            thanh toán theo checkout hiện tại.
                         </p>
 
                         <button type="submit" th:disabled="${checkoutSelection == null}"
                                 class="btn bg-burgundy text-white w-100 text-decoration-none border-0 rounded-0 py-3 fw-bold hover-bg-plum transition-colors">
-                            Kiểm tra thông tin nhận hàng và thanh toán <!-- Khi triển khai checkout thật, đổi lại thành Xác nhận đặt hàng. -->
+                            Kiểm tra giỏ hàng và xem trước đơn
                         </button>
+                        <p class="text-muted small mt-3 mb-0">Thao tác này không tạo đơn hàng và không xóa sản phẩm khỏi giỏ.</p>
                     </div>
                 </div>
 
+            </form>
+
+            <!-- Xác nhận đặt hàng thực tế -->
+            <!-- Form này phải nằm ngoài form xem trước. -->
+            <form th:if="${checkoutToken != null
+                        && checkoutPreview != null}"
+                th:action="@{/checkout/confirm}"
+                method="post"
+                class="mt-4 text-end">
+
+                <input type="hidden"
+                    name="checkoutToken"
+                    th:value="${checkoutToken}">
+
+                <button type="submit"
+                        class="btn bg-burgundy text-white
+                            px-5 py-3 fw-bold rounded-0">
+
+                    <i class="bi bi-check-circle me-2"></i>
+
+                    Xác nhận đặt hàng theo giá đã xem
+                </button>
+
+                <p class="small text-muted mt-2">
+
+                    Nhấn nút này mới tạo đơn,
+                    trừ kho và xóa các sản phẩm
+                    đã mua khỏi giỏ.
+
+                </p>
             </form>
         </div>
     </main>

@@ -21,6 +21,7 @@ class HomeControllerTest {
         DemoMerchantApi catalogService = mock(DemoMerchantApi.class);
         CategoryManagementService categoryService = mock(CategoryManagementService.class);
         Category category = mock(Category.class);
+        when(category.getId()).thenReturn(12L);
         when(category.getName()).thenReturn("Nhà cửa");
         when(categoryService.listActiveForProductSelection()).thenReturn(List.of(category));
         when(catalogService.findSaleableCatalogProducts()).thenReturn(List.of(
@@ -32,6 +33,7 @@ class HomeControllerTest {
 
         assertEquals("index", view);
         assertEquals(1, ((List<?>) model.get("categories")).size());
+        assertEquals("12", ((java.util.Map<?, ?>) ((List<?>) model.get("categories")).getFirst()).get("id"));
         assertEquals(1, ((List<?>) model.get("products")).size());
     }
 }

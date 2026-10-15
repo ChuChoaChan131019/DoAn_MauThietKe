@@ -9,13 +9,20 @@
 .products-sidebar-title { font-size: 14px; }
 .products-sidebar-list { font-size: 14px; }
 .products-sidebar-divider { border-color: var(--senvia-blush) !important; }
+.products-category-chip { position: relative; display: inline-flex; align-items: center; padding: 0.45rem 0.65rem; border: 1px solid var(--senvia-clay); background: #fff; color: var(--senvia-plum); cursor: pointer; font-size: 12px; transition: background-color 120ms ease, color 120ms ease, border-color 120ms ease; }
+.products-category-chip:hover { background: var(--senvia-blush); }
+.products-category-chip input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.products-category-chip:focus-within { outline: 2px solid var(--senvia-burgundy); outline-offset: 2px; }
+.products-category-chip-selected { border-color: var(--senvia-plum); background: var(--senvia-plum); color: #fff; font-weight: 700; }
+.products-category-chip-selected:hover { background: var(--senvia-burgundy); color: #fff; }
+.products-active-filter { font-size: 12px; text-align: left; white-space: normal; overflow-wrap: anywhere; }
+.products-active-filter:hover, .products-active-filter:focus-visible { background: var(--senvia-blush); }
 .products-filter-checkbox { border-color: var(--senvia-clay); cursor: pointer; }
 .products-filter-label { cursor: pointer; }
 .products-filter-count { font-size: 12px; }
 
 .products-pagination-container { border-color: var(--senvia-blush) !important; }
-.products-page-btn { width: 40px; height: 40px; }
-.products-page-btn-active { background-color: var(--senvia-burgundy); width: 40px; height: 40px; }
+.products-page-number { min-width: 1.5rem; text-align: center; }
 
 /* Product Detail Styles */
 .product-detail-container { max-width: 1536px; }

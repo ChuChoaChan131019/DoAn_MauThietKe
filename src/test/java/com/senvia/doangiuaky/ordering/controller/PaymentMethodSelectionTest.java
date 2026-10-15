@@ -4,6 +4,7 @@ import com.senvia.doangiuaky.identity.security.SecurityConfig;
 import com.senvia.doangiuaky.ordering.entity.PaymentMethod;
 import com.senvia.doangiuaky.ordering.dto.CheckoutSelectionView;
 import com.senvia.doangiuaky.ordering.service.CheckoutSelectionService;
+import com.senvia.doangiuaky.ordering.service.CheckoutPreviewService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,11 +19,15 @@ import java.util.List;
 import static org.hamcrest.Matchers.hasProperty;
 import static org.hamcrest.Matchers.is;
 import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+
+import com.senvia.doangiuaky.ordering.service.CheckoutTransactionService;
 
 @WebMvcTest(OrderingController.class)
 @Import(SecurityConfig.class)
@@ -33,6 +38,12 @@ class PaymentMethodSelectionTest {
 
     @MockitoBean
     private CheckoutSelectionService checkoutSelectionService;
+
+    @MockitoBean
+    private CheckoutPreviewService checkoutPreviewService;
+
+    @MockitoBean
+    private CheckoutTransactionService checkoutTransactionService;
 
     @BeforeEach
     void setUp() {
@@ -55,7 +66,9 @@ class PaymentMethodSelectionTest {
             .andExpect(status().isOk())
             .andExpect(model().attribute("checkoutPaymentForm",
                 hasProperty("paymentMethod", is(PaymentMethod.COD))))
-            .andExpect(model().attribute("paymentValidated", true));
+            .andExpect(model().attributeHasNoErrors("checkoutPaymentForm"));
+        verify(checkoutPreviewService).preview(argThat(form -> form.getPaymentMethod() == PaymentMethod.COD),
+                argThat(ids -> ids.equals(List.of(1L))));
     }
 
     @Test
@@ -71,7 +84,9 @@ class PaymentMethodSelectionTest {
             .andExpect(status().isOk())
             .andExpect(model().attribute("checkoutPaymentForm",
                 hasProperty("paymentMethod", is(PaymentMethod.BANK_TRANSFER))))
-            .andExpect(model().attribute("paymentValidated", true));
+            .andExpect(model().attributeHasNoErrors("checkoutPaymentForm"));
+        verify(checkoutPreviewService).preview(argThat(form -> form.getPaymentMethod() == PaymentMethod.BANK_TRANSFER),
+                argThat(ids -> ids.equals(List.of(1L))));
     }
 
     @Test
