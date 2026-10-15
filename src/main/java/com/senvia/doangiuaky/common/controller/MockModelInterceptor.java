@@ -27,8 +27,6 @@ public class MockModelInterceptor implements HandlerInterceptor {
             // Shop status remains owned by merchant; this value is only used by the current UI mock.
             String shopStatus = request.getParameter("shopStatus");
             modelAndView.addObject("shopStatus", shopStatus);
-
-            modelAndView.addObject("unreadNotifications", 3);
         }
     }
 }

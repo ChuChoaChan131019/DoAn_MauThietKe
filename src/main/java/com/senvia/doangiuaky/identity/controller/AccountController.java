@@ -3,10 +3,13 @@ package com.senvia.doangiuaky.identity.controller;
 import com.senvia.doangiuaky.identity.dto.ChangePasswordForm;
 import com.senvia.doangiuaky.identity.dto.ProfileForm;
 import com.senvia.doangiuaky.identity.security.IdentityPrincipal;
+import com.senvia.doangiuaky.identity.security.SessionInvalidator;
 import com.senvia.doangiuaky.identity.service.IdentityService;
 import com.senvia.doangiuaky.identity.service.InvalidPasswordException;
 import com.senvia.doangiuaky.identity.service.avatar.AvatarStorageException;
 import jakarta.validation.Valid;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpSession;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
@@ -23,9 +26,11 @@ import java.util.Objects;
 public class AccountController {
 
     private final IdentityService identityService;
+    private final SessionInvalidator sessionInvalidator;
 
-    public AccountController(IdentityService identityService) {
+    public AccountController(IdentityService identityService, SessionInvalidator sessionInvalidator) {
         this.identityService = identityService;
+        this.sessionInvalidator = sessionInvalidator;
     }
 
     @GetMapping("/account")
@@ -77,6 +82,7 @@ public class AccountController {
     @PostMapping("/account/change-password")
     public String changePassword(
             @AuthenticationPrincipal IdentityPrincipal principal,
+            HttpServletRequest request,
             @Valid @ModelAttribute("passwordForm") ChangePasswordForm form,
             BindingResult bindingResult,
             Model model,
@@ -94,6 +100,11 @@ public class AccountController {
             model.addAttribute("passwordError", exception.getMessage());
             return "identity/change-password";
         }
+        HttpSession currentSession = request.getSession(false);
+        if (currentSession == null) {
+            throw new IllegalStateException("Phiên đăng nhập hiện tại không còn hợp lệ.");
+        }
+        sessionInvalidator.invalidateOtherSessions(principal.getUserId(), currentSession.getId());
         redirectAttributes.addFlashAttribute("success", "Mật khẩu đã được cập nhật.");
         return "redirect:/account/change-password";
     }

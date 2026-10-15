@@ -40,7 +40,6 @@
                 
                 <a th:if="${role != null}" th:href="@{/account/notifications}" class="text-plum hover-burgundy transition-colors position-relative d-none d-md-block">
                     <i class="bi bi-bell header-icon-lg"></i>
-                    <span th:if="${unreadNotifications != null && unreadNotifications > 0}" th:text="${unreadNotifications}" class="position-absolute bg-burgundy text-white fw-bold d-flex align-items-center justify-content-center rounded-circle header-cart-badge" style="top: -5px; right: -5px;"></span>
                 </a>
 
                 <a th:if="${role == 'USER'}" th:href="@{/account/wishlist}" class="text-plum hover-burgundy transition-colors position-relative d-none d-md-block">
@@ -80,7 +79,6 @@
                 <a th:if="${role == 'USER'}" th:href="@{/cart}" class="text-plum hover-burgundy transition-colors position-relative d-flex align-items-center gap-2 group">
                     <div class="position-relative">
                         <i class="bi bi-cart header-icon-lg"></i>
-                        <span class="position-absolute bg-burgundy text-white fw-bold d-flex align-items-center justify-content-center rounded-circle header-cart-badge">3</span>
                     </div>
                 </a>
             </div>
@@ -92,7 +90,7 @@
                 <a th:href="@{/products}" class="d-block py-2 text-plum text-decoration-none fw-medium border-bottom">Sản phẩm</a>
                 <a th:if="${role == 'USER'}" th:href="@{/account/wishlist}" class="d-block py-2 text-plum text-decoration-none fw-medium border-bottom">Yêu thích</a>
                 <a th:if="${role != null}" th:href="@{/account/notifications}" class="d-block py-2 text-plum text-decoration-none fw-medium border-bottom">
-                    Thông báo <span th:if="${unreadNotifications != null && unreadNotifications > 0}" th:text="${unreadNotifications}" class="badge bg-burgundy ms-1"></span>
+                    Thông báo
                 </a>
             </div>
         </div>
