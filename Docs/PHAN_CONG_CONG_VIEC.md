@@ -13,11 +13,11 @@ Tài liệu này là nguồn chi tiết về đầu việc, contract, kiểm th�
 
 | TV | MSSV | Họ và tên | Phạm vi chính |
 | --- | --- | --- | --- |
-| TV1 | 2314288 | Trần Thị Phương Trang — **Nhóm trưởng** | `merchant`, State Pattern, shop, category, product, stock |
+| TV1 | 2314288 | Trần Thị Phương Trang — **Nhóm trưởng** | `merchant`, State Pattern, shop, category, product, stock; feature AUTH 08 trong `identity` |
 | TV2 | 2312647 | Lê Anh Khoa | `ordering`, checkout, payment, Strategy, order lifecycle |
-| TV3 | 2312663 | Đỗ Đặng Diệu Linh | `shopping`, cart, favorite, Buyer Order History |
-| TV4 | 2111844 | Doàn Trương Duy Khang | `identity`, `common`, Security, account administration |
-| TV5 | 2113010 | Huỳnh Thiên Phúc | `engagement`, Observer, notification, review, dashboard/Admin view |
+| TV3 | 2312663 | Đỗ Đặng Diệu Linh | `shopping`, thông báo/Observer trong `engagement`, cart, favorite, Buyer Order History |
+| TV4 | 2111844 | Doàn Trương Duy Khang | Chủ module `identity`, `common`, Security và AUTH 01–07; review feature AUTH 08 của Trang |
+| TV5 | 2113010 | Huỳnh Thiên Phúc | Review, dashboard và Admin order view trong `engagement` |
 
 ---
 
@@ -25,7 +25,7 @@ Tài liệu này là nguồn chi tiết về đầu việc, contract, kiểm th�
 
 ### Phạm vi
 
-- **Requirement:** SHOP 01–10, PROD 01–11; dữ liệu cho STAT 01.
+- **Requirement:** SHOP 01–10, PROD 01–11, AUTH 08; dữ liệu cho STAT 01.
 - **Bảng:** `shops`, `categories`, `products`, `product_images`.
 - **Guide:** [MERCHANT_GUIDE.md](modules/MERCHANT_GUIDE.md).
 
@@ -43,6 +43,7 @@ Tài liệu này là nguồn chi tiết về đầu việc, contract, kiểm th�
 | Điều kiện bán | Chỉ bán khi owner ACTIVE, shop APPROVED, category active, product ACTIVE và stock > 0 |
 | Stock | Đọc giá/stock; conditional update nguyên tử; hoàn kho theo cơ chế chống lặp thống nhất với TV2 |
 | Event | Phát event gửi/duyệt/từ chối shop có `eventId` |
+| AUTH 08 (Issue #68) | Trong module `identity`, làm Admin list/search/filter/detail và khóa/mở USER; lưu lý do/người/thời điểm; không tự khóa hoặc khóa ADMIN; Khang review theo ownership Identity |
 
 ### Merchant API phải cung cấp
 
@@ -109,12 +110,12 @@ Tài liệu này là nguồn chi tiết về đầu việc, contract, kiểm th�
 
 ---
 
-## 5. TV3 — Đỗ Đặng Diệu Linh: Shopping và Buyer Order History
+## 5. TV3 — Đỗ Đặng Diệu Linh: Shopping, Notification/Observer và Buyer Order History
 
 ### Phạm vi
 
-- **Requirement:** CART 01–07, FAV 01–03 và giao diện/query ORDER 01.
-- **Bảng:** `carts`, `cart_items`, `favorites`.
+- **Requirement:** CART 01–07, FAV 01–03, NOTI 01–07 và giao diện/query ORDER 01.
+- **Bảng:** `carts`, `cart_items`, `favorites`; bảng `notifications` thuộc phần feature Linh phụ trách trong `engagement`.
 - **Guide:** [SHOPPING_GUIDE.md](modules/SHOPPING_GUIDE.md).
 
 ### Công việc
@@ -128,6 +129,7 @@ Tài liệu này là nguồn chi tiết về đầu việc, contract, kiểm th�
 | Favorite | Thêm, xóa, danh sách; chống trùng ở Service/database; giới hạn đúng owner |
 | Shopping API | Checkout snapshot gồm cart item/product/quantity; xóa đúng item chỉ sau khi TV2 báo thành công |
 | Buyer orders | Danh sách/chi tiết order, items, payment, history; nút/form cancel theo trạng thái; gọi `ordering.api`, không tự xử lý order |
+| Observer/Notification | Listener trong `engagement.event` nhận ShopRequested/ShopReviewed, OrderCreated/OrderStatusChanged và ReviewCreated; tạo thông báo đúng receiver sau commit, chống trùng theo eventId; danh sách, unread count, đánh dấu đã đọc một/tất cả và kiểm tra ownership |
 
 ### Kiểm thử và bàn giao
 
@@ -136,8 +138,9 @@ Tài liệu này là nguồn chi tiết về đầu việc, contract, kiểm th�
 - Favorite trùng và truy cập trái quyền.
 - Snapshot checkout và chỉ xóa cart sau thành công.
 - Buyer không xem order người khác.
+- Listener xử lý sau commit; event lặp không tạo thông báo trùng; receiver và read state đúng ownership.
 - Integration flow: Product → Cart → Checkout → Order → Cancel → Stock restored.
-- Contract product/shop được TV1 review; checkout/order contract được TV2 review.
+- Contract product/shop được TV1 review; checkout/order contract được TV2 review; event publisher contract được module phát event sở hữu và TV5 review phần tương tác với Review.
 
 ---
 
@@ -145,7 +148,7 @@ Tài liệu này là nguồn chi tiết về đầu việc, contract, kiểm th�
 
 ### Phạm vi
 
-- **Requirement:** AUTH 01–08.
+- **Requirement:** AUTH 01–07; review kỹ thuật AUTH 08 do Trang thực hiện.
 - **Bảng:** `users`.
 - **Tài nguyên:** `identity`, `common`, config và shared UI.
 - **Guide:** [IDENTITY_GUIDE.md](modules/IDENTITY_GUIDE.md).
@@ -158,7 +161,6 @@ Tài liệu này là nguồn chi tiết về đầu việc, contract, kiểm th�
 | Registration | Validation họ tên/email/password; BCrypt; chống email trùng không phân biệt hoa thường |
 | Authentication | Login/logout; chặn LOCKED; vô hiệu session hiện tại khi account bị khóa; role USER/ADMIN; Admin không mua |
 | Profile | Xem/sửa họ tên, phone, address, avatar; đổi password sau khi xác minh password hiện tại |
-| Admin account | Danh sách, tìm tên/email, lọc status, chi tiết, khóa/mở USER; bắt buộc lý do; không tự khóa hoặc khóa ADMIN |
 | Locked owner | Identity API phản ánh ngay LOCKED để catalog ẩn và shop ngừng nhận order; Admin xử lý order cũ |
 | Common | Security config, password encoder, access denied, global exception, validation thật sự dùng chung, trang 403/404/500, header/footer/navigation |
 | Shared review | Review `pom.xml`, `application.properties`, `common`, fragment và static common |
@@ -177,38 +179,33 @@ Không công bố password hash, User Entity/Repository hoặc principal nội b
 - BCrypt, sai password, account LOCKED/session invalidation.
 - Profile/password ownership.
 - USER/ADMIN authorization và Admin không mua.
-- Khóa/mở USER, lý do khóa, không tự khóa/khóa ADMIN.
+- Identity contract và Security; review khóa/mở USER của AUTH 08 do Trang thực hiện.
 - Public DTO/API không lộ password hash.
 - Identity contract được TV1 và TV5 review theo nhu cầu sử dụng.
 
 ---
 
-## 7. TV5 — Huỳnh Thiên Phúc: Engagement
+## 7. TV5 — Huỳnh Thiên Phúc: Review, Dashboard và Admin Order trong Engagement
 
 ### Phạm vi
 
-- **Requirement:** NOTI 01–07, REV 01–04, STAT 01–05.
+- **Requirement:** REV 01–04, STAT 01–05.
 - **Giao diện phối hợp:** Admin giám sát order.
-- **Bảng:** `notifications`, `reviews`.
+- **Bảng:** `reviews`; bảng `notifications` do Linh phụ trách trong cùng module.
 - **Guide:** [ENGAGEMENT_GUIDE.md](modules/ENGAGEMENT_GUIDE.md).
 
 ### Công việc
 
 | Nhóm | Đầu việc và kết quả |
 | --- | --- |
-| Observer | Listener ShopRequested, ShopReviewed, OrderCreated, OrderStatusChanged, ReviewCreated |
-| Idempotency | Xử lý sau commit; event có `eventId`; unique `(event_id, receiver_id)`; event lặp không tạo trùng |
-| Notification | Đúng receiver cho shop/order/review; danh sách, unread count, đánh dấu một/tất cả; không truy cập notification người khác |
-| Review | Chỉ buyer có order item COMPLETED đúng product; rating 1–5; unique order item; không sửa/xóa MVP |
-| Review view | Danh sách review và điểm trung bình; phát ReviewCreatedEvent |
+| Review | Tạo và kiểm tra review: chỉ buyer có order item COMPLETED đúng product; rating 1–5; unique order item; không sửa/xóa MVP |
+| Review view/event | Danh sách review và điểm trung bình; phát ReviewCreatedEvent; phối hợp Linh để kiểm tra listener thông báo nhận review |
 | Dashboard | Tổng product từ TV1; order/status/revenue COMPLETED từ TV2; chỉ dữ liệu đúng shop; thẻ số/bảng là đủ |
 | Admin order | Danh sách toàn hệ thống, tìm code, lọc buyer/shop/status, chi tiết, payment, history, form cancel |
 | Cancel orchestration | Admin UI gọi `ordering.api`; TV2 thực hiện validation, stock, payment và history |
 
 ### Kiểm thử và bàn giao
 
-- Listener sau commit, đúng receiver và chống trùng.
-- Notification ownership/read state.
 - Review buyer/order/product/rating/unique.
 - Điểm trung bình.
 - Dashboard đúng shop và revenue COMPLETED.
@@ -222,11 +219,11 @@ Không công bố password hash, User Entity/Repository hoặc principal nội b
 
 | Bên cung cấp | Contract | Bên sử dụng | Review |
 | --- | --- | --- | --- |
-| TV1 `merchant` | Product/shop, giá/stock, trừ/hoàn stock, product count | TV2, TV3, TV5 | TV2 stock; TV3 cart; TV5 dashboard/review |
-| TV2 `ordering` | Buyer/Admin query, cancel, review verification, statistics | TV3, TV5 | TV3 Buyer Flow; TV5 Admin/review/dashboard |
+| TV1 `merchant` | Product/shop, giá/stock, trừ/hoàn stock, product count, shop events | TV2, TV3, TV5; TV3 notification listener nhận shop events | TV2 stock; TV3 cart/notification; TV5 dashboard/review |
+| TV2 `ordering` | Buyer/Admin query, cancel, review verification, statistics, order events | TV3, TV5; TV3 notification listener nhận order events | TV3 Buyer Flow/notification; TV5 Admin/review/dashboard |
 | TV3 `shopping` | Checkout snapshot và xóa cart sau thành công | TV2 | TV2 |
 | TV4 `identity` | User/role/status và Admin ACTIVE | TV1, TV2, TV3, TV5 | TV1 và TV5 |
-| TV1/TV2/TV5 | Integration event | TV5 listener | TV5 review event schema |
+| TV1/TV2/TV5 | Integration event | TV3 notification listener; TV5 dùng ReviewCreated cho nghiệp vụ review | Chủ module phát event review contract của mình; TV5 review event ReviewCreated, Linh kiểm tra luồng thông báo |
 
 TV3 chỉ làm UI/query Buyer Order History qua `ordering.api`; nghiệp vụ order thuộc TV2. TV5 chỉ làm Admin orchestration; nghiệp vụ hủy order thuộc TV2.
 
@@ -236,7 +233,7 @@ TV3 chỉ làm UI/query Buyer Order History qua `ordering.api`; nghiệp vụ or
 2. TV3 hoàn thiện cart/favorite bằng mock Merchant API.
 3. TV2 hoàn thiện Ordering/Strategy bằng mock Shopping và Merchant API.
 4. Tích hợp Cart → Checkout → Stock → Order → Cancel.
-5. TV5 tích hợp event, Review, Dashboard và Admin order view.
+5. TV3 tích hợp notification listener với event từ các module; TV5 hoàn thiện Review, Dashboard và Admin order view.
 6. Chạy kịch bản demo SRS và kiểm thử phân quyền toàn hệ thống.
 
 ## 10. Bàn giao chung

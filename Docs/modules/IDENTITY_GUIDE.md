@@ -4,12 +4,13 @@
 
 ## Phạm vi
 
-- **Chủ sở hữu:** Doàn Trương Duy Khang (2111844).
-- **Requirement:** AUTH 01–08.
+- **Chủ module:** Doàn Trương Duy Khang (2111844).
+- **Feature owner AUTH 08 / Issue #68:** Trần Thị Phương Trang (2314288); Khang review theo ownership Identity.
+- **Requirement:** AUTH 01–07 do Khang phụ trách; AUTH 08 do Trang triển khai.
 - **Bảng:** `users`.
 - **Code/view:** `com.senvia.doangiuaky.identity`, `com.senvia.doangiuaky.common`, `templates/identity`.
 
-Identity sở hữu account, authentication, profile, role/status và Spring Security; Khang review tài nguyên common/config.
+Identity sở hữu account, authentication, profile, role/status và Spring Security; Khang là chủ module và review tài nguyên common/config cùng feature AUTH 08 của Trang.
 
 Trang quản trị tài khoản Identity được đặt tại `/identity/admin/accounts` để không xung đột route mock hiện có thuộc `engagement`.
 
@@ -28,7 +29,7 @@ status; không công bố password hash, User Entity/Repository hoặc principal
 3. Registration và BCrypt.
 4. Login/logout, LOCKED account và session invalidation.
 5. Profile/avatar và đổi password.
-6. Admin list/search/filter/detail/lock/unlock account.
+6. AUTH 08: Admin list/search/filter/detail/lock/unlock USER (Trang; Khang review).
 7. Identity API.
 8. Security/common error pages và shared navigation.
 
@@ -45,6 +46,6 @@ status; không công bố password hash, User Entity/Repository hoặc principal
 
 ## Kiểm thử/bàn giao
 
-Test email, BCrypt, authentication, LOCKED/session, profile/password ownership, USER/ADMIN authorization và lock/unlock. Trần Thị Phương Trang review contract phục vụ Merchant; Huỳnh Thiên Phúc review Admin ACTIVE/notification; thay đổi common/config cần PR riêng.
+Test email, BCrypt, authentication, LOCKED/session, profile/password ownership, USER/ADMIN authorization và lock/unlock. Trần Thị Phương Trang review contract phục vụ Merchant; Đỗ Đặng Diệu Linh review Admin ACTIVE phục vụ notification; thay đổi common/config cần PR riêng.
 
 Checklist chất lượng chung xem [CONTRIBUTING.md](../CONTRIBUTING.md).

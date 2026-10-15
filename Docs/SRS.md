@@ -43,11 +43,11 @@ tháng 9 năm 2026
 
 | STT | Họ và tên                               | Mã sinh viên | Vai trò/phạm vi chính                                     |
 | --: | ------------------------------------------ | -------------- | ------------------------------------------------------------ |
-|   1 | Trần Thị Phương Trang (Nhóm trưởng) | 2314288        | Merchant, State Pattern, shop và catalog                    |
+|   1 | Trần Thị Phương Trang (Nhóm trưởng) | 2314288        | Merchant, State Pattern, shop/catalog và AUTH 08 (Admin quản lý USER) |
 |   2 | Lê Anh Khoa                               | 2312647        | Ordering, checkout, payment và Strategy Pattern             |
-|   3 | Đỗ Đặng Diệu Linh                     | 2312663        | Shopping, favorite và lịch sử đơn của buyer            |
-|   4 | Doàn Trương Duy Khang                   | 2111844        | Identity, Security, Common và quản lý tài khoản         |
-|   5 | Huỳnh Thiên Phúc                        | 2113010        | Engagement, Observer, review, dashboard và Admin order view |
+|   3 | Đỗ Đặng Diệu Linh                     | 2312663        | Shopping, thông báo (Observer), favorite và lịch sử đơn của buyer |
+|   4 | Doàn Trương Duy Khang                   | 2111844        | Chủ module Identity, Security, Common và AUTH 01–07         |
+|   5 | Huỳnh Thiên Phúc                        | 2113010        | Review, dashboard và Admin order view trong Engagement       |
 
 # MỤC LỤC
 
@@ -980,6 +980,8 @@ Tiêu chí chứng minh: có thể bổ sung một phương thức thanh toán m
 ### 10.3 Observer Pattern cho thông báo
 
 Observer là mẫu thứ ba được nhóm áp dụng chính thức để tách nghiệp vụ chính khỏi việc tạo thông báo. Publisher phát event có eventId; listener trong engagement xử lý sau khi transaction nghiệp vụ commit và lưu notification với cặp event_id, receiver_id duy nhất để chống tạo trùng cho từng người nhận khi xử lý lặp.
+
+**Phân công:** Đỗ Đặng Diệu Linh phụ trách feature thông báo và Observer listener trong module `engagement`; Huỳnh Thiên Phúc phụ trách review, dashboard và Admin order trong module này. Module phát sinh nghiệp vụ vẫn sở hữu publisher và contract event của mình; Linh phối hợp với chủ sở hữu các module đó để tích hợp listener.
 
 | **Sự kiện**             | **Đối tượng nhận thông báo** |
 | ------------------------------- | ----------------------------------------- |

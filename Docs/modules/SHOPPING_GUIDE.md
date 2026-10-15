@@ -6,7 +6,7 @@
 
 - **Chủ sở hữu:** Đỗ Đặng Diệu Linh (2312663).
 - **Requirement:** CART 01–07, FAV 01–03.
-- **Phối hợp:** giao diện/query Buyer Order History cho ORDER 01 qua `ordering.api`.
+- **Phối hợp:** giao diện/query Buyer Order History cho ORDER 01 qua `ordering.api`; Linh đồng thời phụ trách feature Notification/Observer trong module `engagement` theo phân công nhóm.
 - **Bảng:** `carts`, `cart_items`, `favorites`.
 - **Code/view:** `com.senvia.doangiuaky.shopping`, `templates/shopping`.
 

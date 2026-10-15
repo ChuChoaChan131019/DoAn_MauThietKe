@@ -10,9 +10,11 @@ Tài liệu này là nguồn chuẩn để xác định ranh giới khi năm th�
 | [`ordering`](modules/ORDERING_GUIDE.md) | Lê Anh Khoa (2312647) | Checkout, đơn hàng, lịch sử trạng thái, thanh toán | `orders`, `order_items`, `payments`, `order_status_histories` |
 | [`shopping`](modules/SHOPPING_GUIDE.md) | Đỗ Đặng Diệu Linh (2312663) | Giỏ hàng, sản phẩm yêu thích và Buyer Order History qua `ordering.api` | `carts`, `cart_items`, `favorites` |
 | [`identity`](modules/IDENTITY_GUIDE.md) | Doàn Trương Duy Khang (2111844) | Đăng ký, đăng nhập, tài khoản, phân quyền | `users` |
-| [`engagement`](modules/ENGAGEMENT_GUIDE.md) | Huỳnh Thiên Phúc (2113010) | Thông báo, đánh giá, trang quản trị và báo cáo | `notifications`, `reviews` |
+| [`engagement`](modules/ENGAGEMENT_GUIDE.md) | Đỗ Đặng Diệu Linh (2312663) — notifications/Observer; Huỳnh Thiên Phúc (2113010) — reviews, dashboard/Admin order | Thông báo, đánh giá, trang quản trị và báo cáo | `notifications` (Linh), `reviews` (Phúc) |
 
 `common` do Doàn Trương Duy Khang (2111844) quản lý và chỉ chứa thành phần kỹ thuật thật sự dùng chung. Không đặt nghiệp vụ của một module vào `common` để tránh ownership không rõ ràng.
+
+Feature AUTH 08 (Issue #68) do Trần Thị Phương Trang thực hiện trong `identity`; Doàn Trương Duy Khang vẫn là chủ module và review thay đổi theo ranh giới Identity.
 
 ## 2. Hướng phụ thuộc
 
@@ -29,6 +31,7 @@ engagement   → common, identity.api, merchant.api, ordering.api
 - Không gọi Repository hoặc sử dụng Entity của module khác.
 - Module cung cấp chịu trách nhiệm thiết kế contract trong `api`; module sử dụng phải cùng review nếu contract thay đổi.
 - Thông báo phát sinh từ `merchant` và `ordering` được chuyển tới `engagement` bằng Spring Event thay vì gọi Repository thông báo trực tiếp.
+- Linh là feature owner Notification/Observer trong `engagement`; Phúc phối hợp và review ownership của module. Contract event vẫn do module phát event sở hữu.
 - Trang quản trị không sở hữu lại nghiệp vụ. Nó gọi public API của module chịu trách nhiệm dữ liệu.
 
 ## 3. Tài nguyên do module sở hữu
