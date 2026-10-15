@@ -61,22 +61,19 @@ class OrderDraftWriterTest {
     }
 
     @Test
-    void rejectsUnavailableOrInsufficientProductBeforeAnyOrderSideWrite() {
-        var unavailable = fixture("100.00");
-        when(unavailable.merchant().findProductForCart(101L))
-                .thenReturn(Optional.of(product("100.00", 5, false)));
+    void acceptsProductThatWasSoldOutByAtomicCheckoutDeduction() {
+        var fixture = fixture("100.00");
+        when(fixture.merchant().findProductForCart(101L))
+                .thenReturn(Optional.of(product("100.00", 0, true)));
+        var savedOrder = mock(com.senvia.doangiuaky.ordering.entity.Order.class);
+        when(savedOrder.getId()).thenReturn(77L);
+        when(fixture.orders().save(any())).thenReturn(savedOrder);
 
-        assertThrows(CheckoutPreparationException.class,
-                () -> unavailable.writer().save(unavailable.checkout(), paymentInitializer()));
-        verifyNoInteractions(unavailable.orders(), unavailable.items(), unavailable.payments());
+        assertEquals(List.of(77L), fixture.writer().save(fixture.checkout(), paymentInitializer()));
 
-        var insufficient = fixture("100.00");
-        when(insufficient.merchant().findProductForCart(101L))
-                .thenReturn(Optional.of(product("100.00", 1, true)));
-
-        assertThrows(CheckoutPreparationException.class,
-                () -> insufficient.writer().save(insufficient.checkout(), paymentInitializer()));
-        verifyNoInteractions(insufficient.orders(), insufficient.items(), insufficient.payments());
+        verify(fixture.orders()).save(any());
+        verify(fixture.items()).save(any());
+        verify(fixture.payments()).save(any());
     }
 
     @Test

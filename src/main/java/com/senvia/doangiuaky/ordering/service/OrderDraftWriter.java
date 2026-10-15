@@ -94,11 +94,9 @@ public class OrderDraftWriter {
                     throw new CheckoutPreparationException("Sản phẩm không thuộc gian hàng của đơn hàng.");
                 }
 
-                if (!product.isSaleable() || product.stockQuantity() < line.quantity()) {
-                    throw new CheckoutPreparationException(
-                            "Sản phẩm đã ngừng bán hoặc không đủ hàng: " + line.productId());
-                }
-
+                // CheckoutTransactionService đã kiểm tra saleability và trừ kho nguyên tử
+                // qua MerchantStockApi trước khi gọi writer. Không kiểm tra saleability hoặc
+                // số tồn tại đây vì sản phẩm vừa bán hết có stockQuantity = 0 là hợp lệ.
                 currentGrandTotal = currentGrandTotal.add(
                         product.currentPrice().multiply(BigDecimal.valueOf(line.quantity())));
                 if (product.currentPrice().compareTo(line.unitPrice()) != 0) {

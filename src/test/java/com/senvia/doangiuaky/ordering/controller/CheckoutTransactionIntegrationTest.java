@@ -199,6 +199,39 @@ class CheckoutTransactionIntegrationTest {
         assertPurchase("BANK_TRANSFER", "PENDING");
     }
 
+    @Test
+    void checkoutSucceedsWhenItConsumesAllAvailableStock()
+            throws Exception {
+
+        Fixture f = fixture();
+        MockHttpSession session = new MockHttpSession();
+
+        try {
+            db.update("UPDATE products SET stock_quantity = 1 WHERE id = ?", f.toteId());
+            db.update("UPDATE products SET stock_quantity = 1 WHERE id = ?", f.lampId());
+
+            String token = (String) preview(f, "COD", session)
+                    .getModelAndView()
+                    .getModel()
+                    .get("checkoutToken");
+
+            MvcResult result = confirm(f, session, token);
+
+            assertEquals(302, result.getResponse().getStatus());
+            assertEquals("/checkout/success", result.getResponse().getRedirectedUrl());
+            assertEquals(0, stock(f.toteId()));
+            assertEquals(0, stock(f.lampId()));
+            assertEquals(2, db.queryForObject(
+                    "SELECT COUNT(*) FROM orders WHERE buyer_id = ?", Integer.class, f.buyerId()));
+            assertEquals(2, db.queryForObject(
+                    "SELECT COUNT(*) FROM payments p JOIN orders o ON o.id = p.order_id WHERE o.buyer_id = ?",
+                    Integer.class, f.buyerId()));
+        } finally {
+            db.update("UPDATE products SET stock_quantity = ? WHERE id = ?", f.toteBefore(), f.toteId());
+            db.update("UPDATE products SET stock_quantity = ? WHERE id = ?", f.lampBefore(), f.lampId());
+        }
+    }
+
     void assertPurchase(
             String method,
             String expectedStatus
