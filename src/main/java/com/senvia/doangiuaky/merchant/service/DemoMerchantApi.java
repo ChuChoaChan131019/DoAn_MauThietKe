@@ -18,18 +18,25 @@ import com.senvia.doangiuaky.merchant.entity.Product;
 import com.senvia.doangiuaky.merchant.entity.ProductImage;
 import com.senvia.doangiuaky.merchant.entity.ProductStatus;
 import com.senvia.doangiuaky.merchant.entity.Shop;
+import com.senvia.doangiuaky.merchant.entity.ShopStatus;
 import com.senvia.doangiuaky.merchant.repository.CategoryRepository;
 import com.senvia.doangiuaky.merchant.repository.ProductImageRepository;
 import com.senvia.doangiuaky.merchant.repository.ProductRepository;
 import com.senvia.doangiuaky.merchant.repository.ShopRepository;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
@@ -125,8 +132,12 @@ public class DemoMerchantApi implements MerchantApi {
                 .toList();
     }
 
-    @Transactional(readOnly = true)
-    public CatalogFilterResult filterSaleableCatalogProducts(CatalogFilterForm filter) {
+    @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
+    public CatalogFilterResult filterSaleableCatalogProducts(
+            CatalogFilterForm filter, int requestedPage, int pageSize, String sort) {
+        if (requestedPage < 1 || pageSize < 1 || pageSize > 48) {
+            throw new IllegalArgumentException("Invalid catalog page or size");
+        }
         String query = normalizeCatalogQuery(filter.getQ());
         List<Long> requestedCategoryIds = filter.getRequestedCategoryIds();
         boolean filterByLegacyCategory = requestedCategoryIds.isEmpty()
@@ -134,52 +145,95 @@ public class DemoMerchantApi implements MerchantApi {
                 && !filter.getCategory().isBlank()
                 && !"Tất cả sản phẩm".equals(filter.getCategory().trim());
 
-        List<Long> categoryIds = List.of();
+        List<Category> activeCategories = categoryRepository.findAllByActiveTrueOrderByNameAscIdAsc();
+        Map<Long, Category> activeCategoryById = activeCategories.stream()
+                .collect(Collectors.toMap(Category::getId, Function.identity()));
+        List<Long> categoryIds = activeCategories.stream().map(Category::getId).toList();
         if (!requestedCategoryIds.isEmpty()) {
-            if (requestedCategoryIds.stream().anyMatch(id -> id == null || id <= 0)) {
-                return new CatalogFilterResult(List.of(), Map.of(), false);
-            }
-            List<Category> requestedCategories = categoryRepository.findAllById(requestedCategoryIds);
-            if (requestedCategories.size() != requestedCategoryIds.size()
-                    || requestedCategories.stream().anyMatch(category -> !category.isActive())) {
-                return new CatalogFilterResult(List.of(), Map.of(), false);
+            if (requestedCategoryIds.stream().anyMatch(id -> !activeCategoryById.containsKey(id))) {
+                return CatalogFilterResult.empty(false, pageSize);
             }
             categoryIds = requestedCategoryIds;
         } else if (filterByLegacyCategory) {
-            Long categoryId = categoryRepository.findByNameAndActiveTrue(filter.getCategory().trim())
+            Long categoryId = activeCategories.stream()
+                    .filter(category -> category.getName().equals(filter.getCategory().trim()))
                     .map(Category::getId)
+                    .findFirst()
                     .orElse(null);
             if (categoryId == null) {
-                return new CatalogFilterResult(List.of(), Map.of(), false);
+                return CatalogFilterResult.empty(false, pageSize);
             }
             categoryIds = List.of(categoryId);
         }
 
-        List<CatalogProductCardView> products = productRepository.findCatalogCandidates(
-                        ProductStatus.ACTIVE,
-                        0,
-                        !categoryIds.isEmpty(),
-                        categoryIds.isEmpty() ? List.of(0L) : categoryIds,
-                        filter.getMin() != null,
-                        filter.getMin() == null ? BigDecimal.ZERO : filter.getMin(),
-                        filter.getMax() != null,
-                        filter.getMax() == null ? BigDecimal.ZERO : filter.getMax(),
-                        query != null,
-                        query == null ? "" : escapeLikeWildcards(query))
-                .stream()
-                .map(this::toSaleableCatalogProduct)
-                .flatMap(Optional::stream)
-                .map(this::toCardView)
+        List<Shop> publicShops = shopRepository.findAllByStatusInOrderByShopNameAscIdAsc(
+                        Set.of(ShopStatus.APPROVED)).stream()
+                .filter(Shop::canBePubliclyListed)
+                .filter(shop -> identityApi.isUserActive(shop.getOwnerId()))
                 .toList();
-
-        Map<String, Long> shopCounts = products.stream()
-                .collect(Collectors.groupingBy(CatalogProductCardView::shopName, Collectors.counting()));
+        if (categoryIds.isEmpty() || publicShops.isEmpty()) {
+            return CatalogFilterResult.empty(true, pageSize);
+        }
+        Map<Long, Shop> publicShopById = publicShops.stream()
+                .collect(Collectors.toMap(Shop::getId, Function.identity()));
+        List<Long> publicShopIds = publicShops.stream().map(Shop::getId).toList();
+        boolean filterByMin = filter.getMin() != null;
+        BigDecimal min = filterByMin ? filter.getMin() : BigDecimal.ZERO;
+        boolean filterByMax = filter.getMax() != null;
+        BigDecimal max = filterByMax ? filter.getMax() : BigDecimal.ZERO;
+        boolean filterByQuery = query != null;
+        String escapedQuery = filterByQuery ? escapeLikeWildcards(query) : "";
+        Map<String, Long> shopCounts = new HashMap<>();
+        for (ProductRepository.CatalogShopCount count : productRepository.countCatalogProductsByShop(
+                ProductStatus.ACTIVE, 0, publicShopIds, categoryIds,
+                filterByMin, min, filterByMax, max, filterByQuery, escapedQuery)) {
+            Shop shop = publicShopById.get(count.getShopId());
+            if (shop != null) {
+                shopCounts.merge(shop.getShopName(), count.getProductCount(), Long::sum);
+            }
+        }
         List<String> selectedShops = filter.getShop() == null ? List.of() : filter.getShop();
-        List<CatalogProductCardView> filteredProducts = products.stream()
-                .filter(product -> selectedShops.isEmpty() || selectedShops.contains(product.shopName()))
+        List<Long> selectedShopIds = publicShops.stream()
+                .filter(shop -> selectedShops.isEmpty() || selectedShops.contains(shop.getShopName()))
+                .map(Shop::getId)
                 .toList();
+        long totalItems = selectedShops.isEmpty()
+                ? shopCounts.values().stream().mapToLong(Long::longValue).sum()
+                : shopCounts.entrySet().stream()
+                .filter(entry -> selectedShops.contains(entry.getKey()))
+                .mapToLong(Map.Entry::getValue).sum();
+        if (totalItems == 0) {
+            return new CatalogFilterResult(List.of(), shopCounts, true, 0, 1, 1, pageSize);
+        }
+        int totalPages = (int) ((totalItems - 1) / pageSize + 1);
+        int currentPage = Math.min(requestedPage, totalPages);
+        List<Product> pageProducts = productRepository.findCatalogPage(
+                ProductStatus.ACTIVE, 0, selectedShopIds, categoryIds,
+                filterByMin, min, filterByMax, max, filterByQuery, escapedQuery,
+                PageRequest.of(currentPage - 1, pageSize, catalogSort(sort)));
+        Map<Long, String> thumbnailByProductId = new HashMap<>();
+        if (!pageProducts.isEmpty()) {
+            for (ProductImage image : productImageRepository.findCatalogImages(
+                    pageProducts.stream().map(Product::getId).toList())) {
+                thumbnailByProductId.putIfAbsent(image.getProduct().getId(), image.getImageUrl());
+            }
+        }
+        List<CatalogProductCardView> cards = pageProducts.stream()
+                .map(product -> new CatalogProductCardView(
+                        product.getId(), product.getName(), product.getPrice(),
+                        thumbnailByProductId.getOrDefault(product.getId(), FALLBACK_IMAGE),
+                        activeCategoryById.get(product.getCategoryId()).getName(),
+                        product.getShopId(), publicShopById.get(product.getShopId()).getShopName()))
+                .toList();
+        return new CatalogFilterResult(cards, shopCounts, true, totalItems, totalPages, currentPage, pageSize);
+    }
 
-        return new CatalogFilterResult(filteredProducts, shopCounts, true);
+    private Sort catalogSort(String sort) {
+        return switch (sort == null ? "newest" : sort) {
+            case "price_asc" -> Sort.by(Sort.Order.asc("price"), Sort.Order.asc("id"));
+            case "price_desc" -> Sort.by(Sort.Order.desc("price"), Sort.Order.asc("id"));
+            default -> Sort.by(Sort.Order.asc("id"));
+        };
     }
 
     @Transactional(readOnly = true)

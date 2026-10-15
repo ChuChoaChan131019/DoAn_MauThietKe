@@ -15,6 +15,7 @@ import com.senvia.doangiuaky.merchant.service.ProductStockConflictException;
 import com.senvia.doangiuaky.merchant.service.image.MerchantImageStorageException;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
+import org.springframework.data.domain.Page;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -24,14 +25,19 @@ import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.util.List;
+import java.util.ArrayList;
 
 @Controller
 @RequestMapping("/merchant/products")
 public class ProductController {
+
+    private static final int DEFAULT_PAGE_SIZE = 12;
+    private static final List<Integer> PAGE_SIZES = List.of(12, 24, 48);
 
     private final ProductManagementService productService;
     private final CategoryManagementService categoryService;
@@ -43,13 +49,53 @@ public class ProductController {
     }
 
     @GetMapping
-    public String list(@AuthenticationPrincipal IdentityPrincipal principal, Model model) {
+    public String list(@AuthenticationPrincipal IdentityPrincipal principal,
+                       @RequestParam(defaultValue = "1") String page,
+                       @RequestParam(defaultValue = "12") String size,
+                       Model model) {
         try {
-            model.addAttribute("products", productService.listOwnedProducts(principal.getUserId()));
+            List<String> paginationErrors = new ArrayList<>();
+            int requestedPage = parsePage(page, paginationErrors);
+            int pageSize = parseSize(size, paginationErrors);
+            Page<SellerProductView> products = productService.pageOwnedProducts(
+                    principal.getUserId(), requestedPage, pageSize);
+            model.addAttribute("products", products.getContent());
+            model.addAttribute("currentPage", products.getTotalPages() == 0 ? 1 : products.getNumber() + 1);
+            model.addAttribute("totalPages", products.getTotalPages());
+            model.addAttribute("totalItems", products.getTotalElements());
+            model.addAttribute("pageSize", pageSize);
+            model.addAttribute("pageSizes", PAGE_SIZES);
+            model.addAttribute("paginationErrors", paginationErrors);
             return "merchant/products";
         } catch (ProductAuthorizationException exception) {
             throw forbidden(exception);
         }
+    }
+
+    private static int parsePage(String value, List<String> errors) {
+        try {
+            int parsed = Integer.parseInt(value);
+            if (parsed >= 1) {
+                return parsed;
+            }
+        } catch (NumberFormatException ignored) {
+            // Invalid input is shown below and falls back to the first page.
+        }
+        errors.add("Số trang không hợp lệ. Đã chuyển về trang 1.");
+        return 1;
+    }
+
+    private static int parseSize(String value, List<String> errors) {
+        try {
+            int parsed = Integer.parseInt(value);
+            if (PAGE_SIZES.contains(parsed)) {
+                return parsed;
+            }
+        } catch (NumberFormatException ignored) {
+            // Invalid input is shown below and falls back to the default size.
+        }
+        errors.add("Số sản phẩm mỗi trang không hợp lệ. Đã dùng 12 sản phẩm.");
+        return DEFAULT_PAGE_SIZE;
     }
 
     @GetMapping("/add")

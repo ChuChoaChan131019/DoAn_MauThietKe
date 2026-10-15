@@ -246,7 +246,7 @@ class DemoMerchantApiTest {
         filter.setMax(new java.math.BigDecimal("1190000.25"));
         filter.setQ("  CANVAS  ");
 
-        var result = merchantApi.filterSaleableCatalogProducts(filter);
+        var result = merchantApi.filterSaleableCatalogProducts(filter, 1, 12, "newest");
 
         assertTrue(result.categoryAvailable());
         assertEquals(1, result.products().size());
@@ -263,26 +263,26 @@ class DemoMerchantApiTest {
 
         CatalogFilterForm filter = new CatalogFilterForm();
         filter.setQ("  cAnVaS  ");
-        var partialMatch = merchantApi.filterSaleableCatalogProducts(filter);
+        var partialMatch = merchantApi.filterSaleableCatalogProducts(filter, 1, 12, "newest");
         assertTrue(partialMatch.products().stream().anyMatch(product -> product.id().equals(productId)));
 
         filter.setQ("%");
-        var percentMatch = merchantApi.filterSaleableCatalogProducts(filter);
+        var percentMatch = merchantApi.filterSaleableCatalogProducts(filter, 1, 12, "newest");
         assertEquals(1, percentMatch.products().size());
         assertEquals(productId, percentMatch.products().getFirst().id());
 
         filter.setQ("_");
-        var underscoreMatch = merchantApi.filterSaleableCatalogProducts(filter);
+        var underscoreMatch = merchantApi.filterSaleableCatalogProducts(filter, 1, 12, "newest");
         assertEquals(1, underscoreMatch.products().size());
         assertEquals(productId, underscoreMatch.products().getFirst().id());
 
         filter.setQ("!");
-        var escapeCharacterMatch = merchantApi.filterSaleableCatalogProducts(filter);
+        var escapeCharacterMatch = merchantApi.filterSaleableCatalogProducts(filter, 1, 12, "newest");
         assertEquals(1, escapeCharacterMatch.products().size());
         assertEquals(productId, escapeCharacterMatch.products().getFirst().id());
 
         filter.setQ("   ");
-        var blankQuery = merchantApi.filterSaleableCatalogProducts(filter);
+        var blankQuery = merchantApi.filterSaleableCatalogProducts(filter, 1, 12, "newest");
         assertTrue(blankQuery.products().size() > 1);
     }
 
@@ -297,14 +297,45 @@ class DemoMerchantApiTest {
         CatalogFilterForm filter = new CatalogFilterForm();
         filter.setCategoryId(categoryId);
 
-        var inactiveResult = merchantApi.filterSaleableCatalogProducts(filter);
+        var inactiveResult = merchantApi.filterSaleableCatalogProducts(filter, 1, 12, "newest");
         filter.setCategoryId(Long.MAX_VALUE);
-        var unknownResult = merchantApi.filterSaleableCatalogProducts(filter);
+        var unknownResult = merchantApi.filterSaleableCatalogProducts(filter, 1, 12, "newest");
 
         assertFalse(inactiveResult.categoryAvailable());
         assertTrue(inactiveResult.products().isEmpty());
         assertFalse(unknownResult.categoryAvailable());
         assertTrue(unknownResult.products().isEmpty());
+    }
+
+    @Test
+    void catalogPagesOneThousandMatchingProductsWithStablePriceTies() {
+        Long productId = productRepository.findByName("Canvas Tote Bag").orElseThrow().getId();
+        Long shopId = jdbcTemplate.queryForObject(
+                "select shop_id from products where id = ?", Long.class, productId);
+        Long categoryId = jdbcTemplate.queryForObject(
+                "select category_id from products where id = ?", Long.class, productId);
+        for (int index = 0; index < 1_000; index++) {
+            jdbcTemplate.update("""
+                    insert into products (shop_id, category_id, name, description, price, stock_quantity, status)
+                    values (?, ?, ?, 'Pagination test product', 100000.00, 1, 'ACTIVE')
+                    """, shopId, categoryId, "Pagination-Scale-" + index);
+        }
+        entityManager.clear();
+
+        CatalogFilterForm filter = new CatalogFilterForm();
+        filter.setQ("Pagination-Scale-");
+        var first = merchantApi.filterSaleableCatalogProducts(filter, 1, 12, "price_asc");
+        var second = merchantApi.filterSaleableCatalogProducts(filter, 2, 12, "price_asc");
+        var last = merchantApi.filterSaleableCatalogProducts(filter, 999, 12, "price_asc");
+
+        assertEquals(1_000, first.totalItems());
+        assertEquals(84, first.totalPages());
+        assertEquals(12, first.products().size());
+        assertEquals(12, second.products().size());
+        assertEquals(84, last.currentPage());
+        assertEquals(4, last.products().size());
+        assertTrue(first.products().getLast().id() < second.products().getFirst().id());
+        assertTrue(second.products().getLast().id() < last.products().getFirst().id());
     }
 
     @Test

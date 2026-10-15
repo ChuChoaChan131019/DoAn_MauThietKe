@@ -114,6 +114,44 @@ class PublicCatalogRenderIntegrationTest {
     }
 
     @Test
+    void catalogSupportsBoundedPageSizesAndPreservesSizeInPageLinks() throws Exception {
+        mockMvc.perform(get("/products").param("size", "24"))
+                .andExpect(status().isOk())
+                .andExpect(model().attribute("products", hasSize(24)))
+                .andExpect(model().attribute("totalPages", 5))
+                .andExpect(model().attribute("pageSize", 24))
+                .andExpect(content().string(containsString("name=\"size\" value=\"24\"")))
+                .andExpect(content().string(containsString("page=2&amp;size=24")));
+
+        mockMvc.perform(get("/products").param("size", "24").param("page", "5"))
+                .andExpect(status().isOk())
+                .andExpect(model().attribute("products", hasSize(23)))
+                .andExpect(model().attribute("currentPage", 5));
+
+        mockMvc.perform(get("/products").param("size", "48").param("page", "99"))
+                .andExpect(status().isOk())
+                .andExpect(model().attribute("products", hasSize(23)))
+                .andExpect(model().attribute("currentPage", 3));
+    }
+
+    @Test
+    void catalogReportsInvalidPageAndSizeWithoutAnUnboundedQuery() throws Exception {
+        mockMvc.perform(get("/products").param("page", "abc").param("size", "1000"))
+                .andExpect(status().isOk())
+                .andExpect(model().attribute("filterErrors", true))
+                .andExpect(model().attribute("products", hasSize(12)))
+                .andExpect(model().attribute("pageSize", 12))
+                .andExpect(model().attribute("currentPage", 1))
+                .andExpect(content().string(containsString("Số trang phải là số nguyên")))
+                .andExpect(content().string(containsString("Số sản phẩm mỗi trang phải là 12, 24 hoặc 48.")));
+
+        mockMvc.perform(get("/products").param("page", "0").param("size", "không hợp lệ"))
+                .andExpect(status().isOk())
+                .andExpect(model().attribute("pageSize", 12))
+                .andExpect(model().attribute("currentPage", 1));
+    }
+
+    @Test
     void demoProductsAreDistributedAcrossAllActiveCategories() {
         Long demoProductCount = jdbcTemplate.queryForObject(
                 """
