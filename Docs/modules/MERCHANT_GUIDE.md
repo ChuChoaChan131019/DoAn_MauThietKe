@@ -38,6 +38,17 @@ Merchant sở hữu vòng đời shop, category, product, ảnh và stock.
 7. Catalog công khai, tìm kiếm, lọc và phân trang.
 8. Atomic stock API, statistics API và integration event.
 
+## Catalog công khai
+
+- Menu danh mục trên header (desktop/mobile) và các thẻ danh mục trang chủ lấy danh mục active từ bảng `categories`; link lọc dùng `categoryId`. Danh mục bị ẩn không xuất hiện trong menu công khai.
+- `GET /products` nhận `categoryId` cho liên kết topbar, `categoryIds` lặp để chọn nhiều danh mục active ở sidebar; tham số `category=<tên>` cũ vẫn được hỗ trợ cho bookmark/link cũ và chỉ tra trong danh mục active. `categoryIds` được ưu tiên, sau đó đến `categoryId`, rồi tên cũ.
+- Danh sách catalog phân trang 12 sản phẩm mỗi trang sau khi áp dụng toàn bộ bộ lọc.
+- `min` và `max` là số thập phân không âm, tối đa 10 chữ số phần nguyên và 2 chữ số thập phân; hai cận bao gồm giá trị biên và cần thỏa `min <= max`. Input sai được hiển thị lại trên trang với lỗi validation, không chạy truy vấn lọc.
+- Danh mục, khoảng giá, từ khóa và shop được kết hợp theo AND. Kết quả vẫn phải qua quy tắc saleable: owner ACTIVE, shop APPROVED, category active, product ACTIVE và stock > 0.
+- Sidebar hiển thị mọi danh mục active dưới dạng ô chọn nhiều mục; ô đã chọn có nền đậm. Các ô lọc submit danh mục đã chọn cùng từ khóa, khoảng giá, gian hàng và thứ tự sắp xếp. Tiêu đề thể hiện danh mục đang chọn; nút bỏ các bộ lọc khác giữ nguyên danh mục. `Xóa tất cả bộ lọc` về `/products`.
+- Tên danh mục cũ không tồn tại hoặc đã bị ẩn cho thông báo chung và danh sách rỗng; không phản hồi tên danh mục ẩn.
+- Lọc catalog dùng repository Merchant; không làm thay đổi public contract `merchant.api`.
+
 ## Quy tắc đặc thù
 
 - Một user tối đa một shop; từ chối/khóa bắt buộc lý do.
@@ -50,6 +61,12 @@ Merchant sở hữu vòng đời shop, category, product, ảnh và stock.
 - Trừ stock dùng conditional update nguyên tử; hoàn stock phải chống lặp.
 
 ## Kiểm thử/bàn giao
+
+Ảnh của 120 sản phẩm mẫu được lưu trên Cloudinary trong `senvia/merchant/product-images/demo/`, mỗi sản phẩm có public ID riêng. Migration `V202610151700` cập nhật cả `image_url` và `public_id` của ảnh `external-demo:`; ảnh shop tự upload không bị thay thế. Migration chỉ lưu metadata do Cloudinary trả về, không gọi API upload và không chứa thông tin xác thực. Không sửa các migration seed đã áp dụng.
+
+Migration `V202610151800` đổi các sản phẩm mẫu có tên chung trong danh mục `Công nghệ` thành tên thiết bị cụ thể, cập nhật mô tả và thay bằng ảnh Cloudinary tương ứng. Chỉ các sản phẩm còn giữ tên demo chung và ảnh demo mới được cập nhật.
+
+Migration `V202610151900` bỏ tiền tố `Senvia Demo` và hậu tố danh mục khỏi tên của mọi sản phẩm mẫu còn lại. Các tên `Sản phẩm tuyển chọn` chưa được migration Công nghệ xử lý được thay bằng tên loại hàng theo ảnh mẫu. Chỉ sản phẩm gắn ảnh seed trong thư mục Cloudinary `demo/` được đổi; sản phẩm do shop tạo không bị tác động.
 
 Test State, ownership, validation, catalog visibility, category/owner/shop bị khóa, stock concurrency và lỗi Cloudinary. Lê Anh Khoa review stock contract; Đỗ Đặng Diệu Linh review dữ liệu cart; Huỳnh Thiên Phúc review event/dashboard contract.
 

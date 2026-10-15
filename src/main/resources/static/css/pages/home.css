@@ -51,6 +51,20 @@
 
 .home-nav-btn { width: 32px; height: 32px; }
 
+.home-product-carousel-viewport { overflow: hidden; }
+.home-product-carousel-track { display: flex; gap: 1.5rem; transition: transform 500ms ease; will-change: transform; }
+.home-product-carousel-slide { flex: 0 0 calc((100% - 4.5rem) / 4); min-width: 0; }
+@media (max-width: 991.98px) {
+    .home-product-carousel-slide { flex-basis: calc((100% - 1.5rem) / 2); }
+}
+@media (max-width: 575.98px) {
+    .home-product-carousel-track { gap: 1rem; }
+    .home-product-carousel-slide { flex-basis: 100%; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .home-product-carousel-track { transition: none; }
+}
+
 .home-promo-section { background-color: var(--senvia-plum); }
 .home-promo-title { font-size: 28px; }
 .home-promo-desc { color: var(--senvia-blush); font-size: 16px; }

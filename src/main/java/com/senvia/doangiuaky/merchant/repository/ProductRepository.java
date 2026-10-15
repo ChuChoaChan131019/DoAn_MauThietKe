@@ -21,6 +21,22 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     List<Product> findAllByStatusAndStockQuantityGreaterThanOrderByIdAsc(
             ProductStatus status, int stockQuantity);
 
+    @Query("select p from Product p "
+            + "where p.status = :status and p.stockQuantity > :stockQuantity "
+            + "and (:filterByCategory = false or p.categoryId in :categoryIds) "
+            + "and (:filterByMinPrice = false or p.price >= :minPrice) "
+            + "and (:filterByMaxPrice = false or p.price <= :maxPrice) "
+            + "order by p.id asc")
+    List<Product> findCatalogCandidates(
+            @Param("status") ProductStatus status,
+            @Param("stockQuantity") int stockQuantity,
+            @Param("filterByCategory") boolean filterByCategory,
+            @Param("categoryIds") List<Long> categoryIds,
+            @Param("filterByMinPrice") boolean filterByMinPrice,
+            @Param("minPrice") BigDecimal minPrice,
+            @Param("filterByMaxPrice") boolean filterByMaxPrice,
+            @Param("maxPrice") BigDecimal maxPrice);
+
     List<Product> findAllByShopIdOrderByIdAsc(Long shopId);
 
     Optional<Product> findByIdAndShopId(Long id, Long shopId);
