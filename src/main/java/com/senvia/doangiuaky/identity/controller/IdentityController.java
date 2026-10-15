@@ -3,6 +3,7 @@ package com.senvia.doangiuaky.identity.controller;
 import com.senvia.doangiuaky.identity.dto.RegistrationForm;
 import com.senvia.doangiuaky.identity.service.DuplicateEmailException;
 import com.senvia.doangiuaky.identity.service.IdentityService;
+import com.senvia.doangiuaky.identity.service.InvalidPasswordException;
 import jakarta.validation.Valid;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -49,6 +50,9 @@ public class IdentityController {
             identityService.register(form);
         } catch (DuplicateEmailException exception) {
             bindingResult.rejectValue("email", "email.duplicate", exception.getMessage());
+            return "identity/register";
+        } catch (InvalidPasswordException exception) {
+            bindingResult.rejectValue("password", "password.invalid", exception.getMessage());
             return "identity/register";
         }
         return "redirect:/login?registered";

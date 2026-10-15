@@ -75,6 +75,21 @@ class IdentityServiceTest {
     }
 
     @Test
+    void registerRejectsUnicodePasswordOverBcryptByteLimitBeforeEncoding() {
+        RegistrationForm form = new RegistrationForm();
+        form.setFullName("Nguyen Van A");
+        form.setEmail("buyer@example.com");
+        form.setPassword("é".repeat(37));
+        form.setConfirmPassword(form.getPassword());
+        when(userRepository.existsByEmailIgnoreCase("buyer@example.com")).thenReturn(false);
+
+        assertThrows(InvalidPasswordException.class, () -> identityService.register(form));
+
+        verify(passwordEncoder, never()).encode(any());
+        verify(userRepository, never()).saveAndFlush(any());
+    }
+
+    @Test
     void changePasswordRejectsIncorrectCurrentPassword() {
         User user = new User();
         user.setPasswordHash("$2a$existing-hash");
