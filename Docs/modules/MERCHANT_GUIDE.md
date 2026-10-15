@@ -23,6 +23,7 @@ Merchant sở hữu vòng đời shop, category, product, ảnh và stock.
 - `MerchantStockApi#restoreCancelledOrderItem(orderItemId, shopId, productId, quantity)` yêu cầu transaction hủy đơn của Ordering. `orderItemId` là khóa chống lặp; cùng payload gọi lại không cộng thêm, payload khác bị từ chối. Merchant không truy cập Entity của Ordering và vẫn hoàn kho cho product đã ẩn.
 - `MerchantStatisticsApi#countProductsForShop(shopId)` yêu cầu user đang đăng nhập là owner ACTIVE của shop; đếm cả product ẩn hoặc hết hàng. Quyền vào trang dashboard của shop LOCKED do route consumer quyết định.
 - Khi checkout khóa nhiều product, Ordering gọi theo `productId` tăng dần sau khi khóa cart. Các đường chủ shop sửa product cũng khóa hàng product để tránh ghi đè stock.
+- Form sửa product gửi `originalStockQuantity` là tồn kho lúc mở form. Sau khi khóa và đọc lại product, nếu stock đã đổi (ví dụ checkout vừa trừ kho), Merchant từ chối lưu và yêu cầu tải lại trang; không ghi đè stock mới bằng dữ liệu form cũ. Luồng sửa ảnh dọn asset vừa upload khi phát hiện xung đột.
 - Phát event gửi/duyệt/từ chối shop có `eventId`.
 - Không công bố Entity, Repository, Service nội bộ hoặc Cloudinary secret.
 

@@ -200,8 +200,9 @@ class ProductManagementServiceTest {
                 .thenAnswer(invocation -> invocation.getArgument(0));
         when(categoryRepository.findById(43L)).thenReturn(Optional.of(targetCategory));
 
-        SellerProductView result = service.update(OWNER_ID, 50L,
-                new ProductForm("Product", "Description", 43L, new BigDecimal("12.00"), 5));
+        ProductForm form = new ProductForm("Product", "Description", 43L, new BigDecimal("12.00"), 5);
+        form.setOriginalStockQuantity(2);
+        SellerProductView result = service.update(OWNER_ID, 50L, form);
 
         assertEquals(43L, product.getCategoryId());
         assertEquals(43L, result.categoryId());
@@ -218,6 +219,22 @@ class ProductManagementServiceTest {
                         new ProductForm("Product", "Description", 43L, new BigDecimal("12.00"), 5)));
 
         verify(categoryService, never()).requireActiveCategory(any());
+    }
+
+    @Test
+    void staleEditCannotRestoreStockDeductedByCheckout() {
+        when(approvedShop.getId()).thenReturn(SHOP_ID);
+        Product product = Product.create(SHOP_ID, 42L, "Product", "Description", new BigDecimal("10.00"), 8);
+        when(productRepository.findByIdForUpdate(50L)).thenReturn(Optional.of(product));
+        ProductForm staleForm = new ProductForm("New description", "Changed", 42L,
+                new BigDecimal("10.00"), 10);
+        staleForm.setOriginalStockQuantity(10);
+
+        assertThrows(ProductStockConflictException.class,
+                () -> service.update(OWNER_ID, 50L, staleForm));
+
+        assertEquals(8, product.getStockQuantity());
+        verify(productRepository, never()).saveAndFlush(any(Product.class));
     }
 
     @Test
@@ -362,6 +379,7 @@ class ProductManagementServiceTest {
                                                       MockMultipartFile... images) {
         ProductForm form = new ProductForm(name, "Description", categoryId,
                 new BigDecimal("10.00"), 1);
+        form.setOriginalStockQuantity(1);
         form.setImages(List.of(images));
         return form;
     }

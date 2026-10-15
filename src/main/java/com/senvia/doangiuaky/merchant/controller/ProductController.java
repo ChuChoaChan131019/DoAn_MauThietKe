@@ -11,6 +11,7 @@ import com.senvia.doangiuaky.merchant.service.ProductAuthorizationException;
 import com.senvia.doangiuaky.merchant.service.ProductImageManagementException;
 import com.senvia.doangiuaky.merchant.service.ProductManagementService;
 import com.senvia.doangiuaky.merchant.service.ProductNotFoundException;
+import com.senvia.doangiuaky.merchant.service.ProductStockConflictException;
 import com.senvia.doangiuaky.merchant.service.image.MerchantImageStorageException;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -125,6 +126,9 @@ public class ProductController {
         } catch (ProductImageManagementException | MerchantImageStorageException exception) {
             bindingResult.rejectValue("images", "images", exception.getMessage());
             return renderEditForm(principal, id, form, model);
+        } catch (ProductStockConflictException exception) {
+            bindingResult.rejectValue("stockQuantity", "stockConflict", exception.getMessage());
+            return renderEditForm(principal, id, form, model);
         } catch (ProductNotFoundException exception) {
             throw notFound(exception);
         } catch (ProductAuthorizationException exception) {
@@ -195,8 +199,10 @@ public class ProductController {
     }
 
     private static ProductForm toForm(SellerProductView product) {
-        return new ProductForm(product.name(), product.description(), product.categoryId(),
+        ProductForm form = new ProductForm(product.name(), product.description(), product.categoryId(),
                 product.price(), product.stockQuantity());
+        form.setOriginalStockQuantity(product.stockQuantity());
+        return form;
     }
 
     private static ResponseStatusException notFound(RuntimeException exception) {

@@ -115,6 +115,8 @@ public class ProductManagementService {
     public SellerProductView update(Long ownerId, Long productId, ProductForm form) {
         Shop shop = requireCatalogMutableShop(ownerId);
         Product product = findOwnedProductForUpdate(productId, shop.getId());
+        entityManager.refresh(product, LockModeType.PESSIMISTIC_WRITE);
+        requireUnchangedStock(product, form);
         Category category = categoryService.requireActiveCategory(form.getCategoryId());
 
         product.updateDetails(form.getName(), form.getDescription());
@@ -147,6 +149,7 @@ public class ProductManagementService {
             List<MerchantImageAsset> newAssets = uploadProductImages(ownerId, newFiles, uploaded);
             // Acquire the product lock after remote uploads, then reload data changed meanwhile.
             entityManager.refresh(product, LockModeType.PESSIMISTIC_WRITE);
+            requireUnchangedStock(product, form);
             existingImages = productImageRepository
                     .findAllByProductIdOrderByDisplayOrderAscIdAsc(product.getId());
             removedImages = selectImagesToRemove(existingImages, removedImageIds);
@@ -257,6 +260,13 @@ public class ProductManagementService {
         return productRepository.findByIdForUpdate(productId)
                 .filter(product -> product.getShopId().equals(shopId))
                 .orElseThrow(() -> new ProductNotFoundException("Không tìm thấy sản phẩm thuộc gian hàng của bạn."));
+    }
+
+    private static void requireUnchangedStock(Product product, ProductForm form) {
+        if (form.getOriginalStockQuantity() == null
+                || form.getOriginalStockQuantity() != product.getStockQuantity()) {
+            throw new ProductStockConflictException();
+        }
     }
 
     private SellerProductView toView(Product product) {

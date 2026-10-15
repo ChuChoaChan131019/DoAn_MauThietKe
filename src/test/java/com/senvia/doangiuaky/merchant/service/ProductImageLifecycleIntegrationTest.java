@@ -1,6 +1,7 @@
 package com.senvia.doangiuaky.merchant.service;
 
 import com.senvia.doangiuaky.merchant.dto.ProductForm;
+import com.senvia.doangiuaky.merchant.api.MerchantStockApi;
 import com.senvia.doangiuaky.merchant.entity.Category;
 import com.senvia.doangiuaky.merchant.entity.ShopStatus;
 import com.senvia.doangiuaky.merchant.repository.CategoryRepository;
@@ -25,6 +26,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verify;
 
 @SpringBootTest
 @Transactional
@@ -32,6 +34,9 @@ class ProductImageLifecycleIntegrationTest {
 
     @Autowired
     private ProductManagementService productService;
+
+    @Autowired
+    private MerchantStockApi stockApi;
 
     @Autowired
     private CategoryRepository categoryRepository;
@@ -99,9 +104,30 @@ class ProductImageLifecycleIntegrationTest {
                 () -> productService.updateWithImages(fixture.ownerId(), created.id(), updateForm));
     }
 
+    @Test
+    void checkoutDuringEditRejectsStaleStockAndCleansNewUpload() {
+        Fixture fixture = fixture();
+        Category category = categoryRepository.saveAndFlush(
+                Category.create("Stale stock category " + fixture.suffix(), null));
+        when(imageStorage.uploadProductImage(eq(fixture.ownerId()), any()))
+                .thenReturn(
+                        new MerchantImageAsset("https://cloudinary.test/original.png", "products/original"),
+                        new MerchantImageAsset("https://cloudinary.test/stale.png", "products/stale"));
+        var created = productService.create(fixture.ownerId(), form(category.getId(), image("original.png")));
+        ProductForm staleForm = form(category.getId(), image("stale.png"));
+
+        stockApi.deductForCheckout(fixture.shopId(), created.id(), 1, new BigDecimal("10.00"));
+
+        assertThrows(ProductStockConflictException.class,
+                () -> productService.updateWithImages(fixture.ownerId(), created.id(), staleForm));
+        assertEquals(1, productRepository.findById(created.id()).orElseThrow().getStockQuantity());
+        verify(imageStorage).delete("products/stale");
+    }
+
     private ProductForm form(Long categoryId, MockMultipartFile... images) {
         ProductForm form = new ProductForm("Product", "Description", categoryId,
                 new BigDecimal("10.00"), 2);
+        form.setOriginalStockQuantity(2);
         form.setImages(List.of(images));
         return form;
     }
