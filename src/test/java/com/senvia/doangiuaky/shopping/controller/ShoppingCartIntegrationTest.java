@@ -18,6 +18,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.flash;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -81,7 +82,9 @@ class ShoppingCartIntegrationTest {
                         .with(csrf())
                         .param("quantity", "99"))
                 .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/cart"));
+                .andExpect(redirectedUrl("/cart"))
+                .andExpect(flash().attribute("cartWarning",
+                        "Số lượng đã được điều chỉnh còn 5 theo tồn kho hiện tại (5)."));
 
         Integer quantity = jdbcTemplate.queryForObject("""
                 select ci.quantity
@@ -91,6 +94,71 @@ class ShoppingCartIntegrationTest {
                 where u.email = ? and ci.product_id = ?
                 """, Integer.class, email, productId);
         assertEquals(5, quantity);
+    }
+
+    @Test
+    void invalidUpdateQuantitiesDoNotChangeDatabase() throws Exception {
+        String email = "cart-invalid-update-" + UUID.randomUUID() + "@example.com";
+        insertUser(email);
+        Long productId = insertSaleableProductFixture();
+
+        mockMvc.perform(post("/cart/items")
+                        .with(user(email).roles("USER"))
+                        .with(csrf())
+                        .param("productId", productId.toString())
+                        .param("quantity", "2"))
+                .andExpect(status().is3xxRedirection());
+        Long cartItemId = cartItemId(email, productId);
+
+        mockMvc.perform(post("/cart/items/{cartItemId}/quantity", cartItemId)
+                        .with(user(email).roles("USER"))
+                        .with(csrf()))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(flash().attribute("cartError", "Số lượng là bắt buộc."));
+        mockMvc.perform(post("/cart/items/{cartItemId}/quantity", cartItemId)
+                        .with(user(email).roles("USER"))
+                        .with(csrf())
+                        .param("quantity", "0"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(flash().attribute("cartError", "Số lượng phải lớn hơn 0."));
+        mockMvc.perform(post("/cart/items/{cartItemId}/quantity", cartItemId)
+                        .with(user(email).roles("USER"))
+                        .with(csrf())
+                        .param("quantity", "-1"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(flash().attribute("cartError", "Số lượng phải lớn hơn 0."));
+
+        assertEquals(2, quantityForUser(email, productId));
+    }
+
+    @Test
+    void removeDeletesOnlyRequestedCartItem() throws Exception {
+        String suffix = UUID.randomUUID().toString();
+        String email = "cart-remove-" + suffix + "@example.com";
+        insertUser(email);
+        Long buyerId = jdbcTemplate.queryForObject(
+                "select id from users where email = ?", Long.class, email);
+        Long shopId = insertApprovedShop("Cart Remove Shop " + suffix, suffix);
+        Long categoryId = insertActiveCategory("Cart Remove Category " + suffix);
+        Long firstProductId = insertProduct(
+                shopId, categoryId, "Cart Remove Product A " + suffix, new BigDecimal("100.00"));
+        Long secondProductId = insertProduct(
+                shopId, categoryId, "Cart Remove Product B " + suffix, new BigDecimal("200.00"));
+        Long cartId = insertCart(buyerId);
+        insertCartItem(cartId, firstProductId, 2);
+        insertCartItem(cartId, secondProductId, 3);
+        Long firstItemId = cartItemId(email, firstProductId);
+
+        mockMvc.perform(post("/cart/items/{cartItemId}/remove", firstItemId)
+                        .with(user(email).roles("USER"))
+                        .with(csrf()))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/cart"))
+                .andExpect(flash().attribute("cartSuccess", "Đã xóa sản phẩm khỏi giỏ hàng."));
+
+        assertEquals(0, jdbcTemplate.queryForObject(
+                "select count(*) from cart_items where id = ?", Integer.class, firstItemId));
+        assertEquals(3, quantityFor(cartId, secondProductId));
     }
 
     @Test
@@ -233,6 +301,26 @@ class ShoppingCartIntegrationTest {
         return jdbcTemplate.queryForObject(
                 "select quantity from cart_items where cart_id = ? and product_id = ?",
                 Integer.class, cartId, productId);
+    }
+
+    private Long cartItemId(String email, Long productId) {
+        return jdbcTemplate.queryForObject("""
+                select ci.id
+                from cart_items ci
+                join carts c on c.id = ci.cart_id
+                join users u on u.id = c.user_id
+                where u.email = ? and ci.product_id = ?
+                """, Long.class, email, productId);
+    }
+
+    private int quantityForUser(String email, Long productId) {
+        return jdbcTemplate.queryForObject("""
+                select ci.quantity
+                from cart_items ci
+                join carts c on c.id = ci.cart_id
+                join users u on u.id = c.user_id
+                where u.email = ? and ci.product_id = ?
+                """, Integer.class, email, productId);
     }
 
     private void insertUser(String email) {

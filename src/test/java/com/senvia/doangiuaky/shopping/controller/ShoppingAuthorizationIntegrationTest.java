@@ -63,6 +63,26 @@ class ShoppingAuthorizationIntegrationTest {
     }
 
     @Test
+    void guestAndAdminCannotRemoveCartItem() throws Exception {
+        mockMvc.perform(post("/cart/items/1/remove")
+                        .with(csrf()))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/login"));
+
+        mockMvc.perform(post("/cart/items/1/remove")
+                        .with(user("admin@example.com").roles("ADMIN"))
+                        .with(csrf()))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void cartItemRemovalRequiresCsrf() throws Exception {
+        mockMvc.perform(post("/cart/items/1/remove")
+                        .with(user("buyer@example.com").roles("USER")))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
     void guestCannotAddFavorite() throws Exception {
         mockMvc.perform(post("/account/wishlist/1").with(csrf()))
                 .andExpect(status().is3xxRedirection())
