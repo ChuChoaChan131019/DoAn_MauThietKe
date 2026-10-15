@@ -27,6 +27,8 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
+import com.senvia.doangiuaky.ordering.service.CheckoutTransactionService;
+
 @WebMvcTest(OrderingController.class)
 @Import(SecurityConfig.class)
 class PaymentMethodSelectionTest {
@@ -39,6 +41,9 @@ class PaymentMethodSelectionTest {
 
     @MockitoBean
     private CheckoutPreviewService checkoutPreviewService;
+
+    @MockitoBean
+    private CheckoutTransactionService checkoutTransactionService;
 
     @BeforeEach
     void setUp() {

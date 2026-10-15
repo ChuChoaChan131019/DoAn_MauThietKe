@@ -31,9 +31,13 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
+import com.senvia.doangiuaky.ordering.service.CheckoutTransactionService;
+
 @WebMvcTest(OrderingController.class)
 @Import(SecurityConfig.class)
 class CheckoutDeliveryAddressTest {
+    @MockitoBean
+    private CheckoutTransactionService checkoutTransactionService;
 
     @Autowired
     private MockMvc mockMvc;
