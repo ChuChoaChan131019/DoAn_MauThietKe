@@ -1,5 +1,6 @@
 package com.senvia.doangiuaky.ordering.service;
 
+import com.senvia.doangiuaky.merchant.api.MerchantApi;
 import com.senvia.doangiuaky.ordering.entity.PaymentMethod;
 import com.senvia.doangiuaky.ordering.repository.OrderRepository;
 import com.senvia.doangiuaky.ordering.repository.OrderItemRepository;
@@ -22,11 +23,13 @@ class OrderDraftWriterTest {
         OrderRepository orders = mock(OrderRepository.class);
         OrderItemRepository items = mock(OrderItemRepository.class);
         PaymentRepository payments = mock(PaymentRepository.class);
+        MerchantApi merchantApi = mock(MerchantApi.class);
 
         OrderDraftWriter writer = new OrderDraftWriter(
                 orders,
                 items,
-                payments
+                payments,
+                merchantApi
         );
 
         // 2. Tao nhom dau tien
@@ -99,7 +102,8 @@ class OrderDraftWriterTest {
         verifyNoInteractions(
                 orders,
                 items,
-                payments
+                payments,
+                merchantApi
         );
     }
 }
