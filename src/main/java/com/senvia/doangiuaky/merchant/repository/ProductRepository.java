@@ -3,6 +3,8 @@ package com.senvia.doangiuaky.merchant.repository;
 import com.senvia.doangiuaky.merchant.entity.Product;
 import com.senvia.doangiuaky.merchant.entity.ProductStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Page;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -23,15 +25,34 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
 
     @Query("select p from Product p "
             + "where p.status = :status and p.stockQuantity > :stockQuantity "
-            + "and (:filterByCategory = false or p.categoryId in :categoryIds) "
+            + "and p.shopId in :shopIds and p.categoryId in :categoryIds "
+            + "and (:filterByMinPrice = false or p.price >= :minPrice) "
+            + "and (:filterByMaxPrice = false or p.price <= :maxPrice) "
+            + "and (:filterByQuery = false or lower(p.name) like concat('%', lower(:query), '%') escape '!')")
+    List<Product> findCatalogPage(
+            @Param("status") ProductStatus status,
+            @Param("stockQuantity") int stockQuantity,
+            @Param("shopIds") List<Long> shopIds,
+            @Param("categoryIds") List<Long> categoryIds,
+            @Param("filterByMinPrice") boolean filterByMinPrice,
+            @Param("minPrice") BigDecimal minPrice,
+            @Param("filterByMaxPrice") boolean filterByMaxPrice,
+            @Param("maxPrice") BigDecimal maxPrice,
+            @Param("filterByQuery") boolean filterByQuery,
+            @Param("query") String query,
+            Pageable pageable);
+
+    @Query("select p.shopId as shopId, count(p) as productCount from Product p "
+            + "where p.status = :status and p.stockQuantity > :stockQuantity "
+            + "and p.shopId in :shopIds and p.categoryId in :categoryIds "
             + "and (:filterByMinPrice = false or p.price >= :minPrice) "
             + "and (:filterByMaxPrice = false or p.price <= :maxPrice) "
             + "and (:filterByQuery = false or lower(p.name) like concat('%', lower(:query), '%') escape '!') "
-            + "order by p.id asc")
-    List<Product> findCatalogCandidates(
+            + "group by p.shopId")
+    List<CatalogShopCount> countCatalogProductsByShop(
             @Param("status") ProductStatus status,
             @Param("stockQuantity") int stockQuantity,
-            @Param("filterByCategory") boolean filterByCategory,
+            @Param("shopIds") List<Long> shopIds,
             @Param("categoryIds") List<Long> categoryIds,
             @Param("filterByMinPrice") boolean filterByMinPrice,
             @Param("minPrice") BigDecimal minPrice,
@@ -40,7 +61,15 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
             @Param("filterByQuery") boolean filterByQuery,
             @Param("query") String query);
 
+    interface CatalogShopCount {
+        Long getShopId();
+
+        Long getProductCount();
+    }
+
     List<Product> findAllByShopIdOrderByIdAsc(Long shopId);
+
+    Page<Product> findAllByShopId(Long shopId, Pageable pageable);
 
     Optional<Product> findByIdAndShopId(Long id, Long shopId);
 

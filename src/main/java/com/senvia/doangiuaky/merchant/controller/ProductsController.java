@@ -1,6 +1,5 @@
 package com.senvia.doangiuaky.merchant.controller;
 
-import com.senvia.doangiuaky.merchant.dto.CatalogProductCardView;
 import com.senvia.doangiuaky.merchant.dto.CatalogFilterForm;
 import com.senvia.doangiuaky.merchant.dto.CatalogFilterResult;
 import com.senvia.doangiuaky.merchant.dto.CatalogProductDetailView;
@@ -21,15 +20,14 @@ import org.springframework.web.server.ResponseStatusException;
 
 import jakarta.validation.Valid;
 
-import java.util.Comparator;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 
 @Controller
 public class ProductsController {
 
-    private static final int PAGE_SIZE = 12;
+    private static final int DEFAULT_PAGE_SIZE = 12;
+    private static final List<Integer> PAGE_SIZES = List.of(12, 24, 48);
 
     private final DemoMerchantApi catalogService;
     private final CategoryManagementService categoryService;
@@ -46,9 +44,13 @@ public class ProductsController {
             BindingResult bindingResult,
             @RequestParam(name = "brand", required = false) List<String> legacyBrand,
             @RequestParam(required = false, defaultValue = "newest") String sort,
-            @RequestParam(required = false, defaultValue = "1") Integer page,
+            @RequestParam(required = false, defaultValue = "1") String page,
+            @RequestParam(required = false, defaultValue = "12") String size,
             Model model) {
 
+        List<String> paginationErrors = new ArrayList<>();
+        int requestedPage = parsePage(page, paginationErrors);
+        int pageSize = parsePageSize(size, paginationErrors);
         List<String> selectedShops = filterForm.getShop().isEmpty() && legacyBrand != null
                 ? List.copyOf(legacyBrand)
                 : filterForm.getShop();
@@ -56,8 +58,8 @@ public class ProductsController {
         List<Category> activeCategories = categoryService.listActiveForProductSelection();
 
         CatalogFilterResult filterResult = bindingResult.hasErrors()
-                ? new CatalogFilterResult(List.of(), Map.of(), true)
-                : catalogService.filterSaleableCatalogProducts(filterForm);
+                ? CatalogFilterResult.empty(true, pageSize)
+                : catalogService.filterSaleableCatalogProducts(filterForm, requestedPage, pageSize, sort);
         if (!filterResult.categoryAvailable()) {
             // Do not echo a hidden or unknown category name back into the page.
             filterForm.setCategory(null);
@@ -87,25 +89,12 @@ public class ProductsController {
                 || (filterForm.getQ() != null && !filterForm.getQ().isBlank())
                 || filterForm.getMin() != null || filterForm.getMax() != null
                 || !selectedShops.isEmpty();
-        List<CatalogProductCardView> filteredProducts = filterResult.products().stream()
-                .collect(Collectors.toCollection(java.util.ArrayList::new));
-
-        if ("price_asc".equals(sort)) {
-            filteredProducts.sort(Comparator.comparing(CatalogProductCardView::price));
-        } else if ("price_desc".equals(sort)) {
-            filteredProducts.sort(Comparator.comparing(CatalogProductCardView::price).reversed());
-        }
-
-        int totalItems = filteredProducts.size();
-        int totalPages = Math.max(1, (int) Math.ceil((double) totalItems / PAGE_SIZE));
-        int currentPage = Math.max(1, Math.min(page, totalPages));
-        int start = Math.min((currentPage - 1) * PAGE_SIZE, totalItems);
-        int end = Math.min(start + PAGE_SIZE, totalItems);
-
-        model.addAttribute("products", filteredProducts.subList(start, end));
-        model.addAttribute("totalItems", totalItems);
-        model.addAttribute("totalPages", totalPages);
-        model.addAttribute("currentPage", currentPage);
+        model.addAttribute("products", filterResult.products());
+        model.addAttribute("totalItems", filterResult.totalItems());
+        model.addAttribute("totalPages", filterResult.totalPages());
+        model.addAttribute("currentPage", filterResult.currentPage());
+        model.addAttribute("pageSize", filterResult.pageSize());
+        model.addAttribute("pageSizes", PAGE_SIZES);
         model.addAttribute("sort", sort);
         model.addAttribute("selectedShops", selectedShops);
         model.addAttribute("categories", activeCategories);
@@ -114,16 +103,44 @@ public class ProductsController {
         model.addAttribute("hasActiveFilters", hasActiveFilters);
         model.addAttribute("shopCounts", filterResult.shopCounts());
         model.addAttribute("filterForm", filterForm);
-        model.addAttribute("filterErrors", bindingResult.hasErrors());
-        model.addAttribute("filterErrorMessages", bindingResult.getAllErrors().stream()
+        model.addAttribute("filterErrors", bindingResult.hasErrors() || !paginationErrors.isEmpty());
+        List<String> filterErrorMessages = new ArrayList<>(bindingResult.getAllErrors().stream()
                 .map(this::localizedFilterError)
                 .distinct()
                 .toList());
+        filterErrorMessages.addAll(paginationErrors);
+        model.addAttribute("filterErrorMessages", filterErrorMessages);
         model.addAttribute("minErrors", fieldErrors(bindingResult, "min"));
         model.addAttribute("maxErrors", fieldErrors(bindingResult, "max"));
         model.addAttribute("rangeErrors", fieldErrors(bindingResult, "priceRangeValid"));
         model.addAttribute("categoryUnavailable", !filterResult.categoryAvailable());
         return "merchant/catalog/list";
+    }
+
+    private int parsePage(String rawPage, List<String> errors) {
+        try {
+            int parsed = Integer.parseInt(rawPage);
+            if (parsed >= 1) {
+                return parsed;
+            }
+        } catch (NumberFormatException ignored) {
+            // Render the catalog with a safe default and a visible validation error.
+        }
+        errors.add("Số trang phải là số nguyên lớn hơn hoặc bằng 1.");
+        return 1;
+    }
+
+    private int parsePageSize(String rawSize, List<String> errors) {
+        try {
+            int parsed = Integer.parseInt(rawSize);
+            if (PAGE_SIZES.contains(parsed)) {
+                return parsed;
+            }
+        } catch (NumberFormatException ignored) {
+            // Render the catalog with a safe default and a visible validation error.
+        }
+        errors.add("Số sản phẩm mỗi trang phải là 12, 24 hoặc 48.");
+        return DEFAULT_PAGE_SIZE;
     }
 
     private String localizedFilterError(ObjectError error) {

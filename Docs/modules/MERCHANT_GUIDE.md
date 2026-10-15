@@ -42,7 +42,8 @@ Merchant sở hữu vòng đời shop, category, product, ảnh và stock.
 
 - Menu danh mục trên header (desktop/mobile) và các thẻ danh mục trang chủ lấy danh mục active từ bảng `categories`; link lọc dùng `categoryId`. Danh mục bị ẩn không xuất hiện trong menu công khai.
 - `GET /products` nhận `categoryId` cho liên kết topbar, `categoryIds` lặp để chọn nhiều danh mục active ở sidebar; tham số `category=<tên>` cũ vẫn được hỗ trợ cho bookmark/link cũ và chỉ tra trong danh mục active. `categoryIds` được ưu tiên, sau đó đến `categoryId`, rồi tên cũ.
-- Danh sách catalog phân trang 12 sản phẩm mỗi trang sau khi áp dụng toàn bộ bộ lọc.
+- `GET /products` nhận `page` bắt đầu từ 1 và `size` thuộc 12/24/48; mặc định là trang 1 với 12 sản phẩm. Giá trị sai hiển thị lỗi và dùng giá trị mặc định an toàn; trang vượt cuối được đưa về trang cuối. Link trang giữ từ khóa, danh mục, giá, shop, sort và size; đổi bộ lọc hoặc size quay về trang 1.
+- Catalog đếm kết quả theo shop đủ điều kiện công khai và lấy riêng trang cần hiển thị từ database sau khi áp dụng toàn bộ bộ lọc. Trang mặc định giữ thứ tự ID tăng dần hiện hành; sắp giá tăng/giảm dùng ID tăng dần làm thứ tự phụ để các trang không trùng sản phẩm khi giá bằng nhau. Ảnh chỉ được tải cho sản phẩm trên trang hiện tại.
 - `GET /products?q=<keyword>` tìm theo tên sản phẩm, khớp một phần và không phân biệt hoa thường. Từ khóa được trim; null/rỗng/toàn khoảng trắng nghĩa là không áp dụng tìm kiếm. Keyword tối đa 200 ký tự; vượt giới hạn thì trả lại trang catalog với lỗi validation và không truy vấn kết quả.
 - Tìm kiếm sản phẩm ở catalog và header desktop/mobile cùng gửi GET tới `/products` bằng tham số `q`. Tìm theo tên sản phẩm, không tìm mô tả hay tên shop.
 - Ký tự `%`, `_` và `!` trong từ khóa được escape trước khi dùng trong điều kiện `LIKE`; người dùng tìm ký tự literal thay vì kích hoạt wildcard SQL.
@@ -53,6 +54,8 @@ Merchant sở hữu vòng đời shop, category, product, ảnh và stock.
 - Lọc catalog dùng repository Merchant; không làm thay đổi public contract `merchant.api`.
 
 ## Quy tắc đặc thù
+
+Trang quản lý sản phẩm người bán `/merchant/products` phân trang ở database theo `id` tăng dần, mặc định 12 sản phẩm/trang; có thể chọn 24 hoặc 48. `page` và `size` sai được thay bằng giá trị mặc định kèm thông báo; trang vượt cuối chuyển về trang cuối. Truy vấn luôn giới hạn theo shop của người bán đã xác thực.
 
 - Một user tối đa một shop; từ chối/khóa bắt buộc lý do.
 - Chỉ Admin đổi trạng thái xét duyệt.

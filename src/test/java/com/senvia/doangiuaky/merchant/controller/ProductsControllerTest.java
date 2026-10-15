@@ -21,6 +21,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.mock;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 
 class ProductsControllerTest {
@@ -33,15 +35,16 @@ class ProductsControllerTest {
         when(activeCategory.getId()).thenReturn(1L);
         when(activeCategory.getName()).thenReturn("Active category");
         when(categoryService.listActiveForProductSelection()).thenReturn(List.of(activeCategory));
-        when(catalogService.filterSaleableCatalogProducts(any(CatalogFilterForm.class)))
-                .thenReturn(new CatalogFilterResult(List.of(), java.util.Map.of(), true));
+        when(catalogService.filterSaleableCatalogProducts(
+                any(CatalogFilterForm.class), anyInt(), anyInt(), anyString()))
+                .thenReturn(CatalogFilterResult.empty(true, 12));
 
         ExtendedModelMap model = new ExtendedModelMap();
         CatalogFilterForm filterForm = new CatalogFilterForm();
         filterForm.setCategoryId(1L);
         String view = new ProductsController(catalogService, categoryService).listProducts(
                 filterForm, new BeanPropertyBindingResult(filterForm, "filterForm"),
-                null, "newest", 1, model);
+                null, "newest", "1", "12", model);
 
         assertEquals("merchant/catalog/list", view);
         assertEquals(List.of(1L), model.get("selectedCategoryIds"));

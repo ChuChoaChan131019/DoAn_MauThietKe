@@ -23,6 +23,10 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -294,6 +298,24 @@ class ProductManagementServiceTest {
         assertEquals("https://cloudinary.test/two.png", secondImage.getImageUrl());
         assertEquals("products/20/two", secondImage.getPublicId());
         assertEquals(1, secondImage.getDisplayOrder());
+    }
+
+    @Test
+    void sellerPageIsScopedToOwnedShopAndClampsPastLastPage() {
+        when(approvedShop.getId()).thenReturn(SHOP_ID);
+        PageRequest requested = PageRequest.of(9, 12, Sort.by("id").ascending());
+        PageRequest last = PageRequest.of(2, 12, Sort.by("id").ascending());
+        when(productRepository.findAllByShopId(SHOP_ID, requested))
+                .thenReturn(new PageImpl<>(List.of(), requested, 25));
+        when(productRepository.findAllByShopId(SHOP_ID, last))
+                .thenReturn(new PageImpl<>(List.of(), last, 25));
+
+        Page<SellerProductView> result = service.pageOwnedProducts(OWNER_ID, 10, 12);
+
+        assertEquals(2, result.getNumber());
+        assertEquals(3, result.getTotalPages());
+        verify(productRepository).findAllByShopId(SHOP_ID, requested);
+        verify(productRepository).findAllByShopId(SHOP_ID, last);
     }
 
     @Test

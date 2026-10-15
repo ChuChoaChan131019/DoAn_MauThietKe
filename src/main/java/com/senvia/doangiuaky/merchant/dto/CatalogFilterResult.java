@@ -7,10 +7,18 @@ import java.util.Map;
 public record CatalogFilterResult(
         List<CatalogProductCardView> products,
         Map<String, Long> shopCounts,
-        boolean categoryAvailable) {
+        boolean categoryAvailable,
+        long totalItems,
+        int totalPages,
+        int currentPage,
+        int pageSize) {
 
     public CatalogFilterResult {
         products = List.copyOf(products);
         shopCounts = Map.copyOf(shopCounts);
+    }
+
+    public static CatalogFilterResult empty(boolean categoryAvailable, int pageSize) {
+        return new CatalogFilterResult(List.of(), Map.of(), categoryAvailable, 0, 1, 1, pageSize);
     }
 }

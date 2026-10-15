@@ -22,6 +22,15 @@
             </div>
 
             <div th:if="${successMessage}" class="alert alert-success" role="alert" th:text="${successMessage}"></div>
+            <div th:each="error : ${paginationErrors}" class="alert alert-warning" role="alert" th:text="${error}"></div>
+            <form method="get" th:action="@{/merchant/products}" class="d-flex align-items-center gap-2 mb-3">
+                <label for="page-size">Sản phẩm mỗi trang</label>
+                <select id="page-size" name="size" class="form-select w-auto" onchange="this.form.submit()">
+                    <option th:each="option : ${pageSizes}" th:value="${option}" th:text="${option}"
+                            th:selected="${option == pageSize}"></option>
+                </select>
+                <span class="text-muted" th:text="'Tổng: ' + ${totalItems} + ' sản phẩm'"></span>
+            </form>
 
             <div class="card border-0 shadow-sm">
                 <div class="card-body p-0">
@@ -73,6 +82,21 @@
                     </div>
                 </div>
             </div>
+            <nav th:if="${totalPages > 1}" aria-label="Trang sản phẩm" class="mt-4">
+                <ul class="pagination justify-content-center flex-wrap">
+                    <li class="page-item" th:classappend="${currentPage == 1} ? 'disabled'">
+                        <a class="page-link" th:href="@{/merchant/products(page=${currentPage - 1},size=${pageSize})}">Trước</a>
+                    </li>
+                    <li class="page-item" th:each="number : ${#numbers.sequence(1, totalPages)}"
+                        th:classappend="${number == currentPage} ? 'active'">
+                        <a class="page-link" th:href="@{/merchant/products(page=${number},size=${pageSize})}"
+                           th:text="${number}" th:aria-current="${number == currentPage} ? 'page' : null"></a>
+                    </li>
+                    <li class="page-item" th:classappend="${currentPage == totalPages} ? 'disabled'">
+                        <a class="page-link" th:href="@{/merchant/products(page=${currentPage + 1},size=${pageSize})}">Sau</a>
+                    </li>
+                </ul>
+            </nav>
         </section>
     </div>
 </main>

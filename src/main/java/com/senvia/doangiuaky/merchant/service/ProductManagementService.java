@@ -19,6 +19,9 @@ import com.senvia.doangiuaky.merchant.service.image.MerchantImageStorage;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.LockModeType;
 import org.springframework.stereotype.Service;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
@@ -71,6 +74,18 @@ public class ProductManagementService {
         return productRepository.findAllByShopIdOrderByIdAsc(shop.getId()).stream()
                 .map(this::toView)
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public Page<SellerProductView> pageOwnedProducts(Long ownerId, int requestedPage, int pageSize) {
+        Shop shop = requireCatalogMutableShop(ownerId);
+        PageRequest pageable = PageRequest.of(requestedPage - 1, pageSize, Sort.by("id").ascending());
+        Page<Product> products = productRepository.findAllByShopId(shop.getId(), pageable);
+        if (products.getTotalPages() > 0 && requestedPage > products.getTotalPages()) {
+            products = productRepository.findAllByShopId(shop.getId(),
+                    PageRequest.of(products.getTotalPages() - 1, pageSize, Sort.by("id").ascending()));
+        }
+        return products.map(this::toView);
     }
 
     @Transactional(readOnly = true)

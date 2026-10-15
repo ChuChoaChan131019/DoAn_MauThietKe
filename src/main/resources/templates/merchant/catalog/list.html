@@ -22,6 +22,7 @@
                                class="form-control rounded-0 border-clay shadow-none" placeholder="Tìm theo tên sản phẩm..." style="min-width: 0;">
                         <th:block th:each="categoryId : ${selectedCategoryIds}"><input type="hidden" name="categoryIds" th:value="${categoryId}"></th:block>
                         <input type="hidden" name="sort" th:value="${sort}">
+                        <input type="hidden" name="size" th:value="${pageSize}">
                         <input type="hidden" name="min" th:if="*{min != null}" th:value="*{min}">
                         <input type="hidden" name="max" th:if="*{max != null}" th:value="*{max}">
                         <th:block th:each="shopName : ${selectedShops}"><input type="hidden" name="shop" th:value="${shopName}"></th:block>
@@ -34,10 +35,26 @@
                         <input type="hidden" name="min" th:if="${filterForm.min != null}" th:value="${filterForm.min}">
                         <input type="hidden" name="max" th:if="${filterForm.max != null}" th:value="${filterForm.max}">
                         <th:block th:each="shopName : ${selectedShops}"><input type="hidden" name="shop" th:value="${shopName}"></th:block>
+                        <input type="hidden" name="size" th:value="${pageSize}">
                         <select name="sort" onchange="this.form.submit()" class="form-select bg-white text-plum fw-bold rounded-0 shadow-none products-sort" style="max-width: 100%; font-size: 0.875rem;">
                             <option value="newest" th:selected="${sort == 'newest'}">Mới nhất</option>
                             <option value="price_asc" th:selected="${sort == 'price_asc'}">Giá: Thấp → Cao</option>
                             <option value="price_desc" th:selected="${sort == 'price_desc'}">Giá: Cao → Thấp</option>
+                        </select>
+                    </form>
+                    <form id="pageSizeForm" th:action="@{/products}" method="get" class="m-0">
+                        <input type="hidden" name="q" th:if="${filterForm.q != null and !#strings.isEmpty(filterForm.q)}" th:value="${filterForm.q}">
+                        <th:block th:each="categoryId : ${selectedCategoryIds}"><input type="hidden" name="categoryIds" th:value="${categoryId}"></th:block>
+                        <input type="hidden" name="sort" th:value="${sort}">
+                        <input type="hidden" name="min" th:if="${filterForm.min != null}" th:value="${filterForm.min}">
+                        <input type="hidden" name="max" th:if="${filterForm.max != null}" th:value="${filterForm.max}">
+                        <th:block th:each="shopName : ${selectedShops}"><input type="hidden" name="shop" th:value="${shopName}"></th:block>
+                        <label for="catalog-page-size" class="visually-hidden">Số sản phẩm mỗi trang</label>
+                        <select id="catalog-page-size" name="size" onchange="this.form.submit()"
+                                class="form-select bg-white text-plum rounded-0 shadow-none products-sort"
+                                aria-label="Số sản phẩm mỗi trang">
+                            <option th:each="option : ${pageSizes}" th:value="${option}" th:selected="${option == pageSize}"
+                                    th:text="${option} + ' sản phẩm/trang'">12 sản phẩm/trang</option>
                         </select>
                     </form>
                 </div>
@@ -61,6 +78,7 @@
                             <form id="category-filter" th:action="@{/products}" method="get" class="m-0">
                                 <input type="hidden" name="q" th:if="${filterForm.q != null and !#strings.isEmpty(filterForm.q)}" th:value="${filterForm.q}">
                                 <input type="hidden" name="sort" th:value="${sort}">
+                                <input type="hidden" name="size" th:value="${pageSize}">
                                 <input type="hidden" name="min" th:if="${filterForm.min != null}" th:value="${filterForm.min}">
                                 <input type="hidden" name="max" th:if="${filterForm.max != null}" th:value="${filterForm.max}">
                                 <th:block th:each="shopName : ${selectedShops}"><input type="hidden" name="shop" th:value="${shopName}"></th:block>
@@ -85,6 +103,7 @@
                                 <form th:if="${filterForm.q != null and !#strings.isEmpty(filterForm.q.trim())}" id="remove-search-filter" th:action="@{/products}" method="get" class="m-0">
                                     <th:block th:each="categoryId : ${selectedCategoryIds}"><input type="hidden" name="categoryIds" th:value="${categoryId}"></th:block>
                                     <input type="hidden" name="sort" th:value="${sort}">
+                                    <input type="hidden" name="size" th:value="${pageSize}">
                                     <input type="hidden" name="min" th:if="${filterForm.min != null}" th:value="${filterForm.min}">
                                     <input type="hidden" name="max" th:if="${filterForm.max != null}" th:value="${filterForm.max}">
                                     <th:block th:each="shopName : ${selectedShops}"><input type="hidden" name="shop" th:value="${shopName}"></th:block>
@@ -95,6 +114,7 @@
                                     <input type="hidden" name="q" th:if="${filterForm.q != null and !#strings.isEmpty(filterForm.q)}" th:value="${filterForm.q}">
                                     <th:block th:each="categoryId : ${selectedCategoryIds}"><input type="hidden" name="categoryIds" th:value="${categoryId}"></th:block>
                                     <input type="hidden" name="sort" th:value="${sort}">
+                                    <input type="hidden" name="size" th:value="${pageSize}">
                                     <th:block th:each="shopName : ${selectedShops}"><input type="hidden" name="shop" th:value="${shopName}"></th:block>
                                     <button type="submit" class="btn border border-clay text-plum rounded-0 products-active-filter" aria-label="Bỏ lọc khoảng giá">Giá: <span th:if="${filterForm.min != null}" th:text="'từ ' + ${filterForm.min} + '₫'">từ 0₫</span><span th:if="${filterForm.min != null and filterForm.max != null}">, </span><span th:if="${filterForm.max != null}" th:text="'đến ' + ${filterForm.max} + '₫'">đến 100₫</span> <span aria-hidden="true">×</span></button>
                                 </form>
@@ -103,6 +123,7 @@
                                     <input type="hidden" name="q" th:if="${filterForm.q != null and !#strings.isEmpty(filterForm.q)}" th:value="${filterForm.q}">
                                     <th:block th:each="categoryId : ${selectedCategoryIds}"><input type="hidden" name="categoryIds" th:value="${categoryId}"></th:block>
                                     <input type="hidden" name="sort" th:value="${sort}">
+                                    <input type="hidden" name="size" th:value="${pageSize}">
                                     <input type="hidden" name="min" th:if="${filterForm.min != null}" th:value="${filterForm.min}">
                                     <input type="hidden" name="max" th:if="${filterForm.max != null}" th:value="${filterForm.max}">
                                     <th:block th:each="otherShop : ${selectedShops}"><input type="hidden" name="shop" th:if="${otherShop != selectedShop}" th:value="${otherShop}"></th:block>
@@ -118,6 +139,7 @@
                                 <input type="hidden" name="q" th:value="*{q}">
                                 <th:block th:each="categoryId : ${selectedCategoryIds}"><input type="hidden" name="categoryIds" th:value="${categoryId}"></th:block>
                                 <input type="hidden" name="sort" th:value="${sort}">
+                                <input type="hidden" name="size" th:value="${pageSize}">
                                 <th:block th:each="shopName : ${selectedShops}"><input type="hidden" name="shop" th:value="${shopName}"></th:block>
                                 <div class="d-flex align-items-center gap-2">
                                     <input type="number" th:field="*{min}" min="0" step="0.01" inputmode="decimal" class="form-control rounded-0 border-clay text-plum" placeholder="Từ" style="width: 80px;">
@@ -139,6 +161,7 @@
                                 <input type="hidden" name="q" th:if="${filterForm.q != null and !#strings.isEmpty(filterForm.q)}" th:value="${filterForm.q}">
                                 <th:block th:each="categoryId : ${selectedCategoryIds}"><input type="hidden" name="categoryIds" th:value="${categoryId}"></th:block>
                                 <input type="hidden" name="sort" th:value="${sort}">
+                                <input type="hidden" name="size" th:value="${pageSize}">
                                 <input type="hidden" name="min" th:if="${filterForm.min != null}" th:value="${filterForm.min}">
                                 <input type="hidden" name="max" th:if="${filterForm.max != null}" th:value="${filterForm.max}">
                                 <ul class="list-unstyled d-flex flex-column gap-3 text-plum products-sidebar-list">
@@ -195,7 +218,7 @@
                                               class="fw-bold text-plum"
                                               aria-current="page">1</span>
                                         <a th:unless="${i == currentPage}"
-                                           th:href="@{/products(page=${i}, q=${filterForm.q}, categoryIds=${selectedCategoryIds}, sort=${sort}, min=${filterForm.min}, max=${filterForm.max}, shop=${selectedShops})}"
+                                           th:href="@{/products(page=${i}, size=${pageSize}, q=${filterForm.q}, categoryIds=${selectedCategoryIds}, sort=${sort}, min=${filterForm.min}, max=${filterForm.max}, shop=${selectedShops})}"
                                            th:text="${i}"
                                            class="text-plum text-decoration-none hover-burgundy">2</a>
                                     </li>

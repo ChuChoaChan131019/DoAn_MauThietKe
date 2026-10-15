@@ -15,6 +15,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -71,6 +73,33 @@ class ProductControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(view().name("merchant/product-add"))
                 .andExpect(model().attributeExists("productForm", "categoryOptions"));
+    }
+
+    @Test
+    void ownerCanOpenSecondProductPageWithChosenSize() throws Exception {
+        when(productService.pageOwnedProducts(1L, 2, 12))
+                .thenReturn(new PageImpl<>(List.of(), PageRequest.of(1, 12), 25));
+
+        mockMvc.perform(get("/merchant/products?page=2&size=12").with(user(ownerPrincipal)))
+                .andExpect(status().isOk())
+                .andExpect(view().name("merchant/products"))
+                .andExpect(model().attribute("currentPage", 2))
+                .andExpect(model().attribute("totalPages", 3))
+                .andExpect(model().attribute("totalItems", 25L));
+    }
+
+    @Test
+    void invalidProductPaginationUsesSafeDefaults() throws Exception {
+        when(productService.pageOwnedProducts(1L, 1, 12))
+                .thenReturn(new PageImpl<>(List.of()));
+
+        mockMvc.perform(get("/merchant/products?page=invalid&size=9999").with(user(ownerPrincipal)))
+                .andExpect(status().isOk())
+                .andExpect(model().attribute("currentPage", 1))
+                .andExpect(model().attribute("pageSize", 12))
+                .andExpect(model().attribute("paginationErrors", org.hamcrest.Matchers.hasSize(2)));
+
+        verify(productService).pageOwnedProducts(1L, 1, 12);
     }
 
     @Test
