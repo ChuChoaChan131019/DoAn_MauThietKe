@@ -297,6 +297,24 @@ class ProductManagementServiceTest {
     }
 
     @Test
+    void deletingExternalDemoImageDoesNotCallCloudinary() {
+        when(approvedShop.getId()).thenReturn(SHOP_ID);
+        Product product = Product.create(SHOP_ID, 42L, "Product", "Description", new BigDecimal("10.00"), 2);
+        ProductImage externalImage = ProductImage.create(
+                product, "https://images.unsplash.com/photo-test.jpg", "external-demo:501", 0);
+        ProductImage cloudinaryImage = ProductImage.create(
+                product, "https://cloudinary.test/second.png", "products/20/second", 1);
+        when(productRepository.findByIdForUpdate(50L)).thenReturn(Optional.of(product));
+        when(productImageRepository.findAllByProductIdOrderByDisplayOrderAscIdAsc(null))
+                .thenReturn(List.of(externalImage, cloudinaryImage));
+        when(productImageRepository.findByIdAndProductId(501L, null)).thenReturn(Optional.of(externalImage));
+
+        service.deleteImage(OWNER_ID, 50L, 501L);
+
+        verify(imageStorage, never()).delete("external-demo:501");
+    }
+
+    @Test
     void createCleansUploadedAssetsWhenDatabaseSaveFails() {
         when(approvedShop.getId()).thenReturn(SHOP_ID);
         Category category = categoryWithId(40L);

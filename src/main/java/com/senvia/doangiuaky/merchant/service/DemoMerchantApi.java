@@ -8,6 +8,8 @@ import com.senvia.doangiuaky.merchant.api.MerchantApi;
 import com.senvia.doangiuaky.merchant.api.MerchantShopSummary;
 import com.senvia.doangiuaky.merchant.api.ShopOrderCapabilities;
 import com.senvia.doangiuaky.merchant.dto.CatalogProductCardView;
+import com.senvia.doangiuaky.merchant.dto.CatalogFilterForm;
+import com.senvia.doangiuaky.merchant.dto.CatalogFilterResult;
 import com.senvia.doangiuaky.merchant.dto.CatalogProductDetailView;
 import com.senvia.doangiuaky.merchant.dto.PublicProductImageView;
 import com.senvia.doangiuaky.merchant.dto.PublicShopView;
@@ -24,8 +26,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 /**
  * Database-backed Merchant adapter used by Shopping and the public catalog UI.
@@ -121,6 +127,61 @@ public class DemoMerchantApi implements MerchantApi {
     }
 
     @Transactional(readOnly = true)
+    public CatalogFilterResult filterSaleableCatalogProducts(CatalogFilterForm filter) {
+        List<Long> requestedCategoryIds = filter.getRequestedCategoryIds();
+        boolean filterByLegacyCategory = requestedCategoryIds.isEmpty()
+                && filter.getCategory() != null
+                && !filter.getCategory().isBlank()
+                && !"Tất cả sản phẩm".equals(filter.getCategory().trim());
+
+        List<Long> categoryIds = List.of();
+        if (!requestedCategoryIds.isEmpty()) {
+            if (requestedCategoryIds.stream().anyMatch(id -> id == null || id <= 0)) {
+                return new CatalogFilterResult(List.of(), Map.of(), false);
+            }
+            List<Category> requestedCategories = categoryRepository.findAllById(requestedCategoryIds);
+            if (requestedCategories.size() != requestedCategoryIds.size()
+                    || requestedCategories.stream().anyMatch(category -> !category.isActive())) {
+                return new CatalogFilterResult(List.of(), Map.of(), false);
+            }
+            categoryIds = requestedCategoryIds;
+        } else if (filterByLegacyCategory) {
+            Long categoryId = categoryRepository.findByNameAndActiveTrue(filter.getCategory().trim())
+                    .map(Category::getId)
+                    .orElse(null);
+            if (categoryId == null) {
+                return new CatalogFilterResult(List.of(), Map.of(), false);
+            }
+            categoryIds = List.of(categoryId);
+        }
+
+        List<CatalogProductCardView> products = productRepository.findCatalogCandidates(
+                        ProductStatus.ACTIVE,
+                        0,
+                        !categoryIds.isEmpty(),
+                        categoryIds.isEmpty() ? List.of(0L) : categoryIds,
+                        filter.getMin() != null,
+                        filter.getMin() == null ? BigDecimal.ZERO : filter.getMin(),
+                        filter.getMax() != null,
+                        filter.getMax() == null ? BigDecimal.ZERO : filter.getMax())
+                .stream()
+                .map(this::toSaleableCatalogProduct)
+                .flatMap(Optional::stream)
+                .map(this::toCardView)
+                .filter(product -> matchesQuery(product, filter.getQ()))
+                .toList();
+
+        Map<String, Long> shopCounts = products.stream()
+                .collect(Collectors.groupingBy(CatalogProductCardView::shopName, Collectors.counting()));
+        List<String> selectedShops = filter.getShop() == null ? List.of() : filter.getShop();
+        List<CatalogProductCardView> filteredProducts = products.stream()
+                .filter(product -> selectedShops.isEmpty() || selectedShops.contains(product.shopName()))
+                .toList();
+
+        return new CatalogFilterResult(filteredProducts, shopCounts, true);
+    }
+
+    @Transactional(readOnly = true)
     public Optional<CatalogProductDetailView> findSaleableCatalogProduct(Long productId) {
         if (productId == null || productId <= 0) {
             return Optional.empty();
@@ -160,6 +221,12 @@ public class DemoMerchantApi implements MerchantApi {
         return toProductReadContext(product)
                 .filter(context -> context.cartProduct().isSaleable())
                 .map(this::toDetailView);
+    }
+
+    private boolean matchesQuery(CatalogProductCardView product, String query) {
+        return query == null || query.isBlank()
+                || product.name().toLowerCase(Locale.ROOT)
+                .contains(query.trim().toLowerCase(Locale.ROOT));
     }
 
     private Optional<ProductReadContext> toProductReadContext(Product product) {

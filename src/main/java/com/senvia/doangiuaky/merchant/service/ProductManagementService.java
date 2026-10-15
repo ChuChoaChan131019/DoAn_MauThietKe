@@ -36,6 +36,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class ProductManagementService {
 
     private static final int MAX_PRODUCT_IMAGES = 5;
+    private static final String EXTERNAL_DEMO_IMAGE_PUBLIC_ID_PREFIX = "external-demo:";
 
     private final ProductRepository productRepository;
     private final ProductImageRepository productImageRepository;
@@ -401,6 +402,7 @@ public class ProductManagementService {
     private void registerAfterCommitCleanup(Collection<String> publicIds) {
         List<String> ids = publicIds.stream()
                 .filter(StringUtils::hasText)
+                .filter(publicId -> !publicId.startsWith(EXTERNAL_DEMO_IMAGE_PUBLIC_ID_PREFIX))
                 .distinct()
                 .toList();
         if (ids.isEmpty()) {

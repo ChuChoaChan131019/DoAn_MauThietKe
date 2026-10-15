@@ -1,11 +1,18 @@
 <header th:fragment="header" class="w-100 d-flex flex-column header-z">
     <!-- TOP BAR - Espresso -->
     <div class="w-100 bg-plum text-white py-2 px-3 px-md-4 d-flex justify-content-between align-items-center header-top-bar">
-        <div class="flex-grow-1 d-none d-md-block opacity-75">Miễn phí vận chuyển từ 499.000đ</div>
+        <div class="flex-grow-1 d-none d-md-block opacity-75"
+             th:text="|Khám phá ${#lists.size(headerCategories)} danh mục đang hoạt động|">
+            Khám phá các danh mục đang hoạt động
+        </div>
         <div class="flex-grow-1 text-center fw-medium header-top-text">Senvia Edit — Lựa chọn mới mỗi tuần</div>
         <div class="flex-grow-1 d-none d-md-flex justify-content-end gap-4 opacity-75">
-            <a href="#" class="text-white text-decoration-none hover-burgundy transition-colors">Theo dõi đơn hàng</a>
-            <a href="#" class="text-white text-decoration-none hover-burgundy transition-colors">Trợ giúp</a>
+            <a th:if="${role == 'USER'}" th:href="@{/account/orders}"
+               class="text-white text-decoration-none hover-burgundy transition-colors">Đơn mua</a>
+            <a th:if="${role == 'ADMIN'}" th:href="@{/admin/orders}"
+               class="text-white text-decoration-none hover-burgundy transition-colors">Quản lý đơn</a>
+            <a th:if="${role == null}" th:href="@{/login}"
+               class="text-white text-decoration-none hover-burgundy transition-colors">Đăng nhập</a>
         </div>
     </div>
 
@@ -80,7 +87,6 @@
                 <a th:if="${role == 'USER'}" th:href="@{/cart}" class="text-plum hover-burgundy transition-colors position-relative d-flex align-items-center gap-2 group">
                     <div class="position-relative">
                         <i class="bi bi-cart header-icon-lg"></i>
-                        <span class="position-absolute bg-burgundy text-white fw-bold d-flex align-items-center justify-content-center rounded-circle header-cart-badge">3</span>
                     </div>
                 </a>
             </div>
@@ -89,7 +95,13 @@
         <!-- MOBILE NAV COLLAPSE -->
         <div class="collapse d-md-none border-top mt-3" id="mobileNav">
             <div class="bg-ivory p-3">
+                <a th:href="@{/products}" class="d-block py-2 text-plum text-decoration-none fw-medium border-bottom">Mới về</a>
+                <a th:href="@{/products}" class="d-block py-2 text-plum text-decoration-none fw-medium border-bottom">Bán chạy</a>
                 <a th:href="@{/products}" class="d-block py-2 text-plum text-decoration-none fw-medium border-bottom">Sản phẩm</a>
+                <a th:each="category : ${headerCategories}"
+                   th:href="@{/products(categoryId=${category.id})}"
+                   th:text="${category.name}"
+                   class="d-block py-2 ps-3 text-plum text-decoration-none border-bottom">Danh mục</a>
                 <a th:if="${role == 'USER'}" th:href="@{/account/wishlist}" class="d-block py-2 text-plum text-decoration-none fw-medium border-bottom">Yêu thích</a>
                 <a th:if="${role != null}" th:href="@{/account/notifications}" class="d-block py-2 text-plum text-decoration-none fw-medium border-bottom">
                     Thông báo <span th:if="${unreadNotifications != null && unreadNotifications > 0}" th:text="${unreadNotifications}" class="badge bg-burgundy ms-1"></span>
@@ -98,8 +110,8 @@
         </div>
 
         <!-- CATEGORY NAV -->
-        <nav class="container-fluid max-w-1440 px-3 px-md-4 mt-3 d-none d-md-block">
-            <ul class="list-unstyled d-flex align-items-center gap-4 gap-lg-5 mb-0 fw-medium text-uppercase header-nav-list">
+        <nav class="container-fluid max-w-1440 px-3 px-md-4 mt-3 d-none d-md-block overflow-x-auto">
+            <ul class="list-unstyled d-flex flex-nowrap align-items-center gap-4 gap-lg-5 mb-0 fw-medium text-uppercase header-nav-list">
                 <li class="position-relative category-nav-item">
                     <a th:href="@{/products}" class="text-plum hover-burgundy transition-colors py-1 d-inline-block text-decoration-none">Mới về</a>
                 </li>
@@ -107,28 +119,12 @@
                     <a th:href="@{/products}" class="text-plum hover-burgundy transition-colors py-1 d-inline-block text-decoration-none">Bán chạy</a>
                 </li>
                 <li class="position-relative category-nav-item">
-                    <a th:href="@{/products}" class="text-plum hover-burgundy transition-colors py-1 d-inline-block text-decoration-none">Thời trang</a>
+                    <a th:href="@{/products}" class="text-plum hover-burgundy transition-colors py-1 d-inline-block text-decoration-none">Tất cả sản phẩm</a>
                 </li>
-                <li class="position-relative category-nav-item">
-                    <a th:href="@{/products}" class="text-plum hover-burgundy transition-colors py-1 d-inline-block text-decoration-none">Làm đẹp</a>
-                </li>
-                <li class="position-relative category-nav-item">
-                    <a th:href="@{/products}" class="text-plum hover-burgundy transition-colors py-1 d-inline-block text-decoration-none">Nhà cửa</a>
-                </li>
-                <li class="position-relative category-nav-item">
-                    <a th:href="@{/products}" class="text-plum hover-burgundy transition-colors py-1 d-inline-block text-decoration-none">Công nghệ</a>
-                </li>
-                <li class="position-relative category-nav-item">
-                    <a th:href="@{/products}" class="text-plum hover-burgundy transition-colors py-1 d-inline-block text-decoration-none">Lifestyle</a>
-                </li>
-                <li class="position-relative category-nav-item">
-                    <a th:href="@{/products}" class="text-plum hover-burgundy transition-colors py-1 d-inline-block text-decoration-none">Phụ kiện</a>
-                </li>
-                <li class="position-relative category-nav-item">
-                    <a th:href="@{/products}" class="text-plum hover-burgundy transition-colors py-1 d-inline-block text-decoration-none">Thương hiệu</a>
-                </li>
-                <li class="position-relative">
-                    <a th:href="@{/products}" class="text-burgundy fw-bold hover-opacity transition-colors py-1 d-inline-block text-decoration-none">SALE</a>
+                <li class="position-relative category-nav-item" th:each="category : ${headerCategories}">
+                    <a th:href="@{/products(categoryId=${category.id})}"
+                       th:text="${category.name}"
+                       class="text-plum hover-burgundy transition-colors py-1 d-inline-block text-decoration-none">Danh mục</a>
                 </li>
             </ul>
         </nav>
