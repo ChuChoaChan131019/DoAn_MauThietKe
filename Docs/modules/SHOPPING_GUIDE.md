@@ -34,6 +34,11 @@ Snapshot trả mọi cart item để Ordering kiểm tra lại giá, trạng th�
 product/quantity; lỗi làm rollback checkout. Ordering gọi xóa sau khi tạo order/payment,
 trừ kho thành công và trước commit.
 
+Trên trang giỏ, mỗi item hợp lệ có ô chọn thanh toán; item lỗi vẫn hiện cảnh báo
+nhưng ô chọn bị vô hiệu hóa. Shopping gửi các `cartItemId` được chọn tới Ordering.
+Ordering đối chiếu chúng với snapshot giỏ thuộc buyer hiện tại và kiểm tra lại
+khả năng bán trước khi hiển thị hoặc xử lý thanh toán. Item không được chọn vẫn ở giỏ.
+
 ## Thứ tự feature
 
 1. Migration và mapping cart/cart item/favorite.

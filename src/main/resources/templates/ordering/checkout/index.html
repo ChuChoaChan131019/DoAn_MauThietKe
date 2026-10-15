@@ -10,12 +10,12 @@
             <h1 class="fw-bold text-plum mb-5 border-bottom pb-4">Thanh toán</h1>
             
             <form th:action="@{/checkout}" th:object="${checkoutPaymentForm}" method="post" class="row gx-lg-5 gy-5">
+                <input th:each="itemId : ${selectedItemIds}" type="hidden" name="itemIds" th:value="${itemId}">
                 <!-- Delivery & Payment Info -->
                 <div class="col-12 col-lg-7">
                     
-                    <!-- Checkout Error Warning Mockup -->
-                    <div th:if="${param.error}" class="alert alert-danger border-0 rounded-0 mb-4 text-dark">
-                        <i class="bi bi-exclamation-circle me-2"></i> Lỗi thanh toán: Một sản phẩm trong giỏ hàng vừa hết hàng hoặc thay đổi giá. Vui lòng kiểm tra lại.
+                    <div th:if="${checkoutSelectionError}" class="alert alert-danger border-0 rounded-0 mb-4"
+                         th:text="${checkoutSelectionError}">
                     </div>
 
                     <h4 class="fw-bold text-plum mb-4 pb-2 border-bottom">Thông tin giao hàng</h4>
@@ -175,35 +175,20 @@
                     <div class="p-4 p-md-5 bg-ivory border border-clay position-sticky" style="top: 100px;">
                         <h4 class="fw-bold text-plum border-bottom pb-3 mb-4">Đơn hàng của bạn</h4>
                         
-                        <!-- Shop 1 Order -->
-                        <div class="mb-4 pb-4 border-bottom border-clay">
-                            <div class="fw-bold text-plum mb-3"><i class="bi bi-shop me-2"></i>NOLA Official</div>
-                            <div class="d-flex justify-content-between mb-3">
-                                <div class="d-flex gap-2">
-                                    <span class="text-muted">1x</span>
-                                    <span class="text-plum">Canvas Tote Bag</span>
-                                </div>
-                                <span class="fw-bold text-plum">1.190.000đ</span>
-                            </div>
-                            <div class="d-flex justify-content-between mb-2 small text-muted">
-                                <span>Phí vận chuyển (NOLA Official)</span>
-                                <span>20.000đ</span>
-                            </div>
+                        <div th:if="${checkoutSelection == null}" class="text-danger small mb-4">
+                            Chưa có sản phẩm hợp lệ được chọn. Vui lòng quay lại giỏ hàng.
                         </div>
-
-                        <!-- Shop 2 Order -->
-                        <div class="mb-4 pb-4 border-bottom border-clay">
-                            <div class="fw-bold text-plum mb-3"><i class="bi bi-shop me-2"></i>MORI Store</div>
-                            <div class="d-flex justify-content-between mb-3">
-                                <div class="d-flex gap-2">
-                                    <span class="text-muted">2x</span>
-                                    <span class="text-plum">Linen Shirt</span>
-                                </div>
-                                <span class="fw-bold text-plum">1.780.000đ</span>
+                        <div th:each="shop : ${checkoutSelection?.shops()}" class="mb-4 pb-4 border-bottom border-clay">
+                            <div class="fw-bold text-plum mb-3">
+                                <i class="bi bi-shop me-2"></i><span th:text="${shop.shopName}">Gian hàng</span>
                             </div>
-                            <div class="d-flex justify-content-between mb-2 small text-muted">
-                                <span>Phí vận chuyển (MORI Store)</span>
-                                <span>30.000đ</span>
+                            <div th:each="item : ${shop.items}" class="d-flex justify-content-between mb-3">
+                                <div class="d-flex gap-2">
+                                    <span class="text-muted" th:text="${item.quantity} + 'x'">1x</span>
+                                    <span class="text-plum" th:text="${item.productName}">Sản phẩm</span>
+                                </div>
+                                <span class="fw-bold text-plum"
+                                      th:text="${#numbers.formatDecimal(item.subtotal, 0, 'COMMA', 0, 'POINT')} + '₫'">0₫</span>
                             </div>
                         </div>
 
@@ -215,19 +200,21 @@
                         
                         <div class="d-flex justify-content-between mb-3 text-plum">
                             <span>Tổng tiền hàng</span>
-                            <span class="fw-bold">2.970.000đ</span>
-                        </div>
-                        <div class="d-flex justify-content-between mb-4 pb-4 border-bottom text-plum">
-                            <span>Tổng phí vận chuyển</span>
-                            <span class="fw-bold">50.000đ</span>
+                            <span class="fw-bold" th:if="${checkoutSelection != null}"
+                                  th:text="${#numbers.formatDecimal(checkoutSelection.subtotal, 0, 'COMMA', 0, 'POINT')} + '₫'">0₫</span>
                         </div>
                         
                         <div class="d-flex justify-content-between align-items-end mb-4">
-                            <span class="fw-bold text-plum">Tổng cộng</span>
-                            <span class="fw-bold text-burgundy fs-4">3.020.000đ</span>
+                            <span class="fw-bold text-plum">Tạm tính</span>
+                            <span class="fw-bold text-burgundy fs-4" th:if="${checkoutSelection != null}"
+                                  th:text="${#numbers.formatDecimal(checkoutSelection.subtotal, 0, 'COMMA', 0, 'POINT')} + '₫'">0₫</span>
                         </div>
+                        <p th:if="${checkoutSelection != null}" class="text-muted small">
+                            Giá được đọc lại từ sản phẩm hiện tại. Chưa tính phí vận chuyển.
+                        </p>
 
-                        <button type="submit" class="btn bg-burgundy text-white w-100 text-decoration-none border-0 rounded-0 py-3 fw-bold hover-bg-plum transition-colors">
+                        <button type="submit" th:disabled="${checkoutSelection == null}"
+                                class="btn bg-burgundy text-white w-100 text-decoration-none border-0 rounded-0 py-3 fw-bold hover-bg-plum transition-colors">
                             Kiểm tra thông tin nhận hàng và thanh toán <!-- Khi triển khai checkout thật, đổi lại thành Xác nhận đặt hàng. -->
                         </button>
                     </div>

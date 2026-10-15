@@ -14,11 +14,15 @@ import com.senvia.doangiuaky.shopping.entity.CartItem;
 import com.senvia.doangiuaky.shopping.repository.CartItemRepository;
 import com.senvia.doangiuaky.shopping.repository.CartRepository;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.InOrder;
 
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -256,6 +260,7 @@ class CartServiceTest {
 
         assertEquals(new BigDecimal("270000"), view.subtotal());
         assertEquals(new BigDecimal("135000"), view.shops().getFirst().items().getFirst().currentPrice());
+        assertTrue(view.shops().getFirst().items().getFirst().quantityAdjustable());
     }
 
     @Test
@@ -364,6 +369,97 @@ class CartServiceTest {
     }
 
     @Test
+    void missingProductRemainsIdentifiableAndCanBeRemoved() {
+        CartRepository carts = mock(CartRepository.class);
+        CartItemRepository items = mock(CartItemRepository.class);
+        IdentityApi identity = mock(IdentityApi.class);
+        MerchantApi merchant = mock(MerchantApi.class);
+        Cart cart = mockCart(99L);
+        when(identity.findUser(BUYER_ID)).thenReturn(Optional.of(user(BUYER_ID, UserRole.USER, AccountStatus.ACTIVE)));
+        when(carts.findByUserId(BUYER_ID)).thenReturn(Optional.of(cart));
+        when(items.findAllByCartIdOrderByIdAsc(99L))
+                .thenReturn(List.of(new CartItem(99L, PRODUCT_ID, 2)));
+        when(merchant.findProductForCart(PRODUCT_ID)).thenReturn(Optional.empty());
+
+        CartItemView item = new CartService(carts, items, identity, merchant)
+                .getCart(BUYER_ID).shops().getFirst().items().getFirst();
+
+        assertEquals(PRODUCT_ID, item.productId());
+        assertEquals("Sản phẩm #20", item.productName());
+        assertEquals("Sản phẩm không còn tồn tại.", item.availabilityMessage());
+        assertFalse(item.available());
+        assertFalse(item.quantityAdjustable());
+        verify(items, never()).save(any());
+        verify(items, never()).delete(any());
+        verify(items, never()).flush();
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("unavailableProductCases")
+    void unavailableProductKeepsIdentityAndReportsSpecificReason(
+            String expectedMessage, CartProductView product) {
+        CartRepository carts = mock(CartRepository.class);
+        CartItemRepository items = mock(CartItemRepository.class);
+        IdentityApi identity = mock(IdentityApi.class);
+        MerchantApi merchant = mock(MerchantApi.class);
+        Cart cart = mockCart(99L);
+        CartItem cartItem = new CartItem(99L, PRODUCT_ID, 2);
+        when(identity.findUser(BUYER_ID)).thenReturn(Optional.of(user(BUYER_ID, UserRole.USER, AccountStatus.ACTIVE)));
+        when(carts.findByUserId(BUYER_ID)).thenReturn(Optional.of(cart));
+        when(items.findAllByCartIdOrderByIdAsc(99L)).thenReturn(List.of(cartItem));
+        when(merchant.findProductForCart(PRODUCT_ID)).thenReturn(Optional.of(product));
+
+        CartView view = new CartService(carts, items, identity, merchant).getCart(BUYER_ID);
+
+        CartItemView item = view.shops().getFirst().items().getFirst();
+        assertFalse(item.available());
+        assertFalse(item.quantityAdjustable());
+        assertEquals(expectedMessage, item.availabilityMessage());
+        assertEquals(product.productName(), item.productName());
+        assertEquals(product.shopName(), item.shopName());
+        assertTrue(view.hasUnavailableItems());
+        assertFalse(view.canCheckout());
+        verify(items, never()).save(any());
+        verify(items, never()).delete(any());
+        verify(items, never()).flush();
+    }
+
+    @Test
+    void mixedCartKeepsAllItemsAndAllowsOnlyValidItemsToBeSelected() {
+        CartRepository carts = mock(CartRepository.class);
+        CartItemRepository items = mock(CartItemRepository.class);
+        IdentityApi identity = mock(IdentityApi.class);
+        MerchantApi merchant = mock(MerchantApi.class);
+        Cart cart = mockCart(99L);
+        when(identity.findUser(BUYER_ID)).thenReturn(Optional.of(user(BUYER_ID, UserRole.USER, AccountStatus.ACTIVE)));
+        when(carts.findByUserId(BUYER_ID)).thenReturn(Optional.of(cart));
+        when(items.findAllByCartIdOrderByIdAsc(99L)).thenReturn(List.of(
+                new CartItem(99L, PRODUCT_ID, 2),
+                new CartItem(99L, 21L, 1)));
+        when(merchant.findProductForCart(PRODUCT_ID))
+                .thenReturn(Optional.of(product(PRODUCT_ID, 5, new BigDecimal("135000"),
+                        true, true, true, true)));
+        when(merchant.findProductForCart(21L))
+                .thenReturn(Optional.of(product(21L, 0, new BigDecimal("90000"),
+                        true, true, true, true)));
+
+        CartView view = new CartService(carts, items, identity, merchant).getCart(BUYER_ID);
+
+        assertTrue(view.hasItems());
+        assertTrue(view.hasUnavailableItems());
+        assertTrue(view.canCheckout());
+        assertTrue(view.hasCheckoutableItems());
+        assertEquals(2, view.totalQuantity());
+        assertEquals(new BigDecimal("270000"), view.subtotal());
+        assertEquals(2, view.shops().getFirst().items().size());
+        assertTrue(view.shops().getFirst().items().stream().anyMatch(CartItemView::available));
+        assertTrue(view.shops().getFirst().items().stream().anyMatch(item -> !item.available()));
+        verify(items, never()).save(any());
+        verify(items, never()).delete(any());
+        verify(items, never()).flush();
+    }
+
+    @Test
     void stockDecreaseAfterMutationShowsAdjustableWarningWithoutChangingCartItem() {
         CartRepository carts = mock(CartRepository.class);
         CartItemRepository items = mock(CartItemRepository.class);
@@ -456,13 +552,53 @@ class CartServiceTest {
         return new UserSummary(id, "Test User", role, status);
     }
 
+    private static Stream<Arguments> unavailableProductCases() {
+        return Stream.of(
+                Arguments.of("Chủ shop đang bị khóa.",
+                        product(PRODUCT_ID, 5, new BigDecimal("120000"), false, true, true, true)),
+                Arguments.of("Shop không còn được duyệt.",
+                        product(PRODUCT_ID, 5, new BigDecimal("120000"), true, false, true, true)),
+                Arguments.of("Danh mục không còn hoạt động.",
+                        product(PRODUCT_ID, 5, new BigDecimal("120000"), true, true, false, true)),
+                Arguments.of("Sản phẩm không còn được bán.",
+                        product(PRODUCT_ID, 5, new BigDecimal("120000"), true, true, true, false)),
+                Arguments.of("Sản phẩm đã hết hàng.",
+                        product(PRODUCT_ID, 0, new BigDecimal("120000"), true, true, true, true)),
+                Arguments.of("Giá sản phẩm hiện không hợp lệ.",
+                        product(PRODUCT_ID, 5, null, true, true, true, true)));
+    }
+
     private static CartProductView product(int stock, int price) {
         return product(stock, price, 40L);
     }
 
     private static CartProductView product(int stock, int price, Long ownerId) {
-        return new CartProductView(PRODUCT_ID, 30L, ownerId, "Shop", "Product", null,
-                BigDecimal.valueOf(price), stock, true, true, true, true);
+        return product(PRODUCT_ID, stock, BigDecimal.valueOf(price), true, true, true, true, ownerId);
+    }
+
+    private static CartProductView product(
+            Long productId,
+            int stock,
+            BigDecimal price,
+            boolean ownerActive,
+            boolean shopApproved,
+            boolean categoryActive,
+            boolean productActive) {
+        return product(productId, stock, price, ownerActive, shopApproved,
+                categoryActive, productActive, 40L);
+    }
+
+    private static CartProductView product(
+            Long productId,
+            int stock,
+            BigDecimal price,
+            boolean ownerActive,
+            boolean shopApproved,
+            boolean categoryActive,
+            boolean productActive,
+            Long ownerId) {
+        return new CartProductView(productId, 30L, ownerId, "Shop", "Product", null,
+                price, stock, ownerActive, shopApproved, categoryActive, productActive);
     }
 
     private static CartProductView product(

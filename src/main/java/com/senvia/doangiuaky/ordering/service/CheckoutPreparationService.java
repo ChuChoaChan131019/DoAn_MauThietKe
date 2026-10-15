@@ -42,6 +42,11 @@ public class CheckoutPreparationService {
 
     @Transactional(propagation = Propagation.MANDATORY)
     public PreparedCheckout prepare(CheckoutPaymentForm form) {
+        return prepare(form, null);
+    }
+
+    @Transactional(propagation = Propagation.MANDATORY)
+    public PreparedCheckout prepare(CheckoutPaymentForm form, List<Long> selectedItemIds) {
         // 1. Kiem tra form thanh toan
         if (form == null || form.getPaymentMethod() == null) {
             throw new CheckoutPreparationException("Thiếu dữ liệu thanh toán.");
@@ -88,6 +93,24 @@ public class CheckoutPreparationService {
 
         if (cart == null || cart.isEmpty()) {
             throw new CheckoutPreparationException("Giỏ hàng đang trống.");
+        }
+
+        if (selectedItemIds != null) {
+            if (selectedItemIds.isEmpty()) {
+                throw new CheckoutPreparationException("Vui lòng chọn ít nhất một sản phẩm để thanh toán.");
+            }
+            Set<Long> selected = new HashSet<>();
+            for (Long selectedId : selectedItemIds) {
+                if (selectedId == null || selectedId <= 0 || !selected.add(selectedId)) {
+                    throw new CheckoutPreparationException("Lựa chọn sản phẩm không hợp lệ hoặc bị trùng.");
+                }
+            }
+            cart = cart.stream()
+                    .filter(item -> item != null && selected.contains(item.cartItemId()))
+                    .toList();
+            if (cart.size() != selected.size()) {
+                throw new CheckoutPreparationException("Sản phẩm được chọn không thuộc giỏ hàng hiện tại.");
+            }
         }
 
         // 5. Nhom san pham theo shopId

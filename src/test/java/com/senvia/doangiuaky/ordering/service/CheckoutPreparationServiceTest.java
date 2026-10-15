@@ -124,6 +124,32 @@ class CheckoutPreparationServiceTest {
     }
 
     @Test
+    void selectedValidItemCanBePreparedWhileUnselectedInvalidItemRemainsInCart() {
+        when(cartApi.getCheckoutSnapshot()).thenReturn(List.of(
+                new CheckoutCartItem(1L, 101L, 2),
+                new CheckoutCartItem(2L, 102L, 1)));
+        product(101, 21, 99, "Túi vải", "100000.00", 5, true);
+        shop(21, true);
+
+        PreparedCheckout result = service.prepare(form(), List.of(1L));
+
+        assertEquals(new BigDecimal("200000.00"), result.grandTotal());
+        assertEquals(1, result.shopOrders().getFirst().items().size());
+        verify(merchant, never()).findProductForCart(102L);
+    }
+
+    @Test
+    void selectedItemMustBelongToAuthenticatedCart() {
+        when(cartApi.getCheckoutSnapshot()).thenReturn(List.of(new CheckoutCartItem(1L, 101L, 2)));
+
+        assertThrows(CheckoutPreparationException.class,
+                () -> service.prepare(form(), List.of(999L)));
+        assertThrows(CheckoutPreparationException.class,
+                () -> service.prepare(form(), List.of(1L, 1L)));
+        verifyNoInteractions(merchant);
+    }
+
+    @Test
     void multipleShopsHaveSeparateAmountsAndSameAuthenticatedBuyer() {
 
         when(cartApi.getCheckoutSnapshot()).thenReturn(
