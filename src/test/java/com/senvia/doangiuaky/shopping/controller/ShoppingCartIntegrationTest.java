@@ -12,6 +12,7 @@ import java.math.BigDecimal;
 import java.util.UUID;
 
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.not;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
@@ -199,6 +200,7 @@ class ShoppingCartIntegrationTest {
                 .andExpect(content().string(containsString("150,000₫")))
                 .andExpect(content().string(containsString("240,000₫")))
                 .andExpect(content().string(containsString("390,000₫")))
+                .andExpect(content().string(containsString("href=\"/checkout\"")))
                 .andReturn();
         CartView firstCart = (CartView) firstResponse.getModelAndView().getModel().get("cart");
         assertEquals(2, firstCart.shops().size());
@@ -254,7 +256,8 @@ class ShoppingCartIntegrationTest {
         mockMvc.perform(get("/cart").with(user(email).roles("USER")))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("Sản phẩm đã hết hàng.")))
-                .andExpect(content().string(containsString("disabled")));
+                .andExpect(content().string(containsString("disabled")))
+                .andExpect(content().string(not(containsString("href=\"/checkout\""))));
 
         assertEquals(2, jdbcTemplate.queryForObject("""
                 select ci.quantity
