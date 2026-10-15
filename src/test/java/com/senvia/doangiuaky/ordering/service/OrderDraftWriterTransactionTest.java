@@ -157,6 +157,36 @@ class OrderDraftWriterTransactionTest {
         assertEquals(paymentsBefore, count("payments"));
     }
 
+    @Test
+    void changedPriceStopsAllShopsBeforeAnyOrderSideWrite() {
+        long ordersBefore = count("orders");
+        long linesBefore = count("order_items");
+        long paymentsBefore = count("payments");
+        PreparedCheckout checkout = fixture();
+        Long changedProductId = checkout.shopOrders().get(1).items().getFirst().productId();
+        Integer stockBefore = jdbc.queryForObject(
+                "SELECT stock_quantity FROM products WHERE id = ?", Integer.class, changedProductId);
+
+        CheckoutPriceChangedException error = assertThrows(
+                CheckoutPriceChangedException.class,
+                () -> transactions.executeWithoutResult(status -> {
+                    jdbc.update("UPDATE products SET price = price + 1 WHERE id = ?", changedProductId);
+                    writer.save(
+                            checkout,
+                            (method, code, total) -> {
+                                fail("Không được khởi tạo payment khi giá đã đổi");
+                                return null;
+                            });
+                }));
+
+        assertTrue(error.getCurrentGrandTotal().compareTo(checkout.grandTotal()) > 0);
+        assertEquals(ordersBefore, count("orders"));
+        assertEquals(linesBefore, count("order_items"));
+        assertEquals(paymentsBefore, count("payments"));
+        assertEquals(stockBefore, jdbc.queryForObject(
+                "SELECT stock_quantity FROM products WHERE id = ?", Integer.class, changedProductId));
+    }
+
     private long count(String table) {
 
         return jdbc.queryForObject(
@@ -172,61 +202,68 @@ class OrderDraftWriterTransactionTest {
                 Long.class
         );
 
-        List<Long> shops = jdbc.queryForList(
-                "SELECT id FROM shops ORDER BY id LIMIT 2",
-                Long.class
-        );
+        List<java.util.Map<String, Object>> products = jdbc.queryForList("""
+                SELECT product_id, shop_id, price
+                FROM (
+                    SELECT p.id AS product_id, p.shop_id, p.price,
+                           ROW_NUMBER() OVER (PARTITION BY p.shop_id ORDER BY p.id) AS shop_row
+                    FROM products p
+                    JOIN shops s ON s.id = p.shop_id
+                    JOIN categories c ON c.id = p.category_id
+                    JOIN users u ON u.id = s.owner_id
+                    WHERE p.status = 'ACTIVE'
+                      AND p.stock_quantity >= 2
+                      AND s.status = 'APPROVED'
+                      AND c.active = TRUE
+                      AND u.account_status = 'ACTIVE'
+                ) saleable_products
+                WHERE shop_row = 1
+                ORDER BY shop_id, product_id
+                LIMIT 2
+                """);
 
         assertNotNull(buyer);
         assertEquals(
                 2,
-                shops.size(),
-                "Demo seed must contain at least two shops"
+                products.size(),
+                "Demo seed must contain at least two saleable products"
         );
 
-        Long productA = jdbc.queryForObject(
-                "SELECT MIN(id) FROM products WHERE shop_id = ?",
-                Long.class,
-                shops.get(0)
-        );
-
-        Long productB = jdbc.queryForObject(
-                "SELECT MIN(id) FROM products WHERE shop_id = ?",
-                Long.class,
-                shops.get(1)
-        );
-
-        assertNotNull(productA);
-        assertNotNull(productB);
+        Long productA = ((Number) products.get(0).get("PRODUCT_ID")).longValue();
+        Long shopA = ((Number) products.get(0).get("SHOP_ID")).longValue();
+        BigDecimal priceA = (BigDecimal) products.get(0).get("PRICE");
+        Long productB = ((Number) products.get(1).get("PRODUCT_ID")).longValue();
+        Long shopB = ((Number) products.get(1).get("SHOP_ID")).longValue();
+        BigDecimal priceB = (BigDecimal) products.get(1).get("PRICE");
 
         var one = new PreparedCheckout.ShopOrder(
                 buyer,
-                shops.get(0),
+                shopA,
                 List.of(
                         new PreparedCheckout.Line(
                                 productA,
                                 "Snapshot A",
-                                new BigDecimal("100.00"),
+                                priceA,
                                 2,
-                                new BigDecimal("200.00")
+                                priceA.multiply(new BigDecimal("2"))
                         )
                 ),
-                new BigDecimal("200.00")
+                priceA.multiply(new BigDecimal("2"))
         );
 
         var two = new PreparedCheckout.ShopOrder(
                 buyer,
-                shops.get(1),
+                shopB,
                 List.of(
                         new PreparedCheckout.Line(
                                 productB,
                                 "Snapshot B",
-                                new BigDecimal("300.00"),
+                                priceB,
                                 1,
-                                new BigDecimal("300.00")
+                                priceB
                         )
                 ),
-                new BigDecimal("300.00")
+                priceB
         );
 
         return new PreparedCheckout(
@@ -239,7 +276,7 @@ class OrderDraftWriterTransactionTest {
                 ),
                 PaymentMethod.COD,
                 List.of(one, two),
-                new BigDecimal("500.00"),
+                one.totalAmount().add(two.totalAmount()),
                 List.of()
         );
     }

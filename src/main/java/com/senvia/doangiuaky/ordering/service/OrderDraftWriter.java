@@ -66,10 +66,23 @@ public class OrderDraftWriter {
             }
         }
 
-        // Xac minh tung san pham thuoc dung shop truoc khi ghi bat ky don hang nao.
+        // Xac minh lai du lieu authoritative cua Merchant truoc khi ghi bat ky don hang nao.
+        // Gia trong PreparedCheckout la quote server-side ma buyer vua xac nhan.
+        BigDecimal currentGrandTotal = BigDecimal.ZERO;
+        boolean priceChanged = false;
+
         for (PreparedCheckout.ShopOrder group : checkout.shopOrders()) {
+            if (group.items() == null || group.items().isEmpty()) {
+                throw new CheckoutPreparationException("Nhóm đơn hàng không có sản phẩm.");
+            }
+
             for (PreparedCheckout.Line line : group.items()) {
-                if (line.productId() == null || line.productId() <= 0) {
+                if (line == null
+                        || line.productId() == null
+                        || line.productId() <= 0
+                        || line.quantity() <= 0
+                        || line.unitPrice() == null
+                        || line.unitPrice().signum() <= 0) {
                     throw new CheckoutPreparationException("Sản phẩm trong nhóm đơn hàng không hợp lệ.");
                 }
 
@@ -80,7 +93,20 @@ public class OrderDraftWriter {
                         || !group.shopId().equals(product.shopId())) {
                     throw new CheckoutPreparationException("Sản phẩm không thuộc gian hàng của đơn hàng.");
                 }
+
+                // CheckoutTransactionService đã kiểm tra saleability và trừ kho nguyên tử
+                // qua MerchantStockApi trước khi gọi writer. Không kiểm tra saleability hoặc
+                // số tồn tại đây vì sản phẩm vừa bán hết có stockQuantity = 0 là hợp lệ.
+                currentGrandTotal = currentGrandTotal.add(
+                        product.currentPrice().multiply(BigDecimal.valueOf(line.quantity())));
+                if (product.currentPrice().compareTo(line.unitPrice()) != 0) {
+                    priceChanged = true;
+                }
             }
+        }
+
+        if (priceChanged) {
+            throw new CheckoutPriceChangedException(currentGrandTotal);
         }
 
         List<Long> savedIds = new ArrayList<>();
