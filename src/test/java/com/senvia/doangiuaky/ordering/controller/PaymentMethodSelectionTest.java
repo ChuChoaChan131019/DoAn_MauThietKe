@@ -10,14 +10,22 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import static org.hamcrest.Matchers.hasProperty;
 import static org.hamcrest.Matchers.is;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.Mockito.verify;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
+import com.senvia.doangiuaky.ordering.service.CheckoutPreviewService;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+
 @WebMvcTest(OrderingController.class)
 @Import(SecurityConfig.class)
 class PaymentMethodSelectionTest {
+
+    @MockitoBean
+    private CheckoutPreviewService checkoutPreviewService;
 
     @Autowired
     private MockMvc mockMvc;
@@ -34,7 +42,8 @@ class PaymentMethodSelectionTest {
             .andExpect(status().isOk())
             .andExpect(model().attribute("checkoutPaymentForm",
                 hasProperty("paymentMethod", is(PaymentMethod.COD))))
-            .andExpect(model().attribute("paymentValidated", true));
+            .andExpect(model().attributeHasNoErrors("checkoutPaymentForm"));
+        verify(checkoutPreviewService).preview(argThat(form -> form.getPaymentMethod() == PaymentMethod.COD));
     }
 
     @Test
@@ -49,7 +58,8 @@ class PaymentMethodSelectionTest {
             .andExpect(status().isOk())
             .andExpect(model().attribute("checkoutPaymentForm",
                 hasProperty("paymentMethod", is(PaymentMethod.BANK_TRANSFER))))
-            .andExpect(model().attribute("paymentValidated", true));
+            .andExpect(model().attributeHasNoErrors("checkoutPaymentForm"));
+        verify(checkoutPreviewService).preview(argThat(form -> form.getPaymentMethod() == PaymentMethod.BANK_TRANSFER));
     }
 
     @Test

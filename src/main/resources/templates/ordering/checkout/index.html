@@ -1,244 +1,402 @@
 <!DOCTYPE html>
 <html lang="vi" xmlns:th="http://www.thymeleaf.org">
-<head th:replace="~{fragments/head :: head('Senvia - Thanh toán')}"></head>
+
+<head th:replace="~{fragments/head :: head('Senvia - Xem trước đơn hàng')}"></head>
+
 <body>
-    <div th:replace="~{fragments/header :: header}"></div>
-    
-    <main class="w-100 bg-white py-5">
-        <div class="max-w-1440 mx-auto px-3 px-md-4">
-            
-            <h1 class="fw-bold text-plum mb-5 border-bottom pb-4">Thanh toán</h1>
-            
-            <form th:action="@{/checkout}" th:object="${checkoutPaymentForm}" method="post" class="row gx-lg-5 gy-5">
-                <!-- Delivery & Payment Info -->
-                <div class="col-12 col-lg-7">
-                    
-                    <!-- Checkout Error Warning Mockup -->
-                    <div th:if="${param.error}" class="alert alert-danger border-0 rounded-0 mb-4 text-dark">
-                        <i class="bi bi-exclamation-circle me-2"></i> Lỗi thanh toán: Một sản phẩm trong giỏ hàng vừa hết hàng hoặc thay đổi giá. Vui lòng kiểm tra lại.
-                    </div>
 
-                    <h4 class="fw-bold text-plum mb-4 pb-2 border-bottom">Thông tin giao hàng</h4>
-                    
-                    <div class="row g-3 mb-5">
-                        <div class="col-12 col-md-6">
-                            <label for="receiverName" class="form-label">
-                                Họ và tên *
-                            </label>
+<div th:replace="~{fragments/header :: header}"></div>
 
-                            <input type="text"
-                                    id="receiverName"
-                                    th:field="*{receiverName}"
-                                    maxlength="100"
-                                    autocomplete="name"
-                                    class="form-control bg-ivory border-0 rounded-0 px-4 py-3"
-                                    required>
+<main class="w-100 bg-white py-5">
+    <div class="max-w-1440 mx-auto px-3 px-md-4">
 
-                            <div class="text-danger small mt-1"
-                                th:if="${#fields.hasErrors('receiverName')}"
-                                th:errors="*{receiverName}">
-                            </div>
-                        </div>
+        <h1 class="fw-bold text-plum mb-3 border-bottom pb-4">
+            Kiểm tra và xem trước đơn hàng
+        </h1>
 
-                        <div class="col-12 col-md-6">
-                            <label for="receiverPhone" class="form-label">
-                                Số điện thoại *
-                            </label>
+        <p class="text-muted mb-4">
+            Kiểm tra giỏ hàng, thông tin nhận hàng và phương thức
+            thanh toán. Bước này chưa tạo đơn hàng.
+        </p>
 
-                            <input type="tel"
-                                    id="receiverPhone"
-                                    th:field="*{receiverPhone}"
-                                    maxlength="20"
-                                    autocomplete="tel"
-                                    class="form-control bg-ivory border-0 rounded-0 px-4 py-3"
-                                    required>
+        <!-- Lỗi từ quá trình kiểm tra giỏ hàng thật -->
+        <div th:if="${checkoutError != null}"
+             class="alert alert-danger mb-4"
+             role="alert">
 
-                            <div class="text-danger small mt-1"
-                                th:if="${#fields.hasErrors('receiverPhone')}"
-                                th:errors="*{receiverPhone}">
-                            </div>
-                        </div>
+            <i class="bi bi-exclamation-triangle me-2"></i>
 
-                        <div class="col-12">
-                            <label for="shippingAddress" class="form-label">
-                                Địa chỉ nhận hàng *
-                            </label>
+            <span th:text="${checkoutError}"></span>
 
-                            <textarea id="shippingAddress"
-                                    th:field="*{shippingAddress}"
-                                    rows="3"
-                                    maxlength="2000"
-                                    autocomplete="street-address"
-                                    class="form-control bg-ivory border-0 rounded-0 px-4 py-3"
-                                    required>
-                            </textarea>
+            <div class="mt-2">
+                <a th:href="@{/cart}"
+                   class="alert-link">
+                    Quay lại kiểm tra giỏ hàng
+                </a>
+            </div>
+        </div>
 
-                            <div class="text-danger small mt-1"
-                                th:if="${#fields.hasErrors('shippingAddress')}"
-                                th:errors="*{shippingAddress}">
-                            </div>
-                        </div>
+        <!-- Kết quả kiểm tra thành công -->
+        <div th:if="${checkoutPreview != null}"
+             class="alert alert-info mb-4"
+             role="status">
 
-                        <div class="col-12">
-                            <label for="note" class="form-label">
-                                Ghi chú (tùy chọn)
-                            </label>
+            <i class="bi bi-info-circle me-2"></i>
 
-                            <textarea id="note"
-                                    th:field="*{note}"
-                                    rows="2"
-                                    maxlength="2000"
-                                    placeholder="Lưu ý khi giao hàng..."
-                                    class="form-control bg-ivory border-0 rounded-0 px-4 py-3">
-                            </textarea>
+            Giỏ hàng đã vượt qua bước kiểm tra hiện tại.
+            Dữ liệu bên dưới chỉ dùng để xem trước.
+            Chưa tạo đơn hàng, chưa trừ kho và chưa xóa giỏ.
+        </div>
 
-                            <div class="text-danger small mt-1"
-                                th:if="${#fields.hasErrors('note')}"
-                                th:errors="*{note}">
-                            </div>
+        <form th:action="@{/checkout}"
+              th:object="${checkoutPaymentForm}"
+              method="post"
+              class="row gx-lg-5 gy-5">
+
+            <!-- CỘT TRÁI: THÔNG TIN NHẬN HÀNG -->
+            <div class="col-12 col-lg-7">
+
+                <h4 class="fw-bold text-plum mb-4 pb-2 border-bottom">
+                    Thông tin giao hàng
+                </h4>
+
+                <div class="row g-3 mb-5">
+
+                    <!-- Tên người nhận -->
+                    <div class="col-12 col-md-6">
+
+                        <label for="receiverName" class="form-label">
+                            Họ và tên *
+                        </label>
+
+                        <input type="text"
+                               id="receiverName"
+                               th:field="*{receiverName}"
+                               maxlength="100"
+                               autocomplete="name"
+                               class="form-control bg-ivory border-0 rounded-0 px-4 py-3"
+                               required>
+
+                        <div class="text-danger small mt-1"
+                             th:if="${#fields.hasErrors('receiverName')}"
+                             th:errors="*{receiverName}">
                         </div>
                     </div>
 
-                    <h4 class="fw-bold text-plum mb-4 pb-2 border-bottom">
-                        Phương thức thanh toán
+                    <!-- Số điện thoại -->
+                    <div class="col-12 col-md-6">
+
+                        <label for="receiverPhone" class="form-label">
+                            Số điện thoại *
+                        </label>
+
+                        <input type="tel"
+                               id="receiverPhone"
+                               th:field="*{receiverPhone}"
+                               maxlength="20"
+                               autocomplete="tel"
+                               class="form-control bg-ivory border-0 rounded-0 px-4 py-3"
+                               required>
+
+                        <div class="text-danger small mt-1"
+                             th:if="${#fields.hasErrors('receiverPhone')}"
+                             th:errors="*{receiverPhone}">
+                        </div>
+                    </div>
+
+                    <!-- Địa chỉ nhận hàng -->
+                    <div class="col-12">
+
+                        <label for="shippingAddress" class="form-label">
+                            Địa chỉ nhận hàng *
+                        </label>
+
+                        <textarea id="shippingAddress"
+                                  th:field="*{shippingAddress}"
+                                  rows="3"
+                                  maxlength="2000"
+                                  autocomplete="street-address"
+                                  class="form-control bg-ivory border-0 rounded-0 px-4 py-3"
+                                  required></textarea>
+
+                        <div class="text-danger small mt-1"
+                             th:if="${#fields.hasErrors('shippingAddress')}"
+                             th:errors="*{shippingAddress}">
+                        </div>
+                    </div>
+
+                    <!-- Ghi chú -->
+                    <div class="col-12">
+
+                        <label for="note" class="form-label">
+                            Ghi chú (tùy chọn)
+                        </label>
+
+                        <textarea id="note"
+                                  th:field="*{note}"
+                                  rows="2"
+                                  maxlength="2000"
+                                  placeholder="Lưu ý khi giao hàng..."
+                                  class="form-control bg-ivory border-0 rounded-0 px-4 py-3"></textarea>
+
+                        <div class="text-danger small mt-1"
+                             th:if="${#fields.hasErrors('note')}"
+                             th:errors="*{note}">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PHƯƠNG THỨC THANH TOÁN -->
+                <h4 class="fw-bold text-plum mb-4 pb-2 border-bottom">
+                    Phương thức thanh toán
+                </h4>
+
+                <div class="d-flex flex-column gap-3 mb-4">
+
+                    <!-- COD -->
+                    <label class="border border-clay p-3 d-flex align-items-center gap-3">
+
+                        <input type="radio"
+                               th:field="*{paymentMethod}"
+                               value="COD"
+                               class="form-check-input mt-0"
+                               required>
+
+                        <div>
+                            <div class="fw-bold text-plum">
+                                Thanh toán khi nhận hàng (COD)
+                            </div>
+
+                            <div class="text-muted small">
+                                Thanh toán khi nhận sản phẩm.
+                            </div>
+                        </div>
+                    </label>
+
+                    <!-- CHUYỂN KHOẢN -->
+                    <label class="border border-clay p-3 d-flex align-items-center gap-3">
+
+                        <input type="radio"
+                               th:field="*{paymentMethod}"
+                               value="BANK_TRANSFER"
+                               class="form-check-input mt-0"
+                               required>
+
+                        <div>
+                            <div class="fw-bold text-plum">
+                                Chuyển khoản ngân hàng
+                            </div>
+
+                            <div class="text-muted small">
+                                Chọn phương thức chuyển khoản.
+                            </div>
+                        </div>
+                    </label>
+                </div>
+
+                <!-- Lỗi paymentMethod -->
+                <div th:if="${#fields.hasErrors('paymentMethod')}"
+                     class="alert alert-danger">
+
+                    Vui lòng chọn COD hoặc chuyển khoản ngân hàng.
+                </div>
+
+                <!-- Hướng dẫn chuyển khoản -->
+                <div id="bank-transfer-note"
+                     class="alert alert-info"
+                     hidden>
+
+                    <strong>Chuyển khoản ngân hàng</strong>
+
+                    <p class="mb-0 mt-2">
+                        Đây chỉ là bước xem trước đơn hàng.
+                        Hệ thống chưa tạo mã thanh toán hoặc
+                        yêu cầu chuyển tiền.
+                    </p>
+                </div>
+
+            </div>
+
+            <!-- CỘT PHẢI: XEM TRƯỚC ĐƠN HÀNG -->
+            <div class="col-12 col-lg-5">
+
+                <div class="p-4 p-md-5 bg-ivory border border-clay position-sticky"
+                     style="top: 100px;">
+
+                    <h4 class="fw-bold text-plum border-bottom pb-3 mb-4">
+                        Xem trước đơn hàng
                     </h4>
 
-                    <div class="d-flex flex-column gap-3 mb-4">
-                        <!-- COD -->
-                        <label class="border border-clay p-3 d-flex align-items-center gap-3">
-                            <input type="radio"
-                                    th:field="*{paymentMethod}"
-                                    value="COD"
-                                    class="form-check-input mt-0"
-                                    required>
+                    <!-- CHƯA KIỂM TRA -->
+                    <div th:if="${checkoutPreview == null}"
+                         class="text-center py-4">
 
-                            <div>
-                                <div class="fw-bold text-plum">
-                                    Thanh toán khi nhận hàng (COD)
-                                </div>
-                                <div class="text-muted small">
-                                    Thanh toán bằng tiền mặt khi giao hàng
-                                </div>
-                            </div>
-                        </label>
+                        <i class="bi bi-bag-check text-clay"
+                           style="font-size: 2.5rem;"></i>
 
-                        <!-- BANK TRANSFER -->
-                        <label class="border border-clay p-3 d-flex align-items-center gap-3">
-                            <input type="radio"
-                                    th:field="*{paymentMethod}"
-                                    value="BANK_TRANSFER"
-                                    class="form-check-input mt-0"
-                                    required>
-                            <div>
-                                <div class="fw-bold text-plum">
-                                    Chuyển khoản ngân hàng
-                                </div>
-                                <div class="text-muted small">
-                                    Thanh toán bằng chuyển khoản ngân hàng.
-                                </div>
-                            </div>
-                        </label>
-                    </div>
-
-                    <!-- Thông báo lỗi backend -->
-                    <div th:if="${#fields.hasErrors('paymentMethod')}"
-                        class="alert alert-danger"
-                        role="alert">
-                        Vui lòng chọn COD hoặc chuyển khoản ngân hàng.
-                    </div>
-
-                    <!-- Hướng dẫn cho chuyển khoản -->
-                    <div id="bank-transfer-note"
-                        class="alert alert-info"
-                        hidden>
-                        <strong>Chuyển khoản ngân hàng</strong>
-                        <p class="mb-0 mt-2">
-                            Sau khi đặt hàng thành công, hệ thống sẽ
-                            hiển thị thông tin hướng dẫn và mã tham
-                            chiếu riêng cho từng đơn hàng.
-                            Không cần thực hiện chuyển tiền thật.
+                        <p class="text-muted mt-3 mb-0">
+                            Nhập thông tin nhận hàng,
+                            chọn phương thức thanh toán
+                            và nhấn nút bên dưới để kiểm tra
+                            giỏ hàng thật.
                         </p>
                     </div>
 
-                    <!-- Thông báo sau khi backend kiểm tra -->
-                    <div th:if="${paymentValidated}"
-                        class="alert alert-success"
-                        role="status">
-                        Phương thức thanh toán hợp lệ.
-                        Đây là bước kiểm tra PAY 03,
-                        chưa tạo đơn hàng thực tế.
-                    </div>
-                </div>
+                    <!-- ĐÃ KIỂM TRA THÀNH CÔNG -->
+                    <div th:if="${checkoutPreview != null}">
 
-                <!-- Order Summary by Shop -->
-                <div class="col-12 col-lg-5">
-                    <div class="p-4 p-md-5 bg-ivory border border-clay position-sticky" style="top: 100px;">
-                        <h4 class="fw-bold text-plum border-bottom pb-3 mb-4">Đơn hàng của bạn</h4>
-                        
-                        <!-- Shop 1 Order -->
-                        <div class="mb-4 pb-4 border-bottom border-clay">
-                            <div class="fw-bold text-plum mb-3"><i class="bi bi-shop me-2"></i>NOLA Official</div>
-                            <div class="d-flex justify-content-between mb-3">
-                                <div class="d-flex gap-2">
-                                    <span class="text-muted">1x</span>
-                                    <span class="text-plum">Canvas Tote Bag</span>
+                        <!-- DANH SÁCH SHOP -->
+                        <div th:each="shop : ${checkoutPreview.shopOrders()}"
+                             class="mb-4 pb-4 border-bottom border-clay">
+
+                            <h5 class="fw-bold text-plum mb-3">
+
+                                <i class="bi bi-shop me-2"></i>
+
+                                <span th:text="${shop.shopNameSnapshot()}">
+                                    Tên gian hàng
+                                </span>
+                            </h5>
+
+                            <!-- DANH SÁCH SẢN PHẨM -->
+                            <div th:each="line : ${shop.items()}"
+                                 class="mb-3">
+
+                                <div class="d-flex justify-content-between gap-3">
+
+                                    <div>
+                                        <div class="fw-semibold text-plum"
+                                             th:text="${line.productNameSnapshot()}">
+                                            Tên sản phẩm
+                                        </div>
+
+                                        <div class="small text-muted mt-1">
+                                            Số lượng:
+                                            <span th:text="${line.quantity()}">
+                                                1
+                                            </span>
+                                        </div>
+
+                                        <div class="small text-muted">
+                                            Đơn giá:
+                                            <span th:text="|${#numbers.formatDecimal(line.unitPrice(), 1, 'POINT', 2, 'COMMA')} đ|">
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    <div class="fw-bold text-plum text-end text-nowrap"
+                                         th:text="|${#numbers.formatDecimal(line.subtotal(), 1, 'POINT', 2, 'COMMA')} đ|">
+                                    </div>
                                 </div>
-                                <span class="fw-bold text-plum">1.190.000đ</span>
                             </div>
-                            <div class="d-flex justify-content-between mb-2 small text-muted">
-                                <span>Phí vận chuyển (NOLA Official)</span>
-                                <span>20.000đ</span>
+
+                            <!-- TỔNG TIỀN TỪNG SHOP -->
+                            <div class="d-flex justify-content-between mt-3 pt-3 border-top">
+
+                                <span class="fw-semibold text-plum">
+                                    Tổng tiền shop
+                                </span>
+
+                                <span class="fw-bold text-burgundy"
+                                      th:text="|${#numbers.formatDecimal(shop.totalAmount(), 1, 'POINT', 2, 'COMMA')} đ|">
+                                </span>
                             </div>
                         </div>
 
-                        <!-- Shop 2 Order -->
+                        <!-- THÔNG TIN NGƯỜI NHẬN -->
                         <div class="mb-4 pb-4 border-bottom border-clay">
-                            <div class="fw-bold text-plum mb-3"><i class="bi bi-shop me-2"></i>MORI Store</div>
-                            <div class="d-flex justify-content-between mb-3">
-                                <div class="d-flex gap-2">
-                                    <span class="text-muted">2x</span>
-                                    <span class="text-plum">Linen Shirt</span>
-                                </div>
-                                <span class="fw-bold text-plum">1.780.000đ</span>
-                            </div>
-                            <div class="d-flex justify-content-between mb-2 small text-muted">
-                                <span>Phí vận chuyển (MORI Store)</span>
-                                <span>30.000đ</span>
+
+                            <h5 class="fw-bold text-plum mb-3">
+                                <i class="bi bi-geo-alt me-2"></i>
+                                Thông tin nhận hàng
+                            </h5>
+
+                            <p class="mb-2">
+                                <strong>Người nhận:</strong>
+                                <span th:text="${checkoutPreview.delivery().receiverName()}"></span>
+                            </p>
+
+                            <p class="mb-2">
+                                <strong>Số điện thoại:</strong>
+                                <span th:text="${checkoutPreview.delivery().receiverPhone()}"></span>
+                            </p>
+
+                            <p class="mb-2">
+                                <strong>Địa chỉ:</strong>
+                                <span th:text="${checkoutPreview.delivery().shippingAddress()}"></span>
+                            </p>
+
+                            <p th:if="${checkoutPreview.delivery().note() != null}"
+                               class="mb-2">
+                                <strong>Ghi chú:</strong>
+                                <span th:text="${checkoutPreview.delivery().note()}"></span>
+                            </p>
+                        </div>
+
+                        <!-- PHƯƠNG THỨC ĐÃ CHỌN -->
+                        <div class="mb-4">
+
+                            <strong class="text-plum">
+                                Phương thức thanh toán:
+                            </strong>
+
+                            <div class="text-muted mt-1"
+                                 th:text="${checkoutPreview.paymentMethod().name() == 'COD'
+                                   ? 'Thanh toán khi nhận hàng (COD)'
+                                   : 'Chuyển khoản ngân hàng'}">
                             </div>
                         </div>
 
-                        <div th:if="${addressValidated}"
-                            class="alert alert-success"
-                            role="status">
-                            Thông tin nhận hàng hợp lệ.
-                        </div>
-                        
-                        <div class="d-flex justify-content-between mb-3 text-plum">
-                            <span>Tổng tiền hàng</span>
-                            <span class="fw-bold">2.970.000đ</span>
-                        </div>
-                        <div class="d-flex justify-content-between mb-4 pb-4 border-bottom text-plum">
-                            <span>Tổng phí vận chuyển</span>
-                            <span class="fw-bold">50.000đ</span>
-                        </div>
-                        
-                        <div class="d-flex justify-content-between align-items-end mb-4">
-                            <span class="fw-bold text-plum">Tổng cộng</span>
-                            <span class="fw-bold text-burgundy fs-4">3.020.000đ</span>
+                        <!-- TỔNG TIỀN -->
+                        <div class="d-flex justify-content-between align-items-end mb-2">
+
+                            <span class="fw-bold text-plum">
+                                Tổng tiền hàng
+                            </span>
+
+                            <span class="fw-bold text-burgundy fs-4"
+                                  th:text="|${#numbers.formatDecimal(checkoutPreview.grandTotal(), 1, 'POINT', 2, 'COMMA')} đ|">
+                            </span>
                         </div>
 
-                        <button type="submit" class="btn bg-burgundy text-white w-100 text-decoration-none border-0 rounded-0 py-3 fw-bold hover-bg-plum transition-colors">
-                            Kiểm tra thông tin nhận hàng và thanh toán <!-- Khi triển khai checkout thật, đổi lại thành Xác nhận đặt hàng. -->
-                        </button>
+                        <p class="text-muted small mb-4">
+                            Chưa bao gồm phí vận chuyển.
+                            Tổng thanh toán cuối cùng chưa được xác định.
+                        </p>
+
+                        <div class="alert alert-info small mb-0">
+                            <i class="bi bi-info-circle me-1"></i>
+                            Đây là kết quả xem trước tại thời điểm kiểm tra.
+                            Chưa đặt hàng và chưa thanh toán.
+                        </div>
+
                     </div>
-                </div>
 
-            </form>
-        </div>
-    </main>
-    
-    <div th:replace="~{fragments/footer :: footer}"></div>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-    <script th:src="@{/js/modules/ordering/checkout-payment.js}"></script>
+                    <!-- NÚT KIỂM TRA -->
+                    <button type="submit"
+                            class="btn bg-burgundy text-white w-100 border-0 rounded-0 py-3 fw-bold hover-bg-plum transition-colors mt-4">
+
+                        <i class="bi bi-clipboard-check me-2"></i>
+                        Kiểm tra giỏ hàng và xem trước đơn
+                    </button>
+
+                    <p class="text-muted text-center small mt-3 mb-0">
+                        Thao tác này không tạo đơn hàng
+                        và không xóa sản phẩm khỏi giỏ.
+                    </p>
+
+                </div>
+            </div>
+
+        </form>
+    </div>
+</main>
+
+<div th:replace="~{fragments/footer :: footer}"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+<script th:src="@{/js/modules/ordering/checkout-payment.js}"></script>
+
 </body>
 </html>

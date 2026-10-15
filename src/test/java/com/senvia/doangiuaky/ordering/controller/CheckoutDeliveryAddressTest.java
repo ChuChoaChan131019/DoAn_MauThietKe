@@ -12,15 +12,23 @@ import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasProperty;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.nullValue;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
+import com.senvia.doangiuaky.ordering.service.CheckoutPreviewService;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+
 @WebMvcTest(OrderingController.class)
 @Import(SecurityConfig.class)
 class CheckoutDeliveryAddressTest {
+    @MockitoBean
+    private CheckoutPreviewService checkoutPreviewService;
 
     @Autowired
     private MockMvc mockMvc;
@@ -37,8 +45,12 @@ class CheckoutDeliveryAddressTest {
             .andExpect(model().attribute("checkoutPaymentForm", hasProperty("receiverName", is("Nguyen Van A"))))
             .andExpect(model().attribute("checkoutPaymentForm", hasProperty("receiverPhone", is("+84901234567"))))
             .andExpect(model().attribute("checkoutPaymentForm", hasProperty("shippingAddress", is("123 Le Loi, TP HCM"))))
-            .andExpect(model().attribute("checkoutPaymentForm", hasProperty("note", nullValue())))
-            .andExpect(model().attribute("addressValidated", true));
+            .andExpect(model().attribute("checkoutPaymentForm", hasProperty("note", nullValue())));
+        verify(checkoutPreviewService).preview(argThat(form ->
+            "Nguyen Van A".equals(form.getReceiverName())
+                && "+84901234567".equals(form.getReceiverPhone())
+                && "123 Le Loi, TP HCM".equals(form.getShippingAddress())
+                && form.getNote() == null));
     }
 
     @Test
@@ -48,7 +60,8 @@ class CheckoutDeliveryAddressTest {
             .andExpect(model().attributeHasFieldErrors("checkoutPaymentForm",
                 "receiverName", "receiverPhone", "shippingAddress"))
             .andExpect(content().string(containsString("Vui lòng nhập tên người nhận.")))
-            .andExpect(model().attributeDoesNotExist("addressValidated"));
+            .andExpect(model().attributeDoesNotExist("checkoutPreview"));
+        verifyNoInteractions(checkoutPreviewService);
     }
 
     @Test
@@ -68,7 +81,7 @@ class CheckoutDeliveryAddressTest {
                 .param("receiverPhone", "0(((((((((")
                 .param("shippingAddress", "123 Le Loi, TP HCM"))
             .andExpect(model().attributeHasFieldErrors("checkoutPaymentForm", "receiverPhone"))
-            .andExpect(model().attributeDoesNotExist("addressValidated"));
+            .andExpect(model().attributeDoesNotExist("checkoutPreview"));
     }
 
     @Test
