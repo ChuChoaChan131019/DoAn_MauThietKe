@@ -42,6 +42,7 @@ public class HomeController {
 
     private static Map<String, String> toCategoryCard(Category category) {
         return Map.of(
+                "id", category.getId().toString(),
                 "name", category.getName(),
                 "img", CATEGORY_IMAGES.getOrDefault(category.getName(), FALLBACK_CATEGORY_IMAGE));
     }

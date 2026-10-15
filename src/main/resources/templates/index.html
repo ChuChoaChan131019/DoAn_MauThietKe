@@ -50,7 +50,7 @@
             
             <div class="d-flex overflow-x-auto gap-4 gap-lg-5 pb-3 pb-lg-0 hide-scrollbar category-container justify-content-between">
                 <!-- Categories from controller -->
-                <a th:each="cat : ${categories}" th:href="@{/products(category=${cat.name})}" class="group d-flex flex-column align-items-center text-decoration-none home-cat-item">
+                <a th:each="cat : ${categories}" th:href="@{/products(categoryId=${cat.id})}" class="group d-flex flex-column align-items-center text-decoration-none home-cat-item">
                     <div class="rounded-circle position-relative overflow-hidden bg-ivory category-circle category-item-box w-100 home-cat-circle">
                         <img th:src="${cat.img}" th:alt="${cat.name}" class="w-100 h-100 object-fit-cover category-image" />
                     </div>
@@ -60,16 +60,28 @@
         </section>
 
         <!-- 04 NEW ARRIVALS -->
-        <section class="w-100 py-5 bg-ivory">
+        <section class="w-100 py-5 bg-ivory" data-home-section="new-arrivals">
             <div class="max-w-1440 mx-auto px-3 px-md-4">
                 <div class="d-flex justify-content-between align-items-end mb-5">
                     <h2 class="fw-bold text-plum m-0 home-section-title">Mới trên Senvia</h2>
-                    <a th:href="@{/products}" class="text-burgundy fw-bold text-uppercase text-decoration-none hover-plum transition-colors home-section-link">Tất cả hàng mới &rarr;</a>
+                    <div class="d-flex align-items-center gap-3">
+                        <a th:href="@{/products}" class="text-burgundy fw-bold text-uppercase text-decoration-none hover-plum transition-colors home-section-link">Tất cả hàng mới &rarr;</a>
+                        <div class="d-flex gap-2">
+                            <button type="button" class="home-nav-btn btn btn-outline-secondary rounded-circle d-flex align-items-center justify-content-center p-0" data-carousel-previous aria-label="Sản phẩm mới trước">
+                                <span aria-hidden="true">&larr;</span>
+                            </button>
+                            <button type="button" class="home-nav-btn btn btn-outline-secondary rounded-circle d-flex align-items-center justify-content-center p-0" data-carousel-next aria-label="Sản phẩm mới tiếp theo">
+                                <span aria-hidden="true">&rarr;</span>
+                            </button>
+                        </div>
+                    </div>
                 </div>
-                
-                <div class="row g-4">
-                    <div class="col-6 col-lg-3" th:each="product, iterStat : ${products}" th:if="${iterStat.index < 4}">
-                        <div th:replace="~{fragments/product-card :: product-card(${product})}"></div>
+
+                <div class="home-product-carousel-viewport" data-home-carousel role="region" aria-roledescription="carousel" aria-label="Mới trên Senvia">
+                    <div class="home-product-carousel-track" data-carousel-track>
+                        <div class="home-product-carousel-slide" data-carousel-slide th:each="product, iterStat : ${products}" th:if="${iterStat.index < 10}">
+                            <div th:replace="~{fragments/product-card :: product-card(${product})}"></div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -98,19 +110,25 @@
         </section>
 
         <!-- 06 BEST SELLERS -->
-        <section class="w-100 py-5 bg-white">
+        <section class="w-100 py-5 bg-white" data-home-section="liked">
             <div class="max-w-1440 mx-auto px-3 px-md-4">
                 <div class="d-flex justify-content-between align-items-end mb-5">
-                    <h2 class="fw-bold text-plum m-0 home-section-title">Được yêu thích</h2>
+                    <h2 class="fw-bold text-plum m-0 home-section-title">Top sản phẩm được yêu thích</h2>
                     <div class="d-flex gap-2">
-                        <button class="btn border border-clay text-plum hover-burgundy hover-border-burgundy rounded-0 d-flex align-items-center justify-content-center p-0 transition-colors home-nav-btn">&larr;</button>
-                        <button class="btn border border-clay text-plum hover-burgundy hover-border-burgundy rounded-0 d-flex align-items-center justify-content-center p-0 transition-colors home-nav-btn">&rarr;</button>
+                        <button type="button" class="home-nav-btn btn btn-outline-secondary rounded-circle d-flex align-items-center justify-content-center p-0" data-carousel-previous aria-label="Sản phẩm được yêu thích trước">
+                            <span aria-hidden="true">&larr;</span>
+                        </button>
+                        <button type="button" class="home-nav-btn btn btn-outline-secondary rounded-circle d-flex align-items-center justify-content-center p-0" data-carousel-next aria-label="Sản phẩm được yêu thích tiếp theo">
+                            <span aria-hidden="true">&rarr;</span>
+                        </button>
                     </div>
                 </div>
-                
-                <div class="row g-4">
-                    <div class="col-6 col-lg-3" th:each="product, iterStat : ${products}" th:if="${iterStat.index >= 4}">
-                        <div th:replace="~{fragments/product-card :: product-card(${product})}"></div>
+
+                <div class="home-product-carousel-viewport" data-home-carousel role="region" aria-roledescription="carousel" aria-label="Top sản phẩm được yêu thích">
+                    <div class="home-product-carousel-track" data-carousel-track>
+                        <div class="home-product-carousel-slide" data-carousel-slide th:each="product, iterStat : ${products}" th:if="${iterStat.index >= 10 and iterStat.index < 20}">
+                            <div th:replace="~{fragments/product-card :: product-card(${product})}"></div>
+                        </div>
                     </div>
                 </div>
             </div>

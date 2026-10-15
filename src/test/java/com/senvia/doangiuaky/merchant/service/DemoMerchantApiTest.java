@@ -1,6 +1,7 @@
 package com.senvia.doangiuaky.merchant.service;
 
 import com.senvia.doangiuaky.merchant.repository.ProductRepository;
+import com.senvia.doangiuaky.merchant.dto.CatalogFilterForm;
 import com.senvia.doangiuaky.merchant.entity.ProductImage;
 import com.senvia.doangiuaky.merchant.repository.ProductImageRepository;
 import jakarta.persistence.EntityManager;
@@ -231,6 +232,50 @@ class DemoMerchantApiTest {
     }
 
     @Test
+    void catalogFilterUsesInclusiveExactDecimalBoundsAndCombinesCategoryAndQuery() {
+        Long productId = productRepository.findByName("Canvas Tote Bag").orElseThrow().getId();
+        Long categoryId = jdbcTemplate.queryForObject(
+                "select category_id from products where id = ?", Long.class, productId);
+        jdbcTemplate.update("update products set price = ? where id = ?",
+                new java.math.BigDecimal("1190000.25"), productId);
+        entityManager.clear();
+
+        CatalogFilterForm filter = new CatalogFilterForm();
+        filter.setCategoryId(categoryId);
+        filter.setMin(new java.math.BigDecimal("1190000.25"));
+        filter.setMax(new java.math.BigDecimal("1190000.25"));
+        filter.setQ("  CANVAS  ");
+
+        var result = merchantApi.filterSaleableCatalogProducts(filter);
+
+        assertTrue(result.categoryAvailable());
+        assertEquals(1, result.products().size());
+        assertEquals(productId, result.products().getFirst().id());
+        assertEquals("Canvas Tote Bag", result.products().getFirst().name());
+    }
+
+    @Test
+    void catalogFilterDoesNotReturnProductsForInactiveOrUnknownCategory() {
+        Long productId = productRepository.findByName("Canvas Tote Bag").orElseThrow().getId();
+        Long categoryId = jdbcTemplate.queryForObject(
+                "select category_id from products where id = ?", Long.class, productId);
+        jdbcTemplate.update("update categories set active = false where id = ?", categoryId);
+        entityManager.clear();
+
+        CatalogFilterForm filter = new CatalogFilterForm();
+        filter.setCategoryId(categoryId);
+
+        var inactiveResult = merchantApi.filterSaleableCatalogProducts(filter);
+        filter.setCategoryId(Long.MAX_VALUE);
+        var unknownResult = merchantApi.filterSaleableCatalogProducts(filter);
+
+        assertFalse(inactiveResult.categoryAvailable());
+        assertTrue(inactiveResult.products().isEmpty());
+        assertFalse(unknownResult.categoryAvailable());
+        assertTrue(unknownResult.products().isEmpty());
+    }
+
+    @Test
     void catalogListAndDetailExcludeProductOfLockedShop() {
         Long productId = productRepository.findByName("Canvas Tote Bag").orElseThrow().getId();
         lockShop(shopIdOf("Canvas Tote Bag"));
@@ -251,7 +296,7 @@ class DemoMerchantApiTest {
         assertEquals("NOLA Store", detail.shopName());
         assertEquals("Thời trang", detail.categoryName());
         assertEquals(45, detail.stock());
-        assertEquals("/images/product-placeholder.svg", detail.thumbnailUrl());
+        assertTrue(detail.thumbnailUrl().startsWith("https://"));
         assertEquals(1, detail.images().size());
         assertEquals(detail.thumbnailUrl(), detail.images().getFirst().imageUrl());
         assertEquals(detail.shopId(), detail.shop().id());
@@ -260,6 +305,8 @@ class DemoMerchantApiTest {
     @Test
     void catalogImagesFollowDisplayOrderAndFirstImageBecomesThumbnail() {
         var product = productRepository.findByName("Canvas Tote Bag").orElseThrow();
+        var seededImage = productImageRepository
+                .findAllByProductIdOrderByDisplayOrderAscIdAsc(product.getId()).getFirst();
         productImageRepository.saveAndFlush(ProductImage.create(
                 product, "https://example.test/second.jpg", "test/second", 2));
         productImageRepository.saveAndFlush(ProductImage.create(
@@ -270,11 +317,12 @@ class DemoMerchantApiTest {
                 .filter(candidate -> candidate.id().equals(product.getId()))
                 .findFirst().orElseThrow();
 
-        assertEquals("https://example.test/first.jpg", detail.thumbnailUrl());
-        assertEquals("https://example.test/first.jpg", card.thumbnailUrl());
-        assertEquals(2, detail.images().size());
-        assertEquals("https://example.test/first.jpg", detail.images().get(0).imageUrl());
-        assertEquals("https://example.test/second.jpg", detail.images().get(1).imageUrl());
+        assertEquals(seededImage.getImageUrl(), detail.thumbnailUrl());
+        assertEquals(seededImage.getImageUrl(), card.thumbnailUrl());
+        assertEquals(3, detail.images().size());
+        assertEquals(seededImage.getImageUrl(), detail.images().get(0).imageUrl());
+        assertEquals("https://example.test/first.jpg", detail.images().get(1).imageUrl());
+        assertEquals("https://example.test/second.jpg", detail.images().get(2).imageUrl());
     }
 
     @Test
