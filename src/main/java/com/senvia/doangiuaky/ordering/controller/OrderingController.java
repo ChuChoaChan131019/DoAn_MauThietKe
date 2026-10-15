@@ -15,6 +15,9 @@ import com.senvia.doangiuaky.ordering.dto.CheckoutPaymentForm;
 import com.senvia.doangiuaky.ordering.dto.CheckoutSelectionView;
 import com.senvia.doangiuaky.ordering.service.CheckoutSelectionException;
 import com.senvia.doangiuaky.ordering.service.CheckoutSelectionService;
+import com.senvia.doangiuaky.ordering.service.CheckoutPreviewService;
+import com.senvia.doangiuaky.ordering.service.CheckoutPreparationException;
+import com.senvia.doangiuaky.ordering.service.PreparedCheckout;
 import jakarta.validation.Valid;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.ModelAttribute;
@@ -24,9 +27,12 @@ import org.springframework.web.bind.annotation.PostMapping;
 public class OrderingController {
 
     private final CheckoutSelectionService checkoutSelectionService;
+    private final CheckoutPreviewService checkoutPreviewService;
 
-    public OrderingController(CheckoutSelectionService checkoutSelectionService) {
+    public OrderingController(CheckoutSelectionService checkoutSelectionService,
+                              CheckoutPreviewService checkoutPreviewService) {
         this.checkoutSelectionService = checkoutSelectionService;
+        this.checkoutPreviewService = checkoutPreviewService;
     }
 
     private static final List<Map<String, Object>> mockOrders = new ArrayList<>();
@@ -86,41 +92,45 @@ public class OrderingController {
                                    BindingResult bindingResult,
                                    @RequestParam(name = "itemIds", required = false) List<String> itemIds,
                                    Model model) {
-        boolean selectionValid = populateSelection(itemIds, model);
-        if (bindingResult.hasErrors() || !selectionValid) {
+        List<Long> selectedItemIds = populateSelection(itemIds, model);
+        if (bindingResult.hasErrors() || selectedItemIds == null) {
             return "ordering/checkout/index";
         }
 
         // Chuẩn hóa thông tin giao hàng.
-        form.setReceiverName(form.getReceiverName().trim());
-        form.setReceiverPhone(form.getReceiverPhone().trim());
-        form.setShippingAddress(form.getShippingAddress().trim());
+        form.setReceiverName(form.getReceiverName().strip());
+        form.setReceiverPhone(form.getReceiverPhone().strip());
+        form.setShippingAddress(form.getShippingAddress().strip());
 
         if (form.getNote() == null || form.getNote().isBlank()) {
             form.setNote(null);
         } else {
-            form.setNote(form.getNote().trim());
+            form.setNote(form.getNote().strip());
         }
 
-        // PAY 01 và PAY 03: dữ liệu hợp lệ; chưa tạo đơn hàng.
-        model.addAttribute("addressValidated", true);
-        model.addAttribute("paymentValidated", true);
+        try {
+            PreparedCheckout preview = checkoutPreviewService.preview(form, selectedItemIds);
+            model.addAttribute("checkoutPreview", preview);
+        } catch (CheckoutPreparationException exception) {
+            model.addAttribute("checkoutError", exception.getMessage());
+        }
 
         return "ordering/checkout/index";
     }
 
-    private boolean populateSelection(List<String> itemIds, Model model) {
+    private List<Long> populateSelection(List<String> itemIds, Model model) {
         try {
             CheckoutSelectionView selection = checkoutSelectionService.preview(itemIds);
             model.addAttribute("checkoutSelection", selection);
-            model.addAttribute("selectedItemIds", selection.shops().stream()
+            List<Long> selectedIds = selection.shops().stream()
                     .flatMap(shop -> shop.items().stream())
                     .map(CheckoutSelectionView.Item::cartItemId)
-                    .toList());
-            return true;
+                    .toList();
+            model.addAttribute("selectedItemIds", selectedIds);
+            return selectedIds;
         } catch (CheckoutSelectionException exception) {
             model.addAttribute("checkoutSelectionError", exception.getMessage());
-            return false;
+            return null;
         }
     }
 
