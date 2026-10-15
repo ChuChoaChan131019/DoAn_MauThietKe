@@ -1,18 +1,27 @@
 package com.senvia.doangiuaky.shopping.service;
 
+import com.senvia.doangiuaky.merchant.api.CartProductView;
+import com.senvia.doangiuaky.merchant.api.MerchantApi;
+import com.senvia.doangiuaky.merchant.api.MerchantShopSummary;
+import com.senvia.doangiuaky.merchant.api.ShopOrderCapabilities;
 import com.senvia.doangiuaky.shopping.entity.Cart;
 import com.senvia.doangiuaky.shopping.entity.CartItem;
 import com.senvia.doangiuaky.shopping.repository.CartItemRepository;
 import com.senvia.doangiuaky.shopping.repository.CartRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Primary;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.CountDownLatch;
@@ -20,9 +29,12 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @SpringBootTest
 class CartServiceConcurrencyTest {
@@ -41,6 +53,9 @@ class CartServiceConcurrencyTest {
 
     @Autowired
     private PlatformTransactionManager transactionManager;
+
+    @Autowired
+    private ObservedMerchantApi merchantApi;
 
     @Test
     void concurrentFirstAddsCreateOneCartAndKeepBothQuantities() throws Exception {
@@ -142,6 +157,57 @@ class CartServiceConcurrencyTest {
         assertEquals(2, cartQuantity(userId, productId));
     }
 
+    @Test
+    void updateWaitsForCompetingStockChangeAndUsesCommittedLockedStock() throws Exception {
+        Long userId = insertUser();
+        Long productId = insertSaleableProduct(5);
+        cartService.addItem(userId, productId, 1);
+        Long cartItemId = cartItemId(userId, productId);
+        CountDownLatch stockUpdated = new CountDownLatch(1);
+        CountDownLatch releaseStockTransaction = new CountDownLatch(1);
+        CountDownLatch productLookupEntered = new CountDownLatch(1);
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        TransactionTemplate transaction = new TransactionTemplate(transactionManager);
+
+        merchantApi.observeProductLookup(productLookupEntered);
+
+        try {
+            Future<?> stockChange = executor.submit(() -> {
+                transaction.executeWithoutResult(status -> {
+                    jdbcTemplate.update("update products set stock_quantity = 2 where id = ?", productId);
+                    stockUpdated.countDown();
+                    await(releaseStockTransaction);
+                });
+                return null;
+            });
+            assertTrue(stockUpdated.await(5, TimeUnit.SECONDS));
+
+            Future<?> cartMutation = executor.submit(() -> {
+                cartService.updateItemQuantity(userId, cartItemId, 5);
+                return null;
+            });
+            assertTrue(productLookupEntered.await(5, TimeUnit.SECONDS),
+                    "cart update must reach the locked product lookup");
+            assertThrows(TimeoutException.class, () -> cartMutation.get(500, TimeUnit.MILLISECONDS),
+                    "cart update must wait for the product row lock");
+
+            releaseStockTransaction.countDown();
+            stockChange.get(10, TimeUnit.SECONDS);
+            cartMutation.get(10, TimeUnit.SECONDS);
+        } finally {
+            merchantApi.observeProductLookup(null);
+            releaseStockTransaction.countDown();
+            executor.shutdownNow();
+        }
+
+        int stock = jdbcTemplate.queryForObject(
+                "select stock_quantity from products where id = ?", Integer.class, productId);
+        int quantity = cartQuantity(userId, productId);
+        assertTrue(quantity > 0);
+        assertTrue(quantity <= stock);
+        assertEquals(2, quantity);
+    }
+
     private Long insertUser() {
         String email = "concurrent-" + UUID.randomUUID() + "@example.com";
         jdbcTemplate.update("""
@@ -188,6 +254,15 @@ class CartServiceConcurrencyTest {
                 """, Integer.class, userId, productId);
     }
 
+    private Long cartItemId(Long userId, Long productId) {
+        return jdbcTemplate.queryForObject("""
+                select ci.id
+                  from cart_items ci
+                  join carts c on c.id = ci.cart_id
+                 where c.user_id = ? and ci.product_id = ?
+                """, Long.class, userId, productId);
+    }
+
     private static void await(CountDownLatch latch) {
         try {
             if (!latch.await(10, TimeUnit.SECONDS)) {
@@ -196,6 +271,54 @@ class CartServiceConcurrencyTest {
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
             throw new IllegalStateException("Concurrency test interrupted", exception);
+        }
+    }
+
+    @TestConfiguration(proxyBeanMethods = false)
+    static class MerchantObservationConfig {
+
+        @Bean
+        @Primary
+        ObservedMerchantApi observedMerchantApi(@Qualifier("demoMerchantApi") MerchantApi delegate) {
+            return new ObservedMerchantApi(delegate);
+        }
+    }
+
+    static class ObservedMerchantApi implements MerchantApi {
+
+        private final MerchantApi delegate;
+        private volatile CountDownLatch productLookupEntered;
+
+        ObservedMerchantApi(MerchantApi delegate) {
+            this.delegate = delegate;
+        }
+
+        void observeProductLookup(CountDownLatch latch) {
+            productLookupEntered = latch;
+        }
+
+        @Override
+        public Optional<CartProductView> findProductForCart(Long productId) {
+            return delegate.findProductForCart(productId);
+        }
+
+        @Override
+        public Optional<CartProductView> findProductForCartMutation(Long productId) {
+            CountDownLatch latch = productLookupEntered;
+            if (latch != null) {
+                latch.countDown();
+            }
+            return delegate.findProductForCartMutation(productId);
+        }
+
+        @Override
+        public Optional<ShopOrderCapabilities> findShopOrderCapabilities(Long shopId) {
+            return delegate.findShopOrderCapabilities(shopId);
+        }
+
+        @Override
+        public Optional<MerchantShopSummary> findShopSummary(Long shopId) {
+            return delegate.findShopSummary(shopId);
         }
     }
 }
