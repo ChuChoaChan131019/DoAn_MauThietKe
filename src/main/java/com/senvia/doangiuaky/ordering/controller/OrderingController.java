@@ -23,16 +23,26 @@ import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PostMapping;
 
+import jakarta.servlet.http.HttpSession;
+
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+
+import com.senvia.doangiuaky.ordering.service.CheckoutQuote;
+import com.senvia.doangiuaky.ordering.service.CheckoutReceipt;
+import com.senvia.doangiuaky.ordering.service.CheckoutTransactionService;
+
 @Controller
 public class OrderingController {
-
     private final CheckoutSelectionService checkoutSelectionService;
     private final CheckoutPreviewService checkoutPreviewService;
+    private final CheckoutTransactionService checkoutTransactionService;
 
-    public OrderingController(CheckoutSelectionService checkoutSelectionService,
-                              CheckoutPreviewService checkoutPreviewService) {
+    private static final String SESSION_QUOTE = "ordering.checkout.quote";
+
+    public OrderingController(CheckoutSelectionService checkoutSelectionService, CheckoutPreviewService checkoutPreviewService, CheckoutTransactionService checkoutTransactionService) {
         this.checkoutSelectionService = checkoutSelectionService;
         this.checkoutPreviewService = checkoutPreviewService;
+        this.checkoutTransactionService = checkoutTransactionService;
     }
 
     private static final List<Map<String, Object>> mockOrders = new ArrayList<>();
@@ -78,10 +88,12 @@ public class OrderingController {
     }
 
     @GetMapping("/checkout")
-    public String checkout(@RequestParam(name = "itemIds", required = false) List<String> itemIds, Model model) {
-        model.addAttribute(
-                "checkoutPaymentForm",
-                new CheckoutPaymentForm());
+    public String checkout(@RequestParam(name = "itemIds", required = false) List<String> itemIds, Model model,
+            HttpSession session) {
+        // Không sử dụng lại báo giá từ lần trước.
+        session.removeAttribute(SESSION_QUOTE);
+
+        model.addAttribute("checkoutPaymentForm", new CheckoutPaymentForm());
         populateSelection(itemIds, model);
 
         return "ordering/checkout/index";
@@ -91,8 +103,14 @@ public class OrderingController {
     public String validateCheckout(@Valid @ModelAttribute("checkoutPaymentForm") CheckoutPaymentForm form,
                                    BindingResult bindingResult,
                                    @RequestParam(name = "itemIds", required = false) List<String> itemIds,
-                                   Model model) {
+            Model model, HttpSession session) {
+
+        // Xóa báo giá cũ để không xác nhận nhầm.
+        session.removeAttribute(SESSION_QUOTE);
+
         List<Long> selectedItemIds = populateSelection(itemIds, model);
+
+        // Kiểm tra dữ liệu form và item đã chọn.
         if (bindingResult.hasErrors() || selectedItemIds == null) {
             return "ordering/checkout/index";
         }
@@ -111,11 +129,71 @@ public class OrderingController {
         try {
             PreparedCheckout preview = checkoutPreviewService.preview(form, selectedItemIds);
             model.addAttribute("checkoutPreview", preview);
+
+            // Lưu báo giá vào session để xác nhận sau.
+            saveQuote(session, model, preview);
         } catch (CheckoutPreparationException exception) {
             model.addAttribute("checkoutError", exception.getMessage());
         }
 
         return "ordering/checkout/index";
+    }
+
+    @PostMapping("/checkout/confirm")
+    public String confirmCheckout(@RequestParam(name = "checkoutToken", required = false) String token, HttpSession session, Model model, RedirectAttributes redirectAttributes) {
+        CheckoutQuote quote = (CheckoutQuote) session.getAttribute(SESSION_QUOTE);
+
+        // Không cho đặt hàng nếu chưa xem trước
+        // hoặc token đã hết hạn.
+        if (quote == null || !quote.validToken(token)) {
+            session.removeAttribute(SESSION_QUOTE);
+            return "redirect:/cart";
+        }
+
+        try {
+            // Thực hiện checkout transaction.
+            CheckoutReceipt receipt = checkoutTransactionService.placeOrder(quote);
+
+            // Đặt thành công: hủy token cũ.
+            session.removeAttribute(SESSION_QUOTE);
+
+            redirectAttributes.addFlashAttribute("checkoutReceipt", receipt);
+
+            return "redirect:/checkout/success";
+        } catch (RuntimeException ex) {
+            // Giao dịch đã bị rollback ở service.
+            session.removeAttribute(SESSION_QUOTE);
+
+            // Hiển thị lại thông tin người mua.
+            model.addAttribute("checkoutPaymentForm", quote.toForm());
+
+            populateSelection(
+                    quote.selectedItemIds()
+                            .stream()
+                            .map(String::valueOf)
+                            .toList(),
+                    model
+            );
+
+            // Thông báo lỗi cho người mua.
+            model.addAttribute("checkoutError", ex instanceof CheckoutPreparationException ? ex.getMessage() : "Không thể đặt hàng do kho/giỏ " + "hoặc hệ thống thay đổi. " + "Vui lòng kiểm tra lại."
+            );
+
+            // Nếu dữ liệu còn hợp lệ, tạo báo giá mới.
+            try {
+                PreparedCheckout refreshed = checkoutPreviewService.preview(quote.toForm(), quote.selectedItemIds());
+
+                model.addAttribute("checkoutPreview", refreshed);
+
+                saveQuote(session, model, refreshed);
+
+            } catch (RuntimeException ignored) {
+                // Không cấp token xác nhận nếu
+                // các sản phẩm hiện không thể bán.
+            }
+
+            return "ordering/checkout/index";
+        }
     }
 
     private List<Long> populateSelection(List<String> itemIds, Model model) {
@@ -135,7 +213,11 @@ public class OrderingController {
     }
 
     @GetMapping("/checkout/success")
-    public String checkoutSuccess() {
+    public String checkoutSuccess(Model model) {
+        if (!model.containsAttribute("checkoutReceipt")) {
+            return "redirect:/account/orders";
+        }
+
         return "ordering/checkout-success";
     }
 
@@ -194,7 +276,18 @@ public class OrderingController {
     }
 
     @GetMapping("/admin/orders")
-    public String adminOrders() { return "ordering/admin-orders"; }
+    public String adminOrders() {
+        return "ordering/admin-orders";
+    }
+
+
+    private void saveQuote(HttpSession session, Model model, PreparedCheckout preview) {
+        CheckoutQuote quote = CheckoutQuote.of(preview);
+
+        session.setAttribute(SESSION_QUOTE, quote);
+
+        model.addAttribute("checkoutToken", quote.token());
+    }
 }
 
 

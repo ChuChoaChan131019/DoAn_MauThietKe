@@ -33,6 +33,8 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
+import com.senvia.doangiuaky.ordering.service.CheckoutTransactionService;
+
 @WebMvcTest(OrderingController.class)
 @Import(SecurityConfig.class)
 class CheckoutPreviewControllerTest {
@@ -45,6 +47,9 @@ class CheckoutPreviewControllerTest {
 
     @MockitoBean
     private CheckoutPreviewService checkoutPreviewService;
+
+    @MockitoBean
+    private CheckoutTransactionService checkoutTransactionService;
 
     @BeforeEach
     void selection() {
@@ -81,9 +86,10 @@ class CheckoutPreviewControllerTest {
                 .andExpect(content().string(containsString("Shop A")))
                 .andExpect(content().string(containsString("Shop B")))
                 .andExpect(content().string(containsString("550,000₫")))
-                .andExpect(content().string(containsString("Chưa tạo đơn hàng")));
+                .andExpect(content().string(containsString("Xác nhận đặt hàng theo giá đã xem")));
 
         verify(checkoutPreviewService).preview(any(CheckoutPaymentForm.class), eq(List.of(1L, 2L)));
+        verifyNoInteractions(checkoutTransactionService);
     }
 
     @Test
