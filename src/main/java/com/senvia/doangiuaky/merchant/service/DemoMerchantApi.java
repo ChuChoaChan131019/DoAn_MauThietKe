@@ -28,7 +28,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -128,6 +127,7 @@ public class DemoMerchantApi implements MerchantApi {
 
     @Transactional(readOnly = true)
     public CatalogFilterResult filterSaleableCatalogProducts(CatalogFilterForm filter) {
+        String query = normalizeCatalogQuery(filter.getQ());
         List<Long> requestedCategoryIds = filter.getRequestedCategoryIds();
         boolean filterByLegacyCategory = requestedCategoryIds.isEmpty()
                 && filter.getCategory() != null
@@ -163,12 +163,13 @@ public class DemoMerchantApi implements MerchantApi {
                         filter.getMin() != null,
                         filter.getMin() == null ? BigDecimal.ZERO : filter.getMin(),
                         filter.getMax() != null,
-                        filter.getMax() == null ? BigDecimal.ZERO : filter.getMax())
+                        filter.getMax() == null ? BigDecimal.ZERO : filter.getMax(),
+                        query != null,
+                        query == null ? "" : escapeLikeWildcards(query))
                 .stream()
                 .map(this::toSaleableCatalogProduct)
                 .flatMap(Optional::stream)
                 .map(this::toCardView)
-                .filter(product -> matchesQuery(product, filter.getQ()))
                 .toList();
 
         Map<String, Long> shopCounts = products.stream()
@@ -223,10 +224,17 @@ public class DemoMerchantApi implements MerchantApi {
                 .map(this::toDetailView);
     }
 
-    private boolean matchesQuery(CatalogProductCardView product, String query) {
-        return query == null || query.isBlank()
-                || product.name().toLowerCase(Locale.ROOT)
-                .contains(query.trim().toLowerCase(Locale.ROOT));
+    private String normalizeCatalogQuery(String query) {
+        if (query == null || query.isBlank()) {
+            return null;
+        }
+        return query.trim();
+    }
+
+    private String escapeLikeWildcards(String query) {
+        return query.replace("!", "!!")
+                .replace("%", "!%")
+                .replace("_", "!_");
     }
 
     private Optional<ProductReadContext> toProductReadContext(Product product) {

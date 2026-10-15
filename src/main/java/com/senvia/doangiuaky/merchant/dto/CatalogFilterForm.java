@@ -5,6 +5,7 @@ import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -13,6 +14,7 @@ import java.util.List;
 /** Form values accepted by the public catalog filter. */
 public class CatalogFilterForm {
 
+    @Size(max = 200, message = "Từ khóa tìm kiếm không được vượt quá 200 ký tự.")
     private String q;
 
     @DecimalMin(value = "0.00", message = "Giá phải lớn hơn hoặc bằng 0.")

@@ -255,6 +255,38 @@ class DemoMerchantApiTest {
     }
 
     @Test
+    void catalogSearchTrimsQueryIgnoresCaseAndTreatsLikeWildcardsLiterally() {
+        Long productId = productRepository.findByName("Canvas Tote Bag").orElseThrow().getId();
+        jdbcTemplate.update("update products set name = ? where id = ?",
+                "Canvas 100% Cotton_Bag!", productId);
+        entityManager.clear();
+
+        CatalogFilterForm filter = new CatalogFilterForm();
+        filter.setQ("  cAnVaS  ");
+        var partialMatch = merchantApi.filterSaleableCatalogProducts(filter);
+        assertTrue(partialMatch.products().stream().anyMatch(product -> product.id().equals(productId)));
+
+        filter.setQ("%");
+        var percentMatch = merchantApi.filterSaleableCatalogProducts(filter);
+        assertEquals(1, percentMatch.products().size());
+        assertEquals(productId, percentMatch.products().getFirst().id());
+
+        filter.setQ("_");
+        var underscoreMatch = merchantApi.filterSaleableCatalogProducts(filter);
+        assertEquals(1, underscoreMatch.products().size());
+        assertEquals(productId, underscoreMatch.products().getFirst().id());
+
+        filter.setQ("!");
+        var escapeCharacterMatch = merchantApi.filterSaleableCatalogProducts(filter);
+        assertEquals(1, escapeCharacterMatch.products().size());
+        assertEquals(productId, escapeCharacterMatch.products().getFirst().id());
+
+        filter.setQ("   ");
+        var blankQuery = merchantApi.filterSaleableCatalogProducts(filter);
+        assertTrue(blankQuery.products().size() > 1);
+    }
+
+    @Test
     void catalogFilterDoesNotReturnProductsForInactiveOrUnknownCategory() {
         Long productId = productRepository.findByName("Canvas Tote Bag").orElseThrow().getId();
         Long categoryId = jdbcTemplate.queryForObject(

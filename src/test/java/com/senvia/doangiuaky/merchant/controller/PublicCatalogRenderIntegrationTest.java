@@ -299,6 +299,25 @@ class PublicCatalogRenderIntegrationTest {
     }
 
     @Test
+    void catalogSearchIsAvailableFromDesktopAndMobileHeaderForms() throws Exception {
+        mockMvc.perform(get("/products").param("q", "canvas"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("id=\"header-product-search\"")))
+                .andExpect(content().string(containsString("id=\"mobile-product-search\"")))
+                .andExpect(content().string(containsString("name=\"q\"")))
+                .andExpect(content().string(containsString("Tìm theo tên sản phẩm...")))
+                .andExpect(content().string(containsString("value=\"canvas\"")));
+    }
+
+    @Test
+    void catalogRejectsSearchKeywordLongerThanProductNameLimit() throws Exception {
+        mockMvc.perform(get("/products").param("q", "a".repeat(201)))
+                .andExpect(status().isOk())
+                .andExpect(model().attribute("filterErrors", true))
+                .andExpect(content().string(containsString("Từ khóa tìm kiếm không được vượt quá 200 ký tự.")));
+    }
+
+    @Test
     void activeFilterButtonsRemoveOnlyTheirOwnFilter() throws Exception {
         Long categoryId = categoryId(productId("Canvas Tote Bag"));
         Long secondCategoryId = categoryId(productId("Brass Table Lamp"));

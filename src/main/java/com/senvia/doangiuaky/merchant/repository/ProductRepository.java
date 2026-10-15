@@ -26,6 +26,7 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
             + "and (:filterByCategory = false or p.categoryId in :categoryIds) "
             + "and (:filterByMinPrice = false or p.price >= :minPrice) "
             + "and (:filterByMaxPrice = false or p.price <= :maxPrice) "
+            + "and (:filterByQuery = false or lower(p.name) like concat('%', lower(:query), '%') escape '!') "
             + "order by p.id asc")
     List<Product> findCatalogCandidates(
             @Param("status") ProductStatus status,
@@ -35,7 +36,9 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
             @Param("filterByMinPrice") boolean filterByMinPrice,
             @Param("minPrice") BigDecimal minPrice,
             @Param("filterByMaxPrice") boolean filterByMaxPrice,
-            @Param("maxPrice") BigDecimal maxPrice);
+            @Param("maxPrice") BigDecimal maxPrice,
+            @Param("filterByQuery") boolean filterByQuery,
+            @Param("query") String query);
 
     List<Product> findAllByShopIdOrderByIdAsc(Long shopId);
 

@@ -16,9 +16,10 @@
                 </div>
 
                 <div class="mt-4 mt-md-0 d-flex flex-wrap gap-2 align-items-center">
-                    <!-- Search Input Mockup -->
-                    <form th:action="@{/products}" method="get" th:object="${filterForm}" class="d-flex m-0 flex-grow-1" style="min-width: 0;">
-                        <input type="text" th:field="*{q}" class="form-control rounded-0 border-clay shadow-none" placeholder="Tìm kiếm..." style="min-width: 0;">
+                    <form th:action="@{/products}" method="get" th:object="${filterForm}" role="search" class="d-flex m-0 flex-grow-1" style="min-width: 0;">
+                        <label for="catalog-product-search" class="visually-hidden">Tìm theo tên sản phẩm</label>
+                        <input id="catalog-product-search" type="search" th:field="*{q}" maxlength="200"
+                               class="form-control rounded-0 border-clay shadow-none" placeholder="Tìm theo tên sản phẩm..." style="min-width: 0;">
                         <th:block th:each="categoryId : ${selectedCategoryIds}"><input type="hidden" name="categoryIds" th:value="${categoryId}"></th:block>
                         <input type="hidden" name="sort" th:value="${sort}">
                         <input type="hidden" name="min" th:if="*{min != null}" th:value="*{min}">
