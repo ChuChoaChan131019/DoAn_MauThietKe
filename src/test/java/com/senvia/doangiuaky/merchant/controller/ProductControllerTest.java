@@ -9,6 +9,7 @@ import com.senvia.doangiuaky.merchant.service.CategoryManagementService;
 import com.senvia.doangiuaky.merchant.service.InactiveCategoryException;
 import com.senvia.doangiuaky.merchant.service.ProductAuthorizationException;
 import com.senvia.doangiuaky.merchant.service.ProductManagementService;
+import com.senvia.doangiuaky.merchant.service.ProductStockConflictException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -167,7 +168,9 @@ class ProductControllerTest {
         mockMvc.perform(get("/merchant/products/10/edit").with(user(ownerPrincipal)))
                 .andExpect(status().isOk())
                 .andExpect(view().name("merchant/product-edit"))
-                .andExpect(model().attributeExists("productForm", "product"));
+                .andExpect(model().attributeExists("productForm", "product"))
+                .andExpect(model().attribute("productForm", org.hamcrest.Matchers.hasProperty(
+                        "originalStockQuantity", org.hamcrest.Matchers.is(2))));
     }
 
     @Test
@@ -179,12 +182,36 @@ class ProductControllerTest {
                         .param("description", "Description")
                         .param("categoryId", "9")
                         .param("price", "10.00")
-                        .param("stockQuantity", "2"))
+                        .param("stockQuantity", "2")
+                        .param("originalStockQuantity", "2"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/merchant/products"))
                 .andExpect(flash().attribute("successMessage", "Đã cập nhật sản phẩm thành công."));
 
         verify(productService).updateWithImages(eq(1L), eq(10L), any());
+    }
+
+    @Test
+    void staleStockShowsReloadMessageOnEditForm() throws Exception {
+        SellerProductView product = new SellerProductView(
+                10L, "Product", "Description", 9L, "Category", true,
+                new BigDecimal("10.00"), 8, ProductStatus.ACTIVE);
+        when(productService.getOwnedProduct(1L, 10L)).thenReturn(product);
+        when(productService.updateWithImages(eq(1L), eq(10L), any()))
+                .thenThrow(new ProductStockConflictException());
+
+        mockMvc.perform(post("/merchant/products/10")
+                        .with(user(ownerPrincipal))
+                        .with(csrf())
+                        .param("name", "Product")
+                        .param("description", "Description")
+                        .param("categoryId", "9")
+                        .param("price", "10.00")
+                        .param("stockQuantity", "10")
+                        .param("originalStockQuantity", "10"))
+                .andExpect(status().isOk())
+                .andExpect(view().name("merchant/product-edit"))
+                .andExpect(model().attributeHasFieldErrors("productForm", "stockQuantity"));
     }
 
     @Test

@@ -10,6 +10,7 @@
 
     <form th:action="@{/merchant/products/{id}(id=${product.id})}" th:object="${productForm}" method="post" enctype="multipart/form-data" class="bg-white p-4 border border-clay shadow-sm">
         <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+        <input type="hidden" th:field="*{originalStockQuantity}">
         <div class="mb-3">
             <label for="productName" class="form-label">Tên sản phẩm</label>
             <input id="productName" type="text" th:field="*{name}" class="form-control" maxlength="200" required>

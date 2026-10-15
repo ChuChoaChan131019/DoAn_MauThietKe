@@ -34,6 +34,9 @@ public class ProductForm {
     @Min(value = 0, message = "Tồn kho không được âm.")
     private Integer stockQuantity;
 
+    /** Stock shown when the seller opened the edit form; not used when creating a product. */
+    private Integer originalStockQuantity;
+
     private List<MultipartFile> images = new ArrayList<>();
 
     private List<Long> removedImageIds = new ArrayList<>();
@@ -88,6 +91,14 @@ public class ProductForm {
 
     public void setStockQuantity(Integer stockQuantity) {
         this.stockQuantity = stockQuantity;
+    }
+
+    public Integer getOriginalStockQuantity() {
+        return originalStockQuantity;
+    }
+
+    public void setOriginalStockQuantity(Integer originalStockQuantity) {
+        this.originalStockQuantity = originalStockQuantity;
     }
 
     public List<MultipartFile> getImages() {

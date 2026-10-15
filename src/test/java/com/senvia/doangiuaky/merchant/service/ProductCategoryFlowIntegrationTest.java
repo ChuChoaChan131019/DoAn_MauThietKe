@@ -81,6 +81,7 @@ class ProductCategoryFlowIntegrationTest {
                 categoryId,
                 new BigDecimal("12.50"),
                 4);
+        form.setOriginalStockQuantity(4);
         form.setImages(java.util.List.of(image("category.png")));
         return form;
     }
