@@ -23,6 +23,7 @@ import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @SpringBootTest
 class CartServiceConcurrencyTest {
@@ -142,6 +143,54 @@ class CartServiceConcurrencyTest {
         assertEquals(2, cartQuantity(userId, productId));
     }
 
+    @Test
+    void updateWaitsForCompetingStockChangeAndUsesCommittedLockedStock() throws Exception {
+        Long userId = insertUser();
+        Long productId = insertSaleableProduct(5);
+        cartService.addItem(userId, productId, 1);
+        Long cartItemId = cartItemId(userId, productId);
+        CountDownLatch stockUpdated = new CountDownLatch(1);
+        CountDownLatch releaseStockTransaction = new CountDownLatch(1);
+        CountDownLatch cartMutationStarted = new CountDownLatch(1);
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        TransactionTemplate transaction = new TransactionTemplate(transactionManager);
+
+        try {
+            Future<?> stockChange = executor.submit(() -> {
+                transaction.executeWithoutResult(status -> {
+                    jdbcTemplate.update("update products set stock_quantity = 2 where id = ?", productId);
+                    stockUpdated.countDown();
+                    await(releaseStockTransaction);
+                });
+                return null;
+            });
+            assertTrue(stockUpdated.await(5, TimeUnit.SECONDS));
+
+            Future<?> cartMutation = executor.submit(() -> {
+                cartMutationStarted.countDown();
+                cartService.updateItemQuantity(userId, cartItemId, 5);
+                return null;
+            });
+            assertTrue(cartMutationStarted.await(5, TimeUnit.SECONDS));
+            Thread.sleep(200);
+            assertFalse(cartMutation.isDone(), "cart update must wait for the product row lock");
+
+            releaseStockTransaction.countDown();
+            stockChange.get(10, TimeUnit.SECONDS);
+            cartMutation.get(10, TimeUnit.SECONDS);
+        } finally {
+            releaseStockTransaction.countDown();
+            executor.shutdownNow();
+        }
+
+        int stock = jdbcTemplate.queryForObject(
+                "select stock_quantity from products where id = ?", Integer.class, productId);
+        int quantity = cartQuantity(userId, productId);
+        assertTrue(quantity > 0);
+        assertTrue(quantity <= stock);
+        assertEquals(2, quantity);
+    }
+
     private Long insertUser() {
         String email = "concurrent-" + UUID.randomUUID() + "@example.com";
         jdbcTemplate.update("""
@@ -186,6 +235,15 @@ class CartServiceConcurrencyTest {
                   join carts c on c.id = ci.cart_id
                  where c.user_id = ? and ci.product_id = ?
                 """, Integer.class, userId, productId);
+    }
+
+    private Long cartItemId(Long userId, Long productId) {
+        return jdbcTemplate.queryForObject("""
+                select ci.id
+                  from cart_items ci
+                  join carts c on c.id = ci.cart_id
+                 where c.user_id = ? and ci.product_id = ?
+                """, Long.class, userId, productId);
     }
 
     private static void await(CountDownLatch latch) {
