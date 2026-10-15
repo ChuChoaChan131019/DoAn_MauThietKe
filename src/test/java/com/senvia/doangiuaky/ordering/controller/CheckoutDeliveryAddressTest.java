@@ -1,17 +1,26 @@
 package com.senvia.doangiuaky.ordering.controller;
 
 import com.senvia.doangiuaky.identity.security.SecurityConfig;
+import com.senvia.doangiuaky.ordering.dto.CheckoutSelectionView;
+import com.senvia.doangiuaky.ordering.service.CheckoutSelectionService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
+
+import java.math.BigDecimal;
+import java.util.List;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasProperty;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.nullValue;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -24,6 +33,17 @@ class CheckoutDeliveryAddressTest {
 
     @Autowired
     private MockMvc mockMvc;
+
+    @MockitoBean
+    private CheckoutSelectionService checkoutSelectionService;
+
+    @BeforeEach
+    void setUp() {
+        when(checkoutSelectionService.preview(anyList())).thenReturn(new CheckoutSelectionView(
+                List.of(new CheckoutSelectionView.Shop(1L, "Shop",
+                        List.of(new CheckoutSelectionView.Item(1L, "Product", 1, BigDecimal.ONE)),
+                        BigDecimal.ONE)), BigDecimal.ONE));
+    }
 
     @Test
     void acceptsAndNormalizesDeliveryInformation() throws Exception {
@@ -92,6 +112,7 @@ class CheckoutDeliveryAddressTest {
         return post("/checkout")
             .with(user("buyer").roles("USER"))
             .with(csrf())
+            .param("itemIds", "1")
             .param("paymentMethod", "COD");
     }
 }

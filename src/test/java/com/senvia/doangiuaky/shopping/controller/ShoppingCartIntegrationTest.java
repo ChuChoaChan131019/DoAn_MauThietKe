@@ -1,6 +1,7 @@
 package com.senvia.doangiuaky.shopping.controller;
 
 import com.senvia.doangiuaky.shopping.dto.CartView;
+import com.senvia.doangiuaky.ordering.dto.CheckoutSelectionView;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -14,6 +15,7 @@ import java.util.UUID;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.not;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -200,7 +202,8 @@ class ShoppingCartIntegrationTest {
                 .andExpect(content().string(containsString("150,000₫")))
                 .andExpect(content().string(containsString("240,000₫")))
                 .andExpect(content().string(containsString("390,000₫")))
-                .andExpect(content().string(containsString("href=\"/checkout\"")))
+                .andExpect(content().string(containsString("form=\"checkout-selection\"")))
+                .andExpect(content().string(containsString("name=\"itemIds\"")))
                 .andReturn();
         CartView firstCart = (CartView) firstResponse.getModelAndView().getModel().get("cart");
         assertEquals(2, firstCart.shops().size());
@@ -257,7 +260,8 @@ class ShoppingCartIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("Sản phẩm đã hết hàng.")))
                 .andExpect(content().string(containsString("disabled")))
-                .andExpect(content().string(not(containsString("href=\"/checkout\""))));
+                .andExpect(content().string(not(containsString("href=\"/checkout\""))))
+                .andExpect(content().string(containsString("name=\"itemIds\"")));
 
         assertEquals(2, jdbcTemplate.queryForObject("""
                 select ci.quantity
@@ -268,6 +272,73 @@ class ShoppingCartIntegrationTest {
                 """, Integer.class, email, productId));
         assertEquals(0, jdbcTemplate.queryForObject(
                 "select stock_quantity from products where id = ?", Integer.class, productId));
+    }
+
+    @Test
+    void mixedCartCanPreviewOnlySelectedValidItemAndRejectInvalidOrForeignSelection() throws Exception {
+        String email = "cart-select-" + UUID.randomUUID() + "@example.com";
+        String anotherEmail = "cart-other-" + UUID.randomUUID() + "@example.com";
+        insertUser(email);
+        insertUser(anotherEmail);
+        Long validProductId = insertSaleableProductFixture();
+        Long invalidProductId = insertSaleableProductFixture();
+        for (Long productId : java.util.List.of(validProductId, invalidProductId)) {
+            mockMvc.perform(post("/cart/items")
+                            .with(user(email).roles("USER"))
+                            .with(csrf())
+                            .param("productId", productId.toString())
+                            .param("quantity", "1"))
+                    .andExpect(status().is3xxRedirection());
+        }
+        Long validItemId = cartItemId(email, validProductId);
+        Long invalidItemId = cartItemId(email, invalidProductId);
+        jdbcTemplate.update("update products set stock_quantity = 0 where id = ?", invalidProductId);
+
+        var cartResponse = mockMvc.perform(get("/cart").with(user(email).roles("USER")))
+                .andExpect(status().isOk())
+                .andReturn();
+        CartView cart = (CartView) cartResponse.getModelAndView().getModel().get("cart");
+        assertEquals(1, cart.shops().stream().flatMap(shop -> shop.items().stream())
+                .filter(item -> item.available()).count());
+        assertEquals(1, cart.shops().stream().flatMap(shop -> shop.items().stream())
+                .filter(item -> !item.available()).count());
+        assertTrue(cart.canCheckout());
+
+        var checkoutResponse = mockMvc.perform(get("/checkout")
+                        .with(user(email).roles("USER"))
+                        .param("itemIds", validItemId.toString()))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("100,000₫")))
+                .andReturn();
+        CheckoutSelectionView selection = (CheckoutSelectionView) checkoutResponse
+                .getModelAndView().getModel().get("checkoutSelection");
+        assertEquals(java.util.List.of(validItemId), selection.shops().stream()
+                .flatMap(shop -> shop.items().stream())
+                .map(CheckoutSelectionView.Item::cartItemId).toList());
+
+        mockMvc.perform(get("/checkout").with(user(email).roles("USER"))
+                        .param("itemIds", validItemId.toString(), invalidItemId.toString()))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("Sản phẩm được chọn không còn hợp lệ")));
+        mockMvc.perform(get("/checkout").with(user(anotherEmail).roles("USER"))
+                        .param("itemIds", validItemId.toString()))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("Sản phẩm được chọn không còn trong giỏ hàng")));
+        mockMvc.perform(get("/checkout").with(user(email).roles("USER")))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("Vui lòng chọn ít nhất một sản phẩm")));
+        mockMvc.perform(post("/checkout")
+                        .with(user(email).roles("USER"))
+                        .with(csrf())
+                        .param("itemIds", invalidItemId.toString())
+                        .param("receiverName", "Buyer")
+                        .param("receiverPhone", "0900000000")
+                        .param("shippingAddress", "Test address")
+                        .param("paymentMethod", "COD"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("Sản phẩm được chọn không còn hợp lệ")));
+        assertEquals(1, quantityForUser(email, validProductId));
+        assertEquals(1, quantityForUser(email, invalidProductId));
     }
 
     private Long insertSaleableProductFixture() {

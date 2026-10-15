@@ -15,6 +15,9 @@
 
 - Dùng `identity.api` cho buyer/quyền.
 - Dùng `shopping.api` cho checkout snapshot và xóa cart sau thành công.
+- Chỉ xử lý các `cartItemId` người mua đã chọn, sau khi đối chiếu với snapshot giỏ
+  và kiểm tra lại giá, tồn kho, trạng thái qua `merchant.api`. Item không được chọn
+  không vào trang thanh toán hoặc đơn hàng và vẫn ở giỏ.
 - Dùng `merchant.api` cho khả năng bán, giá và trừ/hoàn stock.
 - Cung cấp `ordering.api`: Buyer/Admin query, cancel command, review verification, statistics và order event.
 - Không công bố Order Entity/Repository/Service nội bộ.

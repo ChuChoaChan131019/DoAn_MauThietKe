@@ -425,7 +425,7 @@ class CartServiceTest {
     }
 
     @Test
-    void mixedCartKeepsAllItemsButBlocksCheckoutForWholeCart() {
+    void mixedCartKeepsAllItemsAndAllowsOnlyValidItemsToBeSelected() {
         CartRepository carts = mock(CartRepository.class);
         CartItemRepository items = mock(CartItemRepository.class);
         IdentityApi identity = mock(IdentityApi.class);
@@ -447,8 +447,8 @@ class CartServiceTest {
 
         assertTrue(view.hasItems());
         assertTrue(view.hasUnavailableItems());
-        assertFalse(view.canCheckout());
-        assertFalse(view.hasCheckoutableItems());
+        assertTrue(view.canCheckout());
+        assertTrue(view.hasCheckoutableItems());
         assertEquals(2, view.totalQuantity());
         assertEquals(new BigDecimal("270000"), view.subtotal());
         assertEquals(2, view.shops().getFirst().items().size());

@@ -15,7 +15,7 @@
         <div th:if="${cartWarning}" class="alert alert-warning rounded-0" th:text="${cartWarning}"></div>
         <div th:if="${cartError}" class="alert alert-danger rounded-0" th:text="${cartError}"></div>
         <div th:if="${cart.hasUnavailableItems()}" class="alert alert-warning rounded-0">
-            Một hoặc nhiều sản phẩm trong giỏ hiện không còn khả dụng. Vui lòng kiểm tra cảnh báo trước khi thanh toán.
+            Một hoặc nhiều sản phẩm trong giỏ không thể chọn để thanh toán. Bạn vẫn có thể thanh toán các sản phẩm hợp lệ.
         </div>
 
         <div th:if="${cart.empty}" class="text-center py-5 bg-ivory border border-clay">
@@ -23,12 +23,18 @@
             <p class="text-muted mb-0">Giỏ hàng đang trống.</p>
         </div>
 
+        <form id="checkout-selection" th:action="@{/checkout}" method="get"></form>
         <div th:if="${!cart.empty}" class="row g-4">
             <div class="col-lg-8">
                 <section th:each="shop : ${cart.shops}" class="mb-4 border border-clay">
                     <div class="bg-ivory px-3 py-2 fw-bold text-plum" th:text="${shop.shopName}">Shop</div>
                     <div th:each="item : ${shop.items}" class="p-3 border-top border-clay">
                         <div class="d-flex gap-3 align-items-center">
+                            <input type="checkbox" name="itemIds" form="checkout-selection"
+                                   th:value="${item.cartItemId}" th:checked="${item.available}"
+                                   th:disabled="${!item.available}"
+                                   th:aria-label="${'Chọn ' + item.productName + ' để thanh toán'}"
+                                   class="form-check-input"/>
                             <img th:if="${item.imageUrl != null}" th:src="${item.imageUrl}" th:alt="${item.productName}"
                                  class="bg-ivory object-fit-cover" style="width: 72px; height: 90px;">
                             <div class="flex-grow-1">
@@ -70,18 +76,18 @@
                         <span class="fw-bold text-burgundy fs-5"
                               th:text="${#numbers.formatDecimal(cart.subtotal, 0, 'COMMA', 0, 'POINT')} + '₫'">0₫</span>
                     </div>
-                    <a th:if="${cart.canCheckout()}" th:href="@{/checkout}"
-                       class="btn btn-burgundy rounded-0 w-100 mt-4">
+                    <button th:if="${cart.canCheckout()}" type="submit" form="checkout-selection"
+                            class="btn btn-burgundy rounded-0 w-100 mt-4">
                         Tiến hành thanh toán
-                    </a>
+                    </button>
                     <button th:unless="${cart.canCheckout()}" type="button"
                             class="btn btn-secondary rounded-0 w-100 mt-4" disabled>
                         Tiến hành thanh toán
                     </button>
                     <p th:if="${cart.hasUnavailableItems()}" class="text-danger small mt-3 mb-0">
-                        Vui lòng xóa hoặc điều chỉnh các sản phẩm không hợp lệ trước khi thanh toán.
+                        Sản phẩm có cảnh báo không được chọn; hãy điều chỉnh số lượng hoặc xóa nếu cần.
                     </p>
-                    <p class="text-muted small mt-3 mb-0">Giá được đọc lại từ sản phẩm hiện tại.</p>
+                    <p class="text-muted small mt-3 mb-0">Tạm tính gồm các sản phẩm hợp lệ. Trang thanh toán sẽ tính lại theo lựa chọn và giá hiện tại.</p>
                 </div>
             </aside>
         </div>

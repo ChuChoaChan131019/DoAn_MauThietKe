@@ -12,6 +12,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 import com.senvia.doangiuaky.ordering.dto.CheckoutPaymentForm;
+import com.senvia.doangiuaky.ordering.dto.CheckoutSelectionView;
+import com.senvia.doangiuaky.ordering.service.CheckoutSelectionException;
+import com.senvia.doangiuaky.ordering.service.CheckoutSelectionService;
 import jakarta.validation.Valid;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.ModelAttribute;
@@ -19,6 +22,12 @@ import org.springframework.web.bind.annotation.PostMapping;
 
 @Controller
 public class OrderingController {
+
+    private final CheckoutSelectionService checkoutSelectionService;
+
+    public OrderingController(CheckoutSelectionService checkoutSelectionService) {
+        this.checkoutSelectionService = checkoutSelectionService;
+    }
 
     private static final List<Map<String, Object>> mockOrders = new ArrayList<>();
 
@@ -63,17 +72,22 @@ public class OrderingController {
     }
 
     @GetMapping("/checkout")
-    public String checkout(Model model) {
+    public String checkout(@RequestParam(name = "itemIds", required = false) List<String> itemIds, Model model) {
         model.addAttribute(
                 "checkoutPaymentForm",
                 new CheckoutPaymentForm());
+        populateSelection(itemIds, model);
 
         return "ordering/checkout/index";
     }
 
     @PostMapping("/checkout")
-    public String validateCheckout(@Valid @ModelAttribute("checkoutPaymentForm") CheckoutPaymentForm form, BindingResult bindingResult, Model model) {
-        if (bindingResult.hasErrors()) {
+    public String validateCheckout(@Valid @ModelAttribute("checkoutPaymentForm") CheckoutPaymentForm form,
+                                   BindingResult bindingResult,
+                                   @RequestParam(name = "itemIds", required = false) List<String> itemIds,
+                                   Model model) {
+        boolean selectionValid = populateSelection(itemIds, model);
+        if (bindingResult.hasErrors() || !selectionValid) {
             return "ordering/checkout/index";
         }
 
@@ -93,6 +107,21 @@ public class OrderingController {
         model.addAttribute("paymentValidated", true);
 
         return "ordering/checkout/index";
+    }
+
+    private boolean populateSelection(List<String> itemIds, Model model) {
+        try {
+            CheckoutSelectionView selection = checkoutSelectionService.preview(itemIds);
+            model.addAttribute("checkoutSelection", selection);
+            model.addAttribute("selectedItemIds", selection.shops().stream()
+                    .flatMap(shop -> shop.items().stream())
+                    .map(CheckoutSelectionView.Item::cartItemId)
+                    .toList());
+            return true;
+        } catch (CheckoutSelectionException exception) {
+            model.addAttribute("checkoutSelectionError", exception.getMessage());
+            return false;
+        }
     }
 
     @GetMapping("/checkout/success")

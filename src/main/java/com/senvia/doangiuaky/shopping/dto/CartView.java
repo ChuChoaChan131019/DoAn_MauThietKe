@@ -23,7 +23,9 @@ public record CartView(
     }
 
     public boolean canCheckout() {
-        return hasItems() && !hasUnavailableItems();
+        return shops.stream()
+                .flatMap(shop -> shop.items().stream())
+                .anyMatch(CartItemView::available);
     }
 
     public boolean hasCheckoutableItems() {
