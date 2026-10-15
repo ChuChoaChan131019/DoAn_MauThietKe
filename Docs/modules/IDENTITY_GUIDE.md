@@ -12,7 +12,7 @@
 
 Identity sở hữu account, authentication, profile, role/status và Spring Security; Khang là chủ module và review tài nguyên common/config cùng feature AUTH 08 của Trang.
 
-Trang quản trị tài khoản Identity được đặt tại `/identity/admin/accounts` để không xung đột route mock hiện có thuộc `engagement`.
+Trang quản trị tài khoản do Identity xử lý và dùng URL công khai `/admin/accounts`, thống nhất với các trang quản trị khác. Route mock cũ trong `engagement` đã được bỏ để Identity sở hữu URL này.
 
 ## Public contract
 
@@ -39,9 +39,8 @@ status; không công bố password hash, User Entity/Repository hoặc principal
 - Password chỉ lưu BCrypt và không xuất hiện trong DTO/log.
 - User chỉ sửa profile/password của mình.
 - Đổi password yêu cầu password hiện tại đúng.
-- Admin không mua hàng, không tự khóa và không khóa tài khoản ADMIN.
+- Admin không mua hàng; chức năng quản lý tài khoản chỉ khóa/mở USER, không thao tác với ADMIN.
 - Khóa user bắt buộc lý do, người khóa và thời điểm.
-- Phạm vi TV4 chỉ cho khóa/mở khóa `USER`; điểm này chặt hơn AUTH 08 trong SRS, vốn chỉ cấm khóa Admin ACTIVE cuối cùng.
 - Owner LOCKED làm catalog ẩn và shop ngừng nhận order mới.
 
 ## Kiểm thử/bàn giao

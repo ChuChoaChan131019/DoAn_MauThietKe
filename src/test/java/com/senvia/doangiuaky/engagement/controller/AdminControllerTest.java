@@ -46,4 +46,5 @@ class AdminControllerTest {
         assertEquals(0, model.getAttribute("pendingCount"));
         assertEquals(List.of(), model.getAttribute("pendingShopRequests"));
     }
+
 }
