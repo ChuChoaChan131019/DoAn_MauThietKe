@@ -12,7 +12,7 @@
 
 Identity sở hữu account, authentication, profile, role/status và Spring Security; Khang là chủ module và review tài nguyên common/config cùng feature AUTH 08 của Trang.
 
-Trang quản trị tài khoản Identity được đặt tại `/identity/admin/accounts` để không xung đột route mock hiện có thuộc `engagement`.
+Trang quản trị tài khoản do Identity xử lý và dùng URL công khai `/admin/accounts`, thống nhất với các trang quản trị khác. Route mock cũ trong `engagement` đã được bỏ để Identity sở hữu URL này.
 
 ## Public contract
 

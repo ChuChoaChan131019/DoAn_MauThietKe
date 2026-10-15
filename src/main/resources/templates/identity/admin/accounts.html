@@ -10,7 +10,7 @@
             <nav class="d-flex flex-column gap-3 sticky-top" style="top: 100px;">
                 <h1 class="h4 text-serif text-plum mb-4">Quản trị</h1>
                 <a th:href="@{/admin/dashboard}" class="text-muted hover-plum text-decoration-none transition-colors pb-2 d-inline-block w-100"><i class="bi bi-speedometer2 me-2"></i>Tổng quan</a>
-                <a th:href="@{/identity/admin/accounts}" class="fw-bold text-burgundy text-decoration-none border-bottom border-burgundy pb-2 d-inline-block w-100"><i class="bi bi-people me-2"></i>Tài khoản</a>
+                <a th:href="@{/admin/accounts}" class="fw-bold text-burgundy text-decoration-none border-bottom border-burgundy pb-2 d-inline-block w-100"><i class="bi bi-people me-2"></i>Tài khoản</a>
                 <a th:href="@{/admin/shop-requests}" class="text-muted hover-plum text-decoration-none transition-colors pb-2 d-inline-block w-100"><i class="bi bi-shop me-2"></i>Duyệt gian hàng</a>
                 <a th:href="@{/admin/shops}" class="text-muted hover-plum text-decoration-none transition-colors pb-2 d-inline-block w-100"><i class="bi bi-buildings me-2"></i>Quản lý gian hàng</a>
                 <a th:href="@{/admin/categories}" class="text-muted hover-plum text-decoration-none transition-colors pb-2 d-inline-block w-100"><i class="bi bi-tags me-2"></i>Danh mục</a>
@@ -26,7 +26,7 @@
                 </div>
             </div>
 
-            <form th:action="@{/identity/admin/accounts}" method="get" class="bg-white border border-clay p-4 mb-4">
+            <form th:action="@{/admin/accounts}" method="get" class="bg-white border border-clay p-4 mb-4">
                 <div class="row g-3 align-items-end">
                     <div class="col-md-6">
                         <label for="query" class="form-label text-plum">Tìm theo tên hoặc email</label>
@@ -65,7 +65,7 @@
                             <span th:text="${account.accountStatus}" th:classappend="${account.accountStatus.name() == 'ACTIVE'} ? ' bg-success text-white border border-success' : ' bg-danger text-white border border-danger'" class="badge rounded-0 px-2 py-1"></span>
                         </td>
                         <td class="px-4 py-3 text-end">
-                            <a th:href="@{/identity/admin/accounts/{id}(id=${account.id})}" class="btn btn-sm border border-plum text-plum rounded-0 hover-bg-plum hover-text-white transition-colors">Chi tiết</a>
+                            <a th:href="@{/admin/accounts/{id}(id=${account.id})}" class="btn btn-sm border border-plum text-plum rounded-0 hover-bg-plum hover-text-white transition-colors">Chi tiết</a>
                         </td>
                     </tr>
                     <tr th:if="${#lists.isEmpty(accounts)}">
@@ -102,12 +102,12 @@
                     </th:block>
                 </dl>
 
-                <form th:if="${selectedAccount.role == T(com.senvia.doangiuaky.identity.api.UserRole).USER && selectedAccount.accountStatus == T(com.senvia.doangiuaky.identity.api.AccountStatus).ACTIVE && selectedAccount.id != currentAdminId}" th:action="@{/identity/admin/accounts/{id}/lock(id=${selectedAccount.id})}" method="post">
+                <form th:if="${selectedAccount.role == T(com.senvia.doangiuaky.identity.api.UserRole).USER && selectedAccount.accountStatus == T(com.senvia.doangiuaky.identity.api.AccountStatus).ACTIVE && selectedAccount.id != currentAdminId}" th:action="@{/admin/accounts/{id}/lock(id=${selectedAccount.id})}" method="post">
                     <label for="reason" class="form-label text-plum">Lý do khóa (bắt buộc, tối đa 500 ký tự)</label>
                     <textarea id="reason" name="reason" maxlength="500" required class="form-control rounded-0 mb-3" rows="3"></textarea>
                     <button type="submit" class="btn btn-danger rounded-0">Khóa tài khoản USER</button>
                 </form>
-                <form th:if="${selectedAccount.role == T(com.senvia.doangiuaky.identity.api.UserRole).USER && selectedAccount.accountStatus == T(com.senvia.doangiuaky.identity.api.AccountStatus).LOCKED}" th:action="@{/identity/admin/accounts/{id}/unlock(id=${selectedAccount.id})}" method="post">
+                <form th:if="${selectedAccount.role == T(com.senvia.doangiuaky.identity.api.UserRole).USER && selectedAccount.accountStatus == T(com.senvia.doangiuaky.identity.api.AccountStatus).LOCKED}" th:action="@{/admin/accounts/{id}/unlock(id=${selectedAccount.id})}" method="post">
                     <button type="submit" class="btn btn-outline-success rounded-0">Mở khóa tài khoản USER</button>
                 </form>
                 <p th:if="${selectedAccount.role == T(com.senvia.doangiuaky.identity.api.UserRole).ADMIN}" class="text-muted mb-0">Tài khoản ADMIN không thể khóa hoặc mở khóa tại đây.</p>

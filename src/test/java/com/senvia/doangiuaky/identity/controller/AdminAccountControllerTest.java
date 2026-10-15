@@ -56,7 +56,7 @@ class AdminAccountControllerTest {
 
     @Test
     void anonymousUserIsRedirectedToLogin() throws Exception {
-        mockMvc.perform(get("/identity/admin/accounts"))
+        mockMvc.perform(get("/admin/accounts"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/login"));
 
@@ -64,8 +64,22 @@ class AdminAccountControllerTest {
     }
 
     @Test
+    void legacyIdentityUrlRedirectsToPublicAdminAccountsPath() throws Exception {
+        mockMvc.perform(get("/identity/admin/accounts").with(user(adminPrincipal)))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/admin/accounts"));
+    }
+
+    @Test
+    void legacyIdentityDetailUrlRedirectsToPublicAdminAccountsPath() throws Exception {
+        mockMvc.perform(get("/identity/admin/accounts/10").with(user(adminPrincipal)))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/admin/accounts/10"));
+    }
+
+    @Test
     void regularUserCannotViewAccounts() throws Exception {
-        mockMvc.perform(get("/identity/admin/accounts").with(user(userPrincipal)))
+        mockMvc.perform(get("/admin/accounts").with(user(userPrincipal)))
                 .andExpect(status().isForbidden());
 
         verify(adminAccountService, never()).search(null, null);
@@ -75,7 +89,7 @@ class AdminAccountControllerTest {
     void adminCanSearchAndFilterAccounts() throws Exception {
         when(adminAccountService.search("Test", AccountStatus.LOCKED)).thenReturn(List.of());
 
-        mockMvc.perform(get("/identity/admin/accounts")
+        mockMvc.perform(get("/admin/accounts")
                         .with(user(adminPrincipal))
                         .param("query", "Test")
                         .param("status", "LOCKED"))
@@ -94,7 +108,7 @@ class AdminAccountControllerTest {
         when(adminAccountService.getAccount(10L)).thenReturn(account);
         when(adminAccountService.search(null, null)).thenReturn(List.of(account));
 
-        mockMvc.perform(get("/identity/admin/accounts/10").with(user(adminPrincipal)))
+        mockMvc.perform(get("/admin/accounts/10").with(user(adminPrincipal)))
                 .andExpect(status().isOk())
                 .andExpect(view().name("identity/admin/accounts"))
                 .andExpect(model().attribute("selectedAccount", account))
@@ -107,18 +121,18 @@ class AdminAccountControllerTest {
         when(adminAccountService.getAccount(99L))
                 .thenThrow(new AccountOperationException("Tài khoản không tồn tại."));
 
-        mockMvc.perform(get("/identity/admin/accounts/99").with(user(adminPrincipal)))
+        mockMvc.perform(get("/admin/accounts/99").with(user(adminPrincipal)))
                 .andExpect(status().isNotFound());
     }
 
     @Test
     void adminCanLockUserWithCsrfToken() throws Exception {
-        mockMvc.perform(post("/identity/admin/accounts/10/lock")
+        mockMvc.perform(post("/admin/accounts/10/lock")
                         .with(user(adminPrincipal))
                         .with(csrf())
                         .param("reason", "Vi phạm chính sách"))
                 .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/identity/admin/accounts/10"))
+                .andExpect(redirectedUrl("/admin/accounts/10"))
                 .andExpect(flash().attribute("success", "Tài khoản đã được khóa."));
 
         verify(adminAccountService).lock(10L, 1L, "Vi phạm chính sách");
@@ -129,22 +143,22 @@ class AdminAccountControllerTest {
         doThrow(new AccountOperationException("Lý do khóa phải từ 1 đến 500 ký tự."))
                 .when(adminAccountService).lock(10L, 1L, "   ");
 
-        mockMvc.perform(post("/identity/admin/accounts/10/lock")
+        mockMvc.perform(post("/admin/accounts/10/lock")
                         .with(user(adminPrincipal))
                         .with(csrf())
                         .param("reason", "   "))
                 .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/identity/admin/accounts/10"))
+                .andExpect(redirectedUrl("/admin/accounts/10"))
                 .andExpect(flash().attribute("error", "Lý do khóa phải từ 1 đến 500 ký tự."));
     }
 
     @Test
     void adminCanUnlockUserAndPassesActorId() throws Exception {
-        mockMvc.perform(post("/identity/admin/accounts/10/unlock")
+        mockMvc.perform(post("/admin/accounts/10/unlock")
                         .with(user(adminPrincipal))
                         .with(csrf()))
                 .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/identity/admin/accounts/10"))
+                .andExpect(redirectedUrl("/admin/accounts/10"))
                 .andExpect(flash().attribute("success", "Tài khoản đã được mở khóa."));
 
         verify(adminAccountService).unlock(10L, 1L);
@@ -152,7 +166,7 @@ class AdminAccountControllerTest {
 
     @Test
     void accountMutationRequiresCsrfToken() throws Exception {
-        mockMvc.perform(post("/identity/admin/accounts/10/unlock").with(user(adminPrincipal)))
+        mockMvc.perform(post("/admin/accounts/10/unlock").with(user(adminPrincipal)))
                 .andExpect(status().isForbidden());
 
         verify(adminAccountService, never()).unlock(10L, 1L);
@@ -160,7 +174,7 @@ class AdminAccountControllerTest {
 
     @Test
     void regularUserCannotLockAccount() throws Exception {
-        mockMvc.perform(post("/identity/admin/accounts/10/lock")
+        mockMvc.perform(post("/admin/accounts/10/lock")
                         .with(user(userPrincipal))
                         .with(csrf())
                         .param("reason", "Vi phạm chính sách"))

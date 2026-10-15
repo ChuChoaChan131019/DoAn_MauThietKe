@@ -59,7 +59,7 @@
                         <li th:if="${role == 'USER' && (shopStatus == 'PENDING' || shopStatus == 'REJECTED' || shopStatus == 'LOCKED')}"><a class="dropdown-item text-warning" th:href="@{/merchant/shop-status}">Trạng thái mở Shop</a></li>
                         
                         <li th:if="${role == 'ADMIN'}"><a class="dropdown-item text-burgundy" th:href="@{/admin/dashboard}">Quản trị viên</a></li>
-                        <li th:if="${role == 'ADMIN'}"><a class="dropdown-item" th:href="@{/identity/admin/accounts}">Quản lý tài khoản</a></li>
+                        <li th:if="${role == 'ADMIN'}"><a class="dropdown-item" th:href="@{/admin/accounts}">Quản lý tài khoản</a></li>
                         
                         <li th:if="${shopStatus == null && role != 'ADMIN'}"><a class="dropdown-item" th:href="@{/merchant/register}">Đăng ký bán hàng</a></li>
                         

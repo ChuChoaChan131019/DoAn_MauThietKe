@@ -25,7 +25,7 @@ public class AdminAccountController {
         this.adminAccountService = adminAccountService;
     }
 
-    @GetMapping("/identity/admin/accounts")
+    @GetMapping("/admin/accounts")
     public String accounts(
             @RequestParam(name = "query", required = false) String query,
             @RequestParam(name = "status", required = false) AccountStatus status,
@@ -39,7 +39,7 @@ public class AdminAccountController {
         return "identity/admin/accounts";
     }
 
-    @GetMapping("/identity/admin/accounts/{id}")
+    @GetMapping("/admin/accounts/{id}")
     public String account(
             @PathVariable("id") Long id,
             @AuthenticationPrincipal IdentityPrincipal principal,
@@ -51,7 +51,7 @@ public class AdminAccountController {
         }
     }
 
-    @PostMapping("/identity/admin/accounts/{id}/lock")
+    @PostMapping("/admin/accounts/{id}/lock")
     public String lock(
             @PathVariable("id") Long id,
             @RequestParam(name = "reason", required = false) String reason,
@@ -63,10 +63,10 @@ public class AdminAccountController {
         } catch (AccountOperationException exception) {
             redirectAttributes.addFlashAttribute("error", exception.getMessage());
         }
-        return "redirect:/identity/admin/accounts/" + id;
+        return "redirect:/admin/accounts/" + id;
     }
 
-    @PostMapping("/identity/admin/accounts/{id}/unlock")
+    @PostMapping("/admin/accounts/{id}/unlock")
     public String unlock(
             @PathVariable("id") Long id,
             @AuthenticationPrincipal IdentityPrincipal principal,
@@ -77,7 +77,7 @@ public class AdminAccountController {
         } catch (AccountOperationException exception) {
             redirectAttributes.addFlashAttribute("error", exception.getMessage());
         }
-        return "redirect:/identity/admin/accounts/" + id;
+        return "redirect:/admin/accounts/" + id;
     }
 
     private String addSelectedAccount(Long id, Long currentAdminId, Model model) {
@@ -87,5 +87,15 @@ public class AdminAccountController {
         model.addAttribute("statuses", AccountStatus.values());
         model.addAttribute("currentAdminId", currentAdminId);
         return "identity/admin/accounts";
+    }
+
+    @GetMapping("/identity/admin/accounts")
+    public String redirectLegacyAccountsRoute() {
+        return "redirect:/admin/accounts";
+    }
+
+    @GetMapping("/identity/admin/accounts/{id}")
+    public String redirectLegacyAccountRoute(@PathVariable("id") Long id) {
+        return "redirect:/admin/accounts/" + id;
     }
 }
