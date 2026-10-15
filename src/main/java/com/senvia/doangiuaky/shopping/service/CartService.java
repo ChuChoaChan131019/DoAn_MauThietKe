@@ -198,31 +198,29 @@ public class CartService {
 
         Map<Long, List<CartItemView>> itemsByShop = new LinkedHashMap<>();
         Map<Long, String> shopNames = new LinkedHashMap<>();
-        List<CartItemView> unavailableItems = new ArrayList<>();
         for (CartItem item : cartItemRepository.findAllByCartIdOrderByIdAsc(cart.getId())) {
             java.util.Optional<CartProductView> product = merchantApiSupplier.get()
                     .findProductForCart(item.getProductId());
             if (product.isEmpty()) {
-                unavailableItems.add(CartItemView.unavailable(item, "Sản phẩm không còn tồn tại."));
+                addItemToShop(itemsByShop, shopNames, null,
+                        "Không khả dụng",
+                        CartItemView.unavailable(item, "Sản phẩm không còn tồn tại."));
                 continue;
             }
             CartProductView productView = product.get();
             if (!productView.isSaleable()) {
-                unavailableItems.add(CartItemView.unavailable(item, saleabilityMessage(productView)));
+                addItemToShop(itemsByShop, shopNames, productView.shopId(), productView.shopName(),
+                        CartItemView.unavailable(item, productView, saleabilityMessage(productView)));
                 continue;
             }
             if (item.getQuantity() > productView.stockQuantity()) {
-                unavailableItems.add(CartItemView.overStock(item, productView,
-                        "Số lượng trong giỏ vượt tồn kho hiện tại."));
+                addItemToShop(itemsByShop, shopNames, productView.shopId(), productView.shopName(),
+                        CartItemView.overStock(item, productView,
+                                "Số lượng trong giỏ vượt tồn kho hiện tại."));
                 continue;
             }
             CartItemView view = CartItemView.from(item, productView);
-            itemsByShop.computeIfAbsent(productView.shopId(), ignored -> new ArrayList<>()).add(view);
-            shopNames.putIfAbsent(productView.shopId(), productView.shopName());
-        }
-        if (!unavailableItems.isEmpty()) {
-            itemsByShop.put(null, unavailableItems);
-            shopNames.put(null, "Không khả dụng");
+            addItemToShop(itemsByShop, shopNames, productView.shopId(), productView.shopName(), view);
         }
 
         List<CartShopView> shops = itemsByShop.entrySet().stream()
@@ -244,6 +242,16 @@ public class CartService {
                 .map(CartShopView::subtotal)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
         return new CartView(shops, totalQuantity, subtotal);
+    }
+
+    private static void addItemToShop(
+            Map<Long, List<CartItemView>> itemsByShop,
+            Map<Long, String> shopNames,
+            Long shopId,
+            String shopName,
+            CartItemView item) {
+        itemsByShop.computeIfAbsent(shopId, ignored -> new ArrayList<>()).add(item);
+        shopNames.putIfAbsent(shopId, shopName == null ? "Không khả dụng" : shopName);
     }
 
     private static boolean isCartUserUniqueConflict(Throwable exception) {
@@ -348,6 +356,12 @@ public class CartService {
         }
         if (!product.categoryActive()) {
             return "Danh mục không còn hoạt động.";
+        }
+        if (!product.productActive()) {
+            return "Sản phẩm không còn được bán.";
+        }
+        if (product.currentPrice() == null || product.currentPrice().signum() <= 0) {
+            return "Giá sản phẩm hiện không hợp lệ.";
         }
         return "Sản phẩm không còn được bán.";
     }

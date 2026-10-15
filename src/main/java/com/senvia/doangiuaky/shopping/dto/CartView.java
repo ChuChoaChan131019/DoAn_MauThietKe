@@ -16,8 +16,18 @@ public record CartView(
         return shops.stream().anyMatch(shop -> !shop.items().isEmpty());
     }
 
+    public boolean hasUnavailableItems() {
+        return shops.stream()
+                .flatMap(shop -> shop.items().stream())
+                .anyMatch(item -> !item.available());
+    }
+
+    public boolean canCheckout() {
+        return hasItems() && !hasUnavailableItems();
+    }
+
     public boolean hasCheckoutableItems() {
-        return totalQuantity > 0;
+        return canCheckout();
     }
 
     public boolean isEmpty() {

@@ -165,6 +165,37 @@ class ShoppingCartIntegrationTest {
                 """, Integer.class));
     }
 
+    @Test
+    void cartPageWarnsWhenStockBecomesUnavailableWithoutChangingCart() throws Exception {
+        String email = "cart-read-" + UUID.randomUUID() + "@example.com";
+        insertUser(email);
+        Long productId = insertSaleableProductFixture();
+
+        mockMvc.perform(post("/cart/items")
+                        .with(user(email).roles("USER"))
+                        .with(csrf())
+                        .param("productId", productId.toString())
+                        .param("quantity", "2"))
+                .andExpect(status().is3xxRedirection());
+
+        jdbcTemplate.update("update products set stock_quantity = 0 where id = ?", productId);
+
+        mockMvc.perform(get("/cart").with(user(email).roles("USER")))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("Sản phẩm đã hết hàng.")))
+                .andExpect(content().string(containsString("disabled")));
+
+        assertEquals(2, jdbcTemplate.queryForObject("""
+                select ci.quantity
+                from cart_items ci
+                join carts c on c.id = ci.cart_id
+                join users u on u.id = c.user_id
+                where u.email = ? and ci.product_id = ?
+                """, Integer.class, email, productId));
+        assertEquals(0, jdbcTemplate.queryForObject(
+                "select stock_quantity from products where id = ?", Integer.class, productId));
+    }
+
     private Long insertSaleableProductFixture() {
         String suffix = UUID.randomUUID().toString();
         Long shopId = insertApprovedShop("Cart Integration Shop " + suffix, suffix);

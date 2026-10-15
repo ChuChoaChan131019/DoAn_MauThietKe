@@ -34,7 +34,7 @@ public record CartItemView(
                 item.getQuantity(),
                 subtotal,
                 true,
-                true,
+                false,
                 null);
     }
 
@@ -43,11 +43,29 @@ public record CartItemView(
                 item.getId(),
                 item.getProductId(),
                 null,
-                "Sản phẩm không khả dụng",
-                "Sản phẩm không còn bán",
+                "Không khả dụng",
+                "Sản phẩm #" + item.getProductId(),
                 null,
                 BigDecimal.ZERO,
                 0,
+                item.getQuantity(),
+                BigDecimal.ZERO,
+                false,
+                false,
+                message);
+    }
+
+    public static CartItemView unavailable(
+            CartItem item, CartProductView product, String message) {
+        return new CartItemView(
+                item.getId(),
+                item.getProductId(),
+                product.shopId(),
+                product.shopName(),
+                product.productName(),
+                product.imageUrl(),
+                product.currentPrice(),
+                product.stockQuantity(),
                 item.getQuantity(),
                 BigDecimal.ZERO,
                 false,
