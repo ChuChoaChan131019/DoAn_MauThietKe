@@ -17,6 +17,7 @@ import com.senvia.doangiuaky.merchant.repository.ProductRepository;
 import com.senvia.doangiuaky.merchant.repository.ShopRepository;
 import com.senvia.doangiuaky.merchant.service.image.MerchantImageAsset;
 import com.senvia.doangiuaky.merchant.service.image.MerchantImageStorage;
+import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -67,6 +68,9 @@ class ProductManagementServiceTest {
     private MerchantImageStorage imageStorage;
 
     @Mock
+    private EntityManager entityManager;
+
+    @Mock
     private Shop approvedShop;
 
     private ProductManagementService service;
@@ -75,7 +79,7 @@ class ProductManagementServiceTest {
     void setUp() {
         service = new ProductManagementService(
                 productRepository, productImageRepository, shopRepository, categoryRepository,
-                categoryService, identityApi, imageStorage);
+                categoryService, identityApi, imageStorage, entityManager);
         lenient().when(identityApi.findUser(OWNER_ID))
                 .thenReturn(Optional.of(new UserSummary(OWNER_ID, "Owner", UserRole.USER, AccountStatus.ACTIVE)));
         lenient().when(shopRepository.findByOwnerId(OWNER_ID)).thenReturn(Optional.of(approvedShop));
@@ -190,7 +194,7 @@ class ProductManagementServiceTest {
         when(approvedShop.getId()).thenReturn(SHOP_ID);
         Product product = Product.create(SHOP_ID, 42L, "Product", "Description", new BigDecimal("10.00"), 2);
         Category targetCategory = category(43L, "Target", true);
-        when(productRepository.findByIdAndShopId(50L, SHOP_ID)).thenReturn(Optional.of(product));
+        when(productRepository.findByIdForUpdate(50L)).thenReturn(Optional.of(product));
         when(categoryService.requireActiveCategory(43L)).thenReturn(targetCategory);
         when(productRepository.saveAndFlush(any(Product.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
@@ -207,7 +211,7 @@ class ProductManagementServiceTest {
     @Test
     void ownerCannotUpdateProductFromAnotherShop() {
         when(approvedShop.getId()).thenReturn(SHOP_ID);
-        when(productRepository.findByIdAndShopId(999L, SHOP_ID)).thenReturn(Optional.empty());
+        when(productRepository.findByIdForUpdate(999L)).thenReturn(Optional.empty());
 
         assertThrows(ProductNotFoundException.class,
                 () -> service.update(OWNER_ID, 999L,
@@ -239,7 +243,7 @@ class ProductManagementServiceTest {
         when(approvedShop.getId()).thenReturn(SHOP_ID);
         Product product = Product.create(SHOP_ID, 42L, "Product", "Description", new BigDecimal("10.00"), 2);
         product.hide();
-        when(productRepository.findByIdAndShopId(50L, SHOP_ID)).thenReturn(Optional.of(product));
+        when(productRepository.findByIdForUpdate(50L)).thenReturn(Optional.of(product));
 
         service.show(OWNER_ID, 50L);
 

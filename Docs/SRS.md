@@ -548,6 +548,7 @@ Cơ sở dữ liệu sử dụng Supabase PostgreSQL. Tên bảng dùng số nhi
 | categories               | Danh mục                         | id, name, description, active                                                                                                                                      |
 | products                 | Sản phẩm                        | id, shop\_id, category\_id, name, description, price, stock\_quantity, status                                                                                      |
 | product\_images          | Ảnh sản phẩm                   | id, product\_id, image\_url, public\_id, display\_order                                                                                                            |
+| stock\_restorations     | Dấu hoàn kho chống lặp         | order\_item\_id, shop\_id, product\_id, quantity, created\_at                                                                                                     |
 | carts                    | Giỏ hàng                        | id, user\_id                                                                                                                                                       |
 | cart\_items              | Mục giỏ                         | id, cart\_id, product\_id, quantity                                                                                                                                |
 | orders                   | Đơn hàng                       | id, buyer\_id, shop\_id, status, shipping\_address, total\_amount                                                                                                  |
@@ -562,7 +563,7 @@ Cơ sở dữ liệu sử dụng Supabase PostgreSQL. Tên bảng dùng số nhi
 
 ### 7.1 Chi tiết cấu trúc các bảng
 
-Hệ thống sử dụng 14 bảng. Kiểu dữ liệu dưới đây được thiết kế cho PostgreSQL; PK là khóa chính, FK là khóa ngoại, UNIQUE là không trùng lặp, NOT NULL là bắt buộc và NULL là có thể để trống.
+Hệ thống sử dụng 15 bảng. Kiểu dữ liệu dưới đây được thiết kế cho PostgreSQL; PK là khóa chính, FK là khóa ngoại, UNIQUE là không trùng lặp, NOT NULL là bắt buộc và NULL là có thể để trống.
 
 #### 7.1.1 Bảng users Tài khoản người dùng
 
@@ -786,6 +787,18 @@ Lưu danh sách sản phẩm mà người dùng đánh dấu để xem lại sau
 | created\_at             | TIMESTAMPTZ               | NOT NULL, DEFAULT NOW()   | Thời điểm thêm vào danh sách yêu thích. |
 | user\_id, product\_id   | -                         | UNIQUE                    | Không tạo bản ghi yêu thích trùng lặp.   |
 
+#### 7.1.15 Bảng stock\_restorations Dấu hoàn kho
+
+Merchant lưu kết quả hoàn kho theo dòng đơn để request hủy lặp không cộng stock lần hai. `order_item_id` là định danh do Ordering truyền qua public API, không có khóa ngoại chéo module tới `order_items`.
+
+| **Tên trường** | **Kiểu dữ liệu** | **Ràng buộc** | **Giải thích** |
+| --- | --- | --- | --- |
+| order\_item\_id | BIGINT | PK | Khóa chống lặp cho một dòng đơn. |
+| shop\_id | BIGINT | FK shops(id), NOT NULL | Gian hàng của sản phẩm được hoàn. |
+| product\_id | BIGINT | FK products(id), NOT NULL | Sản phẩm được cộng lại tồn kho. |
+| quantity | INTEGER | NOT NULL, CHECK > 0 | Số lượng đã hoàn. |
+| created\_at | TIMESTAMPTZ | NOT NULL, DEFAULT NOW() | Thời điểm hoàn kho. |
+
 <a id="sec_1036"></a>
 
 ### 7.2 Ràng buộc dữ liệu
@@ -797,6 +810,7 @@ Lưu danh sách sản phẩm mà người dùng đánh dấu để xem lại sau
 - reviews có ràng buộc duy nhất trên order\_item\_id.
 - notifications có ràng buộc duy nhất trên cặp event\_id và receiver\_id để bảo đảm idempotency và hỗ trợ event có nhiều người nhận.
 - products.price phải lớn hơn 0; stock\_quantity không âm và được trừ bằng cập nhật nguyên tử có điều kiện.
+- stock\_restorations dùng khóa chính order\_item\_id để chống hoàn kho lặp; ghi dấu và cộng stock cùng transaction hủy đơn.
 - carts và cart\_items không lưu giá; order\_items là nơi duy nhất snapshot giá mua.
 - orders không lặp phương thức hoặc trạng thái thanh toán; payments là nguồn chuẩn duy nhất.
 - order\_items lưu tên và giá chụp tại thời điểm đặt hàng.

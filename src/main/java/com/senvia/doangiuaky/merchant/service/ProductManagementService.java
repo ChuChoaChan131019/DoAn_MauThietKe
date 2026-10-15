@@ -16,6 +16,8 @@ import com.senvia.doangiuaky.merchant.repository.ProductRepository;
 import com.senvia.doangiuaky.merchant.repository.ShopRepository;
 import com.senvia.doangiuaky.merchant.service.image.MerchantImageAsset;
 import com.senvia.doangiuaky.merchant.service.image.MerchantImageStorage;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.LockModeType;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -42,6 +44,7 @@ public class ProductManagementService {
     private final CategoryManagementService categoryService;
     private final IdentityApi identityApi;
     private final MerchantImageStorage imageStorage;
+    private final EntityManager entityManager;
 
     public ProductManagementService(ProductRepository productRepository,
                                     ProductImageRepository productImageRepository,
@@ -49,7 +52,8 @@ public class ProductManagementService {
                                     CategoryRepository categoryRepository,
                                     CategoryManagementService categoryService,
                                     IdentityApi identityApi,
-                                    MerchantImageStorage imageStorage) {
+                                    MerchantImageStorage imageStorage,
+                                    EntityManager entityManager) {
         this.productRepository = productRepository;
         this.productImageRepository = productImageRepository;
         this.shopRepository = shopRepository;
@@ -57,6 +61,7 @@ public class ProductManagementService {
         this.categoryService = categoryService;
         this.identityApi = identityApi;
         this.imageStorage = imageStorage;
+        this.entityManager = entityManager;
     }
 
     @Transactional(readOnly = true)
@@ -109,7 +114,7 @@ public class ProductManagementService {
     @Transactional
     public SellerProductView update(Long ownerId, Long productId, ProductForm form) {
         Shop shop = requireCatalogMutableShop(ownerId);
-        Product product = findOwnedProduct(productId, shop.getId());
+        Product product = findOwnedProductForUpdate(productId, shop.getId());
         Category category = categoryService.requireActiveCategory(form.getCategoryId());
 
         product.updateDetails(form.getName(), form.getDescription());
@@ -140,6 +145,16 @@ public class ProductManagementService {
         Runnable rollbackCleanup = () -> deleteUploadedAssets(uploaded);
         try {
             List<MerchantImageAsset> newAssets = uploadProductImages(ownerId, newFiles, uploaded);
+            // Acquire the product lock after remote uploads, then reload data changed meanwhile.
+            entityManager.refresh(product, LockModeType.PESSIMISTIC_WRITE);
+            existingImages = productImageRepository
+                    .findAllByProductIdOrderByDisplayOrderAscIdAsc(product.getId());
+            removedImages = selectImagesToRemove(existingImages, removedImageIds);
+            if (existingImages.size() - removedImages.size() + newFiles.size() <= 0) {
+                throw new ProductImageManagementException(
+                        "Sản phẩm phải còn ít nhất một ảnh sau khi cập nhật.");
+            }
+            validateImageCount(newFiles, existingImages.size() - removedImages.size());
             product.updateDetails(form.getName(), form.getDescription());
             product.changeCategory(category.getId());
             product.changePriceAndStock(form.getPrice(), form.getStockQuantity());
@@ -168,7 +183,7 @@ public class ProductManagementService {
     @Transactional
     public void deleteImage(Long ownerId, Long productId, Long imageId) {
         Shop shop = requireCatalogMutableShop(ownerId);
-        Product product = findOwnedProduct(productId, shop.getId());
+        Product product = findOwnedProductForUpdate(productId, shop.getId());
         List<ProductImage> existingImages = productImageRepository
                 .findAllByProductIdOrderByDisplayOrderAscIdAsc(product.getId());
         if (existingImages.size() <= 1) {
@@ -186,7 +201,7 @@ public class ProductManagementService {
     @Transactional
     public void hide(Long ownerId, Long productId) {
         Shop shop = requireCatalogMutableShop(ownerId);
-        Product product = findOwnedProduct(productId, shop.getId());
+        Product product = findOwnedProductForUpdate(productId, shop.getId());
         product.hide();
         productRepository.saveAndFlush(product);
     }
@@ -194,7 +209,7 @@ public class ProductManagementService {
     @Transactional
     public void show(Long ownerId, Long productId) {
         Shop shop = requireCatalogMutableShop(ownerId);
-        Product product = findOwnedProduct(productId, shop.getId());
+        Product product = findOwnedProductForUpdate(productId, shop.getId());
         product.show();
         productRepository.saveAndFlush(product);
     }
@@ -232,6 +247,15 @@ public class ProductManagementService {
             throw new ProductNotFoundException("Không tìm thấy sản phẩm.");
         }
         return productRepository.findByIdAndShopId(productId, shopId)
+                .orElseThrow(() -> new ProductNotFoundException("Không tìm thấy sản phẩm thuộc gian hàng của bạn."));
+    }
+
+    private Product findOwnedProductForUpdate(Long productId, Long shopId) {
+        if (productId == null || productId <= 0) {
+            throw new ProductNotFoundException("Không tìm thấy sản phẩm.");
+        }
+        return productRepository.findByIdForUpdate(productId)
+                .filter(product -> product.getShopId().equals(shopId))
                 .orElseThrow(() -> new ProductNotFoundException("Không tìm thấy sản phẩm thuộc gian hàng của bạn."));
     }
 

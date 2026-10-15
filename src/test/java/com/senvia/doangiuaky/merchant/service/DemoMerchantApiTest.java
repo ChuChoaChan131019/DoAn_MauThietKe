@@ -91,6 +91,19 @@ class DemoMerchantApiTest {
     }
 
     @Test
+    void shopSummaryExposesOnlyIdentityAndVisibilityData() {
+        Long shopId = shopIdOf("Canvas Tote Bag");
+
+        var summary = merchantApi.findShopSummary(shopId).orElseThrow();
+
+        assertEquals(shopId, summary.shopId());
+        assertEquals("NOLA Store", summary.shopName());
+        assertTrue(summary.ownerActive());
+        assertTrue(summary.shopApproved());
+        assertTrue(merchantApi.findShopSummary(Long.MAX_VALUE).isEmpty());
+    }
+
+    @Test
     void approvedShopCanReceiveAndHandleOrders() {
         Long shopId = shopIdOf("Canvas Tote Bag");
 
