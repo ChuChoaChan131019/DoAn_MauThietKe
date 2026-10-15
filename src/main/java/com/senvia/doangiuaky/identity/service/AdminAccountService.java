@@ -60,6 +60,7 @@ public class AdminAccountService {
             throw new AccountOperationException("Lý do khóa phải từ 1 đến 500 ký tự.");
         }
 
+        User actor = findActiveAdmin(actorId);
         User target = findEntity(targetId);
         if (target.getId().equals(actorId)) {
             throw new AccountOperationException("Bạn không thể tự khóa tài khoản.");
@@ -71,7 +72,6 @@ public class AdminAccountService {
             throw new AccountOperationException("Tài khoản đã bị khóa.");
         }
 
-        User actor = findEntity(actorId);
         target.setAccountStatus(AccountStatus.LOCKED);
         target.setLockReason(normalizedReason);
         target.setLockedBy(actor);
@@ -87,7 +87,8 @@ public class AdminAccountService {
     }
 
     @Transactional
-    public void unlock(Long targetId) {
+    public void unlock(Long targetId, Long actorId) {
+        findActiveAdmin(actorId);
         User target = findEntity(targetId);
         if (target.getRole() != UserRole.USER) {
             throw new AccountOperationException("Chỉ được mở khóa tài khoản USER.");
@@ -106,6 +107,14 @@ public class AdminAccountService {
     private User findEntity(Long userId) {
         return userRepository.findById(userId)
                 .orElseThrow(() -> new AccountOperationException("Tài khoản không tồn tại."));
+    }
+
+    private User findActiveAdmin(Long userId) {
+        User actor = findEntity(userId);
+        if (actor.getRole() != UserRole.ADMIN || actor.getAccountStatus() != AccountStatus.ACTIVE) {
+            throw new AccountOperationException("Chỉ quản trị viên đang hoạt động mới được thực hiện thao tác này.");
+        }
+        return actor;
     }
 
     private static AdminAccountView toView(User user) {

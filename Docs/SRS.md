@@ -245,7 +245,7 @@ Mức ưu tiên được quy ước: Bắt buộc là yêu cầu phải hoàn th
 | **AUTH 05** | Người dùng xem và cập nhật họ tên, số điện thoại, địa chỉ và ảnh đại diện.                                | Bắt buộc          |
 | **AUTH 06** | Người dùng đổi mật khẩu sau khi xác nhận mật khẩu hiện tại.                                                      | Bắt buộc          |
 | **AUTH 07** | Hệ thống từ chối tài khoản bị khóa và các yêu cầu không đúng quyền.                                           | Bắt buộc          |
-| **AUTH 08** | Admin xem, tìm kiếm, khóa và mở khóa tài khoản; không được tự khóa mình hoặc khóa Admin ACTIVE cuối cùng.  | Bắt buộc          |
+| **AUTH 08** | Admin xem, tìm kiếm, lọc, xem chi tiết và khóa/mở khóa USER; không được tự khóa hoặc thao tác khóa/mở khóa tài khoản ADMIN. | Bắt buộc          |
 
 <a id="sec_1014"></a>
 

@@ -46,4 +46,9 @@ class AdminControllerTest {
         assertEquals(0, model.getAttribute("pendingCount"));
         assertEquals(List.of(), model.getAttribute("pendingShopRequests"));
     }
+
+    @Test
+    void legacyAdminAccountsRouteRedirectsToIdentityManagementPage() {
+        assertEquals("redirect:/identity/admin/accounts", controller.adminAccounts());
+    }
 }

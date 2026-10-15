@@ -27,7 +27,7 @@ public class AdminController {
 
     @GetMapping("/admin/accounts")
     public String adminAccounts() {
-        return "engagement/admin-accounts";
+        return "redirect:/identity/admin/accounts";
     }
 
 }

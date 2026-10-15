@@ -67,9 +67,12 @@ public class AdminAccountController {
     }
 
     @PostMapping("/identity/admin/accounts/{id}/unlock")
-    public String unlock(@PathVariable("id") Long id, RedirectAttributes redirectAttributes) {
+    public String unlock(
+            @PathVariable("id") Long id,
+            @AuthenticationPrincipal IdentityPrincipal principal,
+            RedirectAttributes redirectAttributes) {
         try {
-            adminAccountService.unlock(id);
+            adminAccountService.unlock(id, principal.getUserId());
             redirectAttributes.addFlashAttribute("success", "Tài khoản đã được mở khóa.");
         } catch (AccountOperationException exception) {
             redirectAttributes.addFlashAttribute("error", exception.getMessage());
