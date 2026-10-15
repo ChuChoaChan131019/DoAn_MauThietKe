@@ -133,6 +133,7 @@ public class ProductsController {
                 case "max" -> "Giá tối đa không đúng định dạng số.";
                 case "categoryId" -> "Danh mục không hợp lệ.";
                 case "categoryIds" -> "Danh mục không hợp lệ.";
+                case "q" -> "Từ khóa tìm kiếm không hợp lệ hoặc vượt quá 200 ký tự.";
                 default -> "Một bộ lọc có định dạng không hợp lệ.";
             };
         }

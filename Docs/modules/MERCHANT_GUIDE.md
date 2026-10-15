@@ -43,6 +43,9 @@ Merchant sở hữu vòng đời shop, category, product, ảnh và stock.
 - Menu danh mục trên header (desktop/mobile) và các thẻ danh mục trang chủ lấy danh mục active từ bảng `categories`; link lọc dùng `categoryId`. Danh mục bị ẩn không xuất hiện trong menu công khai.
 - `GET /products` nhận `categoryId` cho liên kết topbar, `categoryIds` lặp để chọn nhiều danh mục active ở sidebar; tham số `category=<tên>` cũ vẫn được hỗ trợ cho bookmark/link cũ và chỉ tra trong danh mục active. `categoryIds` được ưu tiên, sau đó đến `categoryId`, rồi tên cũ.
 - Danh sách catalog phân trang 12 sản phẩm mỗi trang sau khi áp dụng toàn bộ bộ lọc.
+- `GET /products?q=<keyword>` tìm theo tên sản phẩm, khớp một phần và không phân biệt hoa thường. Từ khóa được trim; null/rỗng/toàn khoảng trắng nghĩa là không áp dụng tìm kiếm. Keyword tối đa 200 ký tự; vượt giới hạn thì trả lại trang catalog với lỗi validation và không truy vấn kết quả.
+- Tìm kiếm sản phẩm ở catalog và header desktop/mobile cùng gửi GET tới `/products` bằng tham số `q`. Tìm theo tên sản phẩm, không tìm mô tả hay tên shop.
+- Ký tự `%`, `_` và `!` trong từ khóa được escape trước khi dùng trong điều kiện `LIKE`; người dùng tìm ký tự literal thay vì kích hoạt wildcard SQL.
 - `min` và `max` là số thập phân không âm, tối đa 10 chữ số phần nguyên và 2 chữ số thập phân; hai cận bao gồm giá trị biên và cần thỏa `min <= max`. Input sai được hiển thị lại trên trang với lỗi validation, không chạy truy vấn lọc.
 - Danh mục, khoảng giá, từ khóa và shop được kết hợp theo AND. Kết quả vẫn phải qua quy tắc saleable: owner ACTIVE, shop APPROVED, category active, product ACTIVE và stock > 0.
 - Sidebar hiển thị mọi danh mục active dưới dạng ô chọn nhiều mục; ô đã chọn có nền đậm. Các ô lọc submit danh mục đã chọn cùng từ khóa, khoảng giá, gian hàng và thứ tự sắp xếp. Tiêu đề thể hiện danh mục đang chọn; nút bỏ các bộ lọc khác giữ nguyên danh mục. `Xóa tất cả bộ lọc` về `/products`.

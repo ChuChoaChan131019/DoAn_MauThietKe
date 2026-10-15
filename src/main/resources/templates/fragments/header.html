@@ -27,23 +27,29 @@
             </a>
 
             <!-- SEARCH -->
-            <div class="d-none d-md-flex flex-grow-1 mx-4 position-relative header-search-container">
-                <input 
-                    type="text" 
-                    placeholder="Tìm sản phẩm, thương hiệu..." 
-                    class="form-control bg-ivory border-0 rounded-0 px-4 py-2 shadow-none transition-all header-search-input"
-                />
-                <button class="btn position-absolute end-0 top-50 translate-middle-y text-plum hover-burgundy border-0 p-2 shadow-none">
-                    <i class="bi bi-search header-icon-sm"></i>
+            <form th:action="@{/products}" method="get" role="search"
+                  class="d-none d-md-flex flex-grow-1 mx-4 position-relative header-search-container">
+                <label for="header-product-search" class="visually-hidden">Tìm theo tên sản phẩm</label>
+                <input id="header-product-search" type="search" name="q" maxlength="200"
+                       th:value="${filterForm != null ? filterForm.q : ''}"
+                       placeholder="Tìm theo tên sản phẩm..."
+                       class="form-control bg-ivory border-0 rounded-0 px-4 py-2 shadow-none transition-all header-search-input" />
+                <button type="submit" aria-label="Tìm sản phẩm"
+                        class="btn position-absolute end-0 top-50 translate-middle-y text-plum hover-burgundy border-0 p-2 shadow-none">
+                    <i class="bi bi-search header-icon-sm" aria-hidden="true"></i>
                 </button>
-            </div>
+            </form>
 
             <!-- ICONS & USER MENU -->
             <div class="d-flex align-items-center gap-3 gap-md-4 text-plum">
                 <button class="btn d-md-none text-plum p-0 border-0 shadow-none" type="button" data-bs-toggle="collapse" data-bs-target="#mobileNav">
                     <i class="bi bi-list header-icon-lg"></i>
                 </button>
-                <button class="btn d-md-none text-plum p-0 border-0 shadow-none"><i class="bi bi-search header-icon-lg"></i></button>
+                <button class="btn d-md-none text-plum p-0 border-0 shadow-none" type="button"
+                        data-bs-toggle="collapse" data-bs-target="#mobileProductSearch"
+                        aria-controls="mobileProductSearch" aria-expanded="false" aria-label="Mở tìm kiếm sản phẩm">
+                    <i class="bi bi-search header-icon-lg" aria-hidden="true"></i>
+                </button>
                 
                 <a th:if="${role != null}" th:href="@{/account/notifications}" class="text-plum hover-burgundy transition-colors position-relative d-none d-md-block">
                     <i class="bi bi-bell header-icon-lg"></i>
@@ -90,6 +96,21 @@
                     </div>
                 </a>
             </div>
+        </div>
+
+        <!-- MOBILE PRODUCT SEARCH -->
+        <div class="collapse d-md-none border-top mt-3" id="mobileProductSearch">
+            <form th:action="@{/products}" method="get" role="search" class="bg-ivory p-3 d-flex gap-2">
+                <label for="mobile-product-search" class="visually-hidden">Tìm theo tên sản phẩm</label>
+                <input id="mobile-product-search" type="search" name="q" maxlength="200"
+                       th:value="${filterForm != null ? filterForm.q : ''}"
+                       placeholder="Tìm theo tên sản phẩm..."
+                       class="form-control border-clay rounded-0 shadow-none" />
+                <button type="submit" aria-label="Tìm sản phẩm"
+                        class="btn border border-clay text-plum rounded-0 flex-shrink-0">
+                    <i class="bi bi-search" aria-hidden="true"></i>
+                </button>
+            </form>
         </div>
 
         <!-- MOBILE NAV COLLAPSE -->
