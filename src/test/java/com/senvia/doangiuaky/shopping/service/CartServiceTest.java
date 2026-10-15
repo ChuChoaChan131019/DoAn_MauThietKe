@@ -17,6 +17,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.InOrder;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -27,6 +28,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -257,6 +259,90 @@ class CartServiceTest {
     }
 
     @Test
+    void cartViewGroupsItemsByShopAndCalculatesEverySubtotalWithBigDecimal() {
+        CartRepository carts = mock(CartRepository.class);
+        CartItemRepository items = mock(CartItemRepository.class);
+        IdentityApi identity = mock(IdentityApi.class);
+        MerchantApi merchant = mock(MerchantApi.class);
+        Cart cart = mockCart(99L);
+        when(identity.findUser(BUYER_ID)).thenReturn(Optional.of(
+                user(BUYER_ID, UserRole.USER, AccountStatus.ACTIVE)));
+        when(carts.findByUserId(BUYER_ID)).thenReturn(Optional.of(cart));
+        when(items.findAllByCartIdOrderByIdAsc(99L)).thenReturn(List.of(
+                new CartItem(99L, 20L, 2),
+                new CartItem(99L, 21L, 3),
+                new CartItem(99L, 22L, 4)));
+        when(merchant.findProductForCart(20L)).thenReturn(Optional.of(
+                product(20L, 30L, "Shop A", "Product A", new BigDecimal("10.25"))));
+        when(merchant.findProductForCart(21L)).thenReturn(Optional.of(
+                product(21L, 30L, "Shop A", "Product B", new BigDecimal("5.10"))));
+        when(merchant.findProductForCart(22L)).thenReturn(Optional.of(
+                product(22L, 31L, "Shop B", "Product C", new BigDecimal("1.25"))));
+
+        CartView view = new CartService(carts, items, identity, merchant).getCart(BUYER_ID);
+
+        assertEquals(2, view.shops().size());
+        assertEquals(30L, view.shops().get(0).shopId());
+        assertEquals(List.of(20L, 21L), view.shops().get(0).items().stream()
+                .map(item -> item.productId()).toList());
+        assertEquals(new BigDecimal("20.50"), view.shops().get(0).items().get(0).subtotal());
+        assertEquals(new BigDecimal("15.30"), view.shops().get(0).items().get(1).subtotal());
+        assertEquals(new BigDecimal("35.80"), view.shops().get(0).subtotal());
+        assertEquals(31L, view.shops().get(1).shopId());
+        assertEquals(new BigDecimal("5.00"), view.shops().get(1).subtotal());
+        assertEquals(new BigDecimal("40.80"), view.subtotal());
+        assertEquals(9, view.totalQuantity());
+    }
+
+    @Test
+    void cartViewReloadReadsNewMerchantPriceWithoutChangingCartItem() {
+        CartRepository carts = mock(CartRepository.class);
+        CartItemRepository items = mock(CartItemRepository.class);
+        IdentityApi identity = mock(IdentityApi.class);
+        MerchantApi merchant = mock(MerchantApi.class);
+        Cart cart = mockCart(99L);
+        CartItem item = new CartItem(99L, PRODUCT_ID, 2);
+        when(identity.findUser(BUYER_ID)).thenReturn(Optional.of(
+                user(BUYER_ID, UserRole.USER, AccountStatus.ACTIVE)));
+        when(carts.findByUserId(BUYER_ID)).thenReturn(Optional.of(cart));
+        when(items.findAllByCartIdOrderByIdAsc(99L)).thenReturn(List.of(item));
+        when(merchant.findProductForCart(PRODUCT_ID)).thenReturn(
+                Optional.of(product(PRODUCT_ID, 30L, "Shop", "Product", new BigDecimal("10.00"))),
+                Optional.of(product(PRODUCT_ID, 30L, "Shop", "Product", new BigDecimal("12.50"))));
+        CartService service = new CartService(carts, items, identity, merchant);
+
+        CartView firstLoad = service.getCart(BUYER_ID);
+        CartView secondLoad = service.getCart(BUYER_ID);
+
+        assertEquals(new BigDecimal("10.00"), firstLoad.shops().getFirst().items().getFirst().currentPrice());
+        assertEquals(new BigDecimal("20.00"), firstLoad.subtotal());
+        assertEquals(new BigDecimal("12.50"), secondLoad.shops().getFirst().items().getFirst().currentPrice());
+        assertEquals(new BigDecimal("25.00"), secondLoad.subtotal());
+        assertEquals(2, item.getQuantity());
+        verify(merchant, times(2)).findProductForCart(PRODUCT_ID);
+        verify(items, never()).save(item);
+    }
+
+    @Test
+    void missingCartReturnsEmptyViewWithZeroSubtotal() {
+        CartRepository carts = mock(CartRepository.class);
+        CartItemRepository items = mock(CartItemRepository.class);
+        IdentityApi identity = mock(IdentityApi.class);
+        MerchantApi merchant = mock(MerchantApi.class);
+        when(identity.findUser(BUYER_ID)).thenReturn(Optional.of(
+                user(BUYER_ID, UserRole.USER, AccountStatus.ACTIVE)));
+        when(carts.findByUserId(BUYER_ID)).thenReturn(Optional.empty());
+
+        CartView view = new CartService(carts, items, identity, merchant).getCart(BUYER_ID);
+
+        assertTrue(view.shops().isEmpty());
+        assertEquals(0, view.totalQuantity());
+        assertEquals(BigDecimal.ZERO, view.subtotal());
+        verify(items, never()).findAllByCartIdOrderByIdAsc(any());
+        verify(merchant, never()).findProductForCart(any());
+    }
+
+    @Test
     void cartWithOnlyUnavailableItemsIsNotEmptyButHasNoCheckoutableItems() {
         CartRepository carts = mock(CartRepository.class);
         CartItemRepository items = mock(CartItemRepository.class);
@@ -377,6 +463,16 @@ class CartServiceTest {
     private static CartProductView product(int stock, int price, Long ownerId) {
         return new CartProductView(PRODUCT_ID, 30L, ownerId, "Shop", "Product", null,
                 BigDecimal.valueOf(price), stock, true, true, true, true);
+    }
+
+    private static CartProductView product(
+            Long productId,
+            Long shopId,
+            String shopName,
+            String productName,
+            BigDecimal price) {
+        return new CartProductView(productId, shopId, 40L, shopName, productName, null,
+                price, 100, true, true, true, true);
     }
 
     private static Cart mockCart(Long id) {

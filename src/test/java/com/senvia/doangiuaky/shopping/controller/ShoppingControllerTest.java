@@ -6,6 +6,8 @@ import com.senvia.doangiuaky.identity.api.UserRole;
 import com.senvia.doangiuaky.identity.api.UserSummary;
 import com.senvia.doangiuaky.shopping.dto.CartItemMutationResult;
 import com.senvia.doangiuaky.shopping.dto.CartItemView;
+import com.senvia.doangiuaky.shopping.dto.CartShopView;
+import com.senvia.doangiuaky.shopping.dto.CartView;
 import com.senvia.doangiuaky.shopping.dto.FavoriteItemView;
 import com.senvia.doangiuaky.shopping.service.CartItemNotFoundException;
 import com.senvia.doangiuaky.shopping.service.CartService;
@@ -144,6 +146,32 @@ class ShoppingControllerTest {
                 .andExpect(flash().attribute("cartError", "Số lượng phải lớn hơn 0."));
 
         verify(cartService, never()).updateItemQuantity(anyLong(), anyLong(), anyInt());
+    }
+
+    @Test
+    void cartGetReturnsShoppingCartViewWithServiceModel() throws Exception {
+        CartService cartService = mock(CartService.class);
+        FavoriteService favoriteService = mock(FavoriteService.class);
+        IdentityApi identityApi = mock(IdentityApi.class);
+        when(identityApi.findUserByEmail("buyer@example.com"))
+                .thenReturn(java.util.Optional.of(new UserSummary(
+                        10L, "Buyer", UserRole.USER, AccountStatus.ACTIVE)));
+        CartView cart = new CartView(List.of(new CartShopView(
+                30L,
+                "Shop A",
+                List.of(new CartItemView(99L, 20L, 30L, "Shop A", "Product A", null,
+                        new BigDecimal("12.50"), 5, 2, new BigDecimal("25.00"), true, true, null)),
+                new BigDecimal("25.00"))), 2, new BigDecimal("25.00"));
+        when(cartService.getCart(10L)).thenReturn(cart);
+        MockMvc mvc = MockMvcBuilders.standaloneSetup(
+                new ShoppingController(cartService, favoriteService, identityApi)).build();
+
+        mvc.perform(get("/cart").principal(principal("buyer@example.com")))
+                .andExpect(status().isOk())
+                .andExpect(view().name("shopping/cart"))
+                .andExpect(model().attribute("cart", cart));
+
+        verify(cartService).getCart(10L);
     }
 
     @Test

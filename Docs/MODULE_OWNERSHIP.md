@@ -6,7 +6,7 @@ Tài liệu này là nguồn chuẩn để xác định ranh giới khi năm th�
 
 | Module | Chủ sở hữu | Nghiệp vụ | Bảng sở hữu |
 | --- | --- | --- | --- |
-| [`merchant`](modules/MERCHANT_GUIDE.md) | Trần Thị Phương Trang (2314288) — Nhóm trưởng | Gian hàng, xét duyệt, danh mục, sản phẩm | `shops`, `categories`, `products`, `product_images` |
+| [`merchant`](modules/MERCHANT_GUIDE.md) | Trần Thị Phương Trang (2314288) — Nhóm trưởng | Gian hàng, xét duyệt, danh mục, sản phẩm | `shops`, `categories`, `products`, `product_images`, `stock_restorations` |
 | [`ordering`](modules/ORDERING_GUIDE.md) | Lê Anh Khoa (2312647) | Checkout, đơn hàng, lịch sử trạng thái, thanh toán | `orders`, `order_items`, `payments`, `order_status_histories` |
 | [`shopping`](modules/SHOPPING_GUIDE.md) | Đỗ Đặng Diệu Linh (2312663) | Giỏ hàng, sản phẩm yêu thích và Buyer Order History qua `ordering.api` | `carts`, `cart_items`, `favorites` |
 | [`identity`](modules/IDENTITY_GUIDE.md) | Doàn Trương Duy Khang (2111844) | Đăng ký, đăng nhập, tài khoản, phân quyền | `users` |

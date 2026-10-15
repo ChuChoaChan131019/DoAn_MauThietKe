@@ -55,6 +55,11 @@
                                  th:text="${#numbers.formatDecimal(item.subtotal, 0, 'COMMA', 0, 'POINT')} + '₫'">0₫</div>
                         </div>
                     </div>
+                    <div class="d-flex justify-content-between align-items-center px-3 py-3 border-top border-clay bg-light">
+                        <span class="fw-medium text-plum">Tạm tính shop</span>
+                        <span class="fw-bold text-burgundy"
+                              th:text="${#numbers.formatDecimal(shop.subtotal, 0, 'COMMA', 0, 'POINT')} + '₫'">0₫</span>
+                    </div>
                 </section>
             </div>
             <aside class="col-lg-4">

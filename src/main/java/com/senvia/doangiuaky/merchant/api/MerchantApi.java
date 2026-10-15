@@ -34,4 +34,9 @@ public interface MerchantApi {
     default Optional<ShopOrderCapabilities> findShopOrderCapabilities(Long shopId) {
         return Optional.empty();
     }
+
+    /** Returns a minimal shop summary even when the shop is not publicly listed. */
+    default Optional<MerchantShopSummary> findShopSummary(Long shopId) {
+        return Optional.empty();
+    }
 }

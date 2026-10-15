@@ -5,7 +5,7 @@ Tài liệu này tập trung vào thiết kế vật lý, constraint, index, mig
 ## 1. Tổng quan
 
 - PostgreSQL/Supabase.
-- 14 bảng, tên dạng số nhiều.
+- 15 bảng, tên dạng số nhiều.
 - Tiền tệ dùng `NUMERIC`; Java dùng `BigDecimal`.
 - Thời gian ưu tiên `TIMESTAMPTZ`.
 - Không lưu file ảnh trong database; chỉ lưu URL và Cloudinary `public_id`.
@@ -19,6 +19,7 @@ Tài liệu này tập trung vào thiết kế vật lý, constraint, index, mig
 | `categories` | `merchant` | Category |
 | `products` | `merchant` | Product, giá và tồn kho |
 | `product_images` | `merchant` | Ảnh Cloudinary |
+| `stock_restorations` | `merchant` | Dấu hoàn kho theo order item, chống cộng stock lặp |
 | `carts` | `shopping` | Cart hiện tại |
 | `cart_items` | `shopping` | Product và quantity trong cart |
 | `favorites` | `shopping` | Product yêu thích |
@@ -38,6 +39,7 @@ carts 1 ─── * cart_items
 shops 1 ─── * products
 categories 1 ─── * products
 products 1 ─── * product_images
+products 1 ─── * stock_restorations
 users 1 ─── * orders
 shops 1 ─── * orders
 orders 1 ─── * order_items
@@ -62,6 +64,8 @@ users * ─── * products qua reviews/order_items
 | `UNIQUE(notifications.event_id, receiver_id)` | Listener idempotent theo receiver |
 | `CHECK(products.price > 0)` | Giá hợp lệ |
 | `CHECK(products.stock_quantity >= 0)` | Tồn kho không âm |
+| `PRIMARY KEY(stock_restorations.order_item_id)` | Mỗi dòng đơn chỉ hoàn kho một lần; ID từ Ordering là khóa tham chiếu dạng giá trị, không có FK chéo module |
+| `CHECK(stock_restorations.quantity > 0)` | Số lượng hoàn kho hợp lệ |
 | `CHECK(cart_items.quantity > 0)` | Quantity hợp lệ |
 | `CHECK(reviews.rating BETWEEN 1 AND 5)` | Rating hợp lệ |
 
@@ -99,6 +103,7 @@ Chỉ thêm index khi có query cụ thể và xác minh kế hoạch truy vấn
 - Một bước tạo order/payment, trừ kho hoặc xóa cart lỗi phải rollback toàn bộ checkout.
 - Hủy order hoàn kho và cập nhật payment đúng một lần.
 - Contract hoàn kho cần khóa/idempotency phù hợp để request lặp không cộng kho hai lần.
+- `stock_restorations` và thao tác cộng stock nằm cùng transaction hủy đơn; cùng `order_item_id` và payload chỉ được xử lý một lần.
 - Event notification chỉ được xử lý sau commit.
 - Review và favorite chống trùng ở cả Service và database constraint.
 
