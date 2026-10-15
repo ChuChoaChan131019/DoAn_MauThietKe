@@ -92,6 +92,7 @@ public class CheckoutPreparationService {
 
         // 5. Nhom san pham theo shopId
         Map<Long, List<PreparedCheckout.Line>> grouped = new LinkedHashMap<>();
+        Map<Long, String> shopNames = new HashMap<>();
 
         Set<Long> seenCartItemIds = new HashSet<>();
         Set<Long> seenProductIds = new HashSet<>();
@@ -166,6 +167,17 @@ public class CheckoutPreparationService {
                     "Tổng dòng hàng"
             );
 
+            // Lưu tên shop thật từ Merchant API
+            String shopName = product.shopName();
+
+            if (shopName == null || shopName.isBlank()) {
+                shopName = "Gian hàng #" + product.shopId();
+            } else {
+                shopName = shopName.strip();
+            }
+
+            shopNames.putIfAbsent(product.shopId(), shopName);
+
             // 14. Them san pham vao nhom shop
             grouped.computeIfAbsent(
                     product.shopId(),
@@ -196,6 +208,7 @@ public class CheckoutPreparationService {
                     new PreparedCheckout.ShopOrder(
                             buyer.userId(),
                             group.getKey(),
+                            shopNames.get(group.getKey()),
                             group.getValue(),
                             sum
                     )

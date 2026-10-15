@@ -17,10 +17,19 @@ import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PostMapping;
 
+import com.senvia.doangiuaky.ordering.service.CheckoutPreviewService;
+import com.senvia.doangiuaky.ordering.service.CheckoutPreparationException;
+import com.senvia.doangiuaky.ordering.service.PreparedCheckout;
+
 @Controller
 public class OrderingController {
-
     private static final List<Map<String, Object>> mockOrders = new ArrayList<>();
+
+    private final CheckoutPreviewService checkoutPreviewService;
+
+    public OrderingController(CheckoutPreviewService checkoutPreviewService) {
+        this.checkoutPreviewService = checkoutPreviewService;
+    }
 
     static {
         Map<String, Object> order1 = new HashMap<>();
@@ -73,25 +82,36 @@ public class OrderingController {
 
     @PostMapping("/checkout")
     public String validateCheckout(@Valid @ModelAttribute("checkoutPaymentForm") CheckoutPaymentForm form, BindingResult bindingResult, Model model) {
+        // 1. Kiểm tra validation của biểu mẫu
         if (bindingResult.hasErrors()) {
             return "ordering/checkout/index";
         }
 
-        // Chuẩn hóa thông tin giao hàng.
-        form.setReceiverName(form.getReceiverName().trim());
-        form.setReceiverPhone(form.getReceiverPhone().trim());
-        form.setShippingAddress(form.getShippingAddress().trim());
+        // 2. Chuẩn hóa thông tin nhận hàng
+        form.setReceiverName(form.getReceiverName().strip());
+        form.setReceiverPhone(form.getReceiverPhone().strip());
+        form.setShippingAddress(form.getShippingAddress().strip());
 
         if (form.getNote() == null || form.getNote().isBlank()) {
             form.setNote(null);
         } else {
-            form.setNote(form.getNote().trim());
+            form.setNote(form.getNote().strip());
         }
 
-        // PAY 01 và PAY 03: dữ liệu hợp lệ; chưa tạo đơn hàng.
-        model.addAttribute("addressValidated", true);
-        model.addAttribute("paymentValidated", true);
+        // 3. Kiểm tra giỏ hàng thật trong transaction
+        try {
+            PreparedCheckout preview = checkoutPreviewService.preview(form);
 
+            // 4. Gửi kết quả xem trước ra Thymeleaf
+            model.addAttribute("checkoutPreview", preview);
+
+        } catch (CheckoutPreparationException exception) {
+            // 5. Hiển thị lỗi nghiệp vụ checkout
+            model.addAttribute("checkoutError", exception.getMessage());
+        }
+
+        // 6. Chỉ trả giao diện xem trước
+        // Không tạo đơn, không xóa giỏ
         return "ordering/checkout/index";
     }
 
