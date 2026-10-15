@@ -38,7 +38,7 @@
                                 </div>
                                 <div th:unless="${item.available}" class="text-danger small" th:text="${item.availabilityMessage}">Không khả dụng</div>
                                 <div class="d-flex gap-2 align-items-center mt-2">
-                                    <form th:if="${item.available or item.quantityAdjustable}"
+                                    <form th:if="${item.quantityAdjustable}"
                                           th:action="@{/cart/items/{id}/quantity(id=${item.cartItemId})}" method="post"
                                           class="d-flex gap-2 align-items-center">
                                         <input type="number" name="quantity" min="1" th:max="${item.stockQuantity}"
@@ -70,10 +70,7 @@
                         <span class="fw-bold text-burgundy fs-5"
                               th:text="${#numbers.formatDecimal(cart.subtotal, 0, 'COMMA', 0, 'POINT')} + '₫'">0₫</span>
                     </div>
-                    <a th:if="${cart.canCheckout()}" th:href="@{/checkout}"
-                       class="btn bg-burgundy text-white rounded-0 w-100 mt-4">Tiến hành thanh toán</a>
-                    <button th:unless="${cart.canCheckout()}" type="button"
-                            class="btn btn-secondary rounded-0 w-100 mt-4" disabled>
+                    <button type="button" class="btn btn-secondary rounded-0 w-100 mt-4" disabled>
                         Tiến hành thanh toán
                     </button>
                     <p th:if="${cart.hasUnavailableItems()}" class="text-danger small mt-3 mb-0">

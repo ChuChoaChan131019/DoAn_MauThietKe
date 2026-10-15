@@ -34,7 +34,7 @@ public record CartItemView(
                 item.getQuantity(),
                 subtotal,
                 true,
-                false,
+                true,
                 null);
     }
 

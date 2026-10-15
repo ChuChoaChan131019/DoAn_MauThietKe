@@ -9,6 +9,7 @@ import com.senvia.doangiuaky.shopping.dto.CartItemView;
 import com.senvia.doangiuaky.shopping.dto.CartShopView;
 import com.senvia.doangiuaky.shopping.dto.CartView;
 import com.senvia.doangiuaky.shopping.dto.FavoriteItemView;
+import com.senvia.doangiuaky.shopping.service.CartItemNotFoundException;
 import com.senvia.doangiuaky.shopping.service.CartService;
 import com.senvia.doangiuaky.shopping.service.FavoriteService;
 import org.junit.jupiter.api.Test;
@@ -21,6 +22,8 @@ import java.time.Instant;
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -117,6 +120,35 @@ class ShoppingControllerTest {
     }
 
     @Test
+    void missingZeroAndNegativeUpdateQuantitiesAreRejectedBeforeServiceCall() throws Exception {
+        CartService cartService = mock(CartService.class);
+        FavoriteService favoriteService = mock(FavoriteService.class);
+        IdentityApi identityApi = mock(IdentityApi.class);
+        MockMvc mvc = MockMvcBuilders.standaloneSetup(
+                new ShoppingController(cartService, favoriteService, identityApi)).build();
+
+        mvc.perform(post("/cart/items/77/quantity")
+                        .principal(principal("buyer@example.com")))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/cart"))
+                .andExpect(flash().attribute("cartError", "Số lượng là bắt buộc."));
+        mvc.perform(post("/cart/items/77/quantity")
+                        .principal(principal("buyer@example.com"))
+                        .param("quantity", "0"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/cart"))
+                .andExpect(flash().attribute("cartError", "Số lượng phải lớn hơn 0."));
+        mvc.perform(post("/cart/items/77/quantity")
+                        .principal(principal("buyer@example.com"))
+                        .param("quantity", "-1"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/cart"))
+                .andExpect(flash().attribute("cartError", "Số lượng phải lớn hơn 0."));
+
+        verify(cartService, never()).updateItemQuantity(anyLong(), anyLong(), anyInt());
+    }
+
+    @Test
     void cartGetReturnsShoppingCartViewWithServiceModel() throws Exception {
         CartService cartService = mock(CartService.class);
         FavoriteService favoriteService = mock(FavoriteService.class);
@@ -140,6 +172,55 @@ class ShoppingControllerTest {
                 .andExpect(model().attribute("cart", cart));
 
         verify(cartService).getCart(10L);
+    }
+
+    @Test
+    void clampedUpdateUsesWarningMessageReturnedByService() throws Exception {
+        CartService cartService = mock(CartService.class);
+        FavoriteService favoriteService = mock(FavoriteService.class);
+        IdentityApi identityApi = mock(IdentityApi.class);
+        when(identityApi.findUserByEmail("buyer@example.com"))
+                .thenReturn(java.util.Optional.of(new UserSummary(
+                        10L, "Buyer", UserRole.USER, AccountStatus.ACTIVE)));
+        when(cartService.updateItemQuantity(10L, 77L, 99)).thenReturn(new CartItemMutationResult(
+                new CartItemView(77L, 20L, 30L, "Shop", "Product", null,
+                        new BigDecimal("100000"), 5, 5, new BigDecimal("500000"), true, true, null),
+                true,
+                "Số lượng đã được điều chỉnh còn 5 theo tồn kho hiện tại (5)."));
+        MockMvc mvc = MockMvcBuilders.standaloneSetup(
+                new ShoppingController(cartService, favoriteService, identityApi)).build();
+
+        mvc.perform(post("/cart/items/77/quantity")
+                        .principal(principal("buyer@example.com"))
+                        .param("quantity", "99"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/cart"))
+                .andExpect(flash().attribute("cartWarning",
+                        "Số lượng đã được điều chỉnh còn 5 theo tồn kho hiện tại (5)."));
+    }
+
+    @Test
+    void missingOwnedItemRemainsHttp404ForUpdateAndRemove() throws Exception {
+        CartService cartService = mock(CartService.class);
+        FavoriteService favoriteService = mock(FavoriteService.class);
+        IdentityApi identityApi = mock(IdentityApi.class);
+        when(identityApi.findUserByEmail("buyer@example.com"))
+                .thenReturn(java.util.Optional.of(new UserSummary(
+                        10L, "Buyer", UserRole.USER, AccountStatus.ACTIVE)));
+        when(cartService.updateItemQuantity(10L, 777L, 2))
+                .thenThrow(new CartItemNotFoundException());
+        org.mockito.Mockito.doThrow(new CartItemNotFoundException())
+                .when(cartService).removeItem(10L, 777L);
+        MockMvc mvc = MockMvcBuilders.standaloneSetup(
+                new ShoppingController(cartService, favoriteService, identityApi)).build();
+
+        mvc.perform(post("/cart/items/777/quantity")
+                        .principal(principal("buyer@example.com"))
+                        .param("quantity", "2"))
+                .andExpect(status().isNotFound());
+        mvc.perform(post("/cart/items/777/remove")
+                        .principal(principal("buyer@example.com")))
+                .andExpect(status().isNotFound());
     }
 
     @Test

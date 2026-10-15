@@ -16,6 +16,7 @@ import java.util.UUID;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.not;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
@@ -73,6 +74,7 @@ class ShoppingCartOwnershipIntegrationTest {
         mockMvc.perform(post("/cart/items/{id}/quantity", fixture.firstItemId())
                         .with(user(fixture.firstEmail()).roles("USER"))
                         .with(csrf())
+                        .param("buyerId", fixture.secondBuyerId().toString())
                         .param("quantity", "4"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/cart"));
@@ -80,11 +82,32 @@ class ShoppingCartOwnershipIntegrationTest {
 
         mockMvc.perform(post("/cart/items/{id}/remove", fixture.firstItemId())
                         .with(user(fixture.firstEmail()).roles("USER"))
-                        .with(csrf()))
+                        .with(csrf())
+                        .param("buyerId", fixture.secondBuyerId().toString()))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/cart"));
         assertTrue(cartItemRepository.findById(fixture.firstItemId()).isEmpty());
         assertTrue(cartItemRepository.findById(fixture.secondItemId()).isPresent());
+    }
+
+    @Test
+    void missingItemReturnsNotFoundWithoutChangingOwnedItems() throws Exception {
+        Fixture fixture = createFixture();
+        long missingItemId = Long.MAX_VALUE;
+
+        mockMvc.perform(post("/cart/items/{id}/quantity", missingItemId)
+                        .with(user(fixture.firstEmail()).roles("USER"))
+                        .with(csrf())
+                        .param("quantity", "4"))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(post("/cart/items/{id}/remove", missingItemId)
+                        .with(user(fixture.firstEmail()).roles("USER"))
+                        .with(csrf()))
+                .andExpect(status().isNotFound());
+
+        CartItem ownedItem = cartItemRepository.findById(fixture.firstItemId()).orElseThrow();
+        assertEquals(1, ownedItem.getQuantity());
+        assertFalse(cartItemRepository.findById(fixture.firstItemId()).isEmpty());
     }
 
     @Test

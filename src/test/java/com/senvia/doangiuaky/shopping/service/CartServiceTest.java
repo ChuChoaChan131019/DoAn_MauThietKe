@@ -17,6 +17,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.mockito.InOrder;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -29,6 +30,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -154,6 +156,10 @@ class CartServiceTest {
         assertTrue(result.quantityClamped());
         assertTrue(result.message().contains("5"));
         verify(items).save(existing);
+        InOrder lockOrder = inOrder(carts, items, merchant);
+        lockOrder.verify(carts).findByUserIdForUpdate(BUYER_ID);
+        lockOrder.verify(items).findByIdAndCartId(77L, 99L);
+        lockOrder.verify(merchant).findProductForCartMutation(PRODUCT_ID);
     }
 
     @Test
@@ -203,6 +209,28 @@ class CartServiceTest {
     }
 
     @Test
+    void updateOfMissingProductDoesNotChangeExistingQuantity() {
+        CartRepository carts = mock(CartRepository.class);
+        CartItemRepository items = mock(CartItemRepository.class);
+        IdentityApi identity = mock(IdentityApi.class);
+        MerchantApi merchant = mock(MerchantApi.class);
+        Cart cart = mockCart(99L);
+        CartItem existing = new CartItem(77L, PRODUCT_ID, 2);
+        when(identity.findUser(BUYER_ID)).thenReturn(Optional.of(
+                user(BUYER_ID, UserRole.USER, AccountStatus.ACTIVE)));
+        when(carts.findByUserIdForUpdate(BUYER_ID)).thenReturn(Optional.of(cart));
+        when(items.findByIdAndCartId(77L, 99L)).thenReturn(Optional.of(existing));
+        when(merchant.findProductForCartMutation(PRODUCT_ID)).thenReturn(Optional.empty());
+
+        assertThrows(CartOperationException.class,
+                () -> new CartService(carts, items, identity, merchant)
+                        .updateItemQuantity(BUYER_ID, 77L, 3));
+
+        assertEquals(2, existing.getQuantity());
+        verify(items, never()).save(any());
+    }
+
+    @Test
     void nullZeroAndNegativeQuantitiesAreRejected() {
         CartRepository carts = mock(CartRepository.class);
         CartItemRepository items = mock(CartItemRepository.class);
@@ -232,6 +260,7 @@ class CartServiceTest {
 
         assertEquals(new BigDecimal("270000"), view.subtotal());
         assertEquals(new BigDecimal("135000"), view.shops().getFirst().items().getFirst().currentPrice());
+        assertTrue(view.shops().getFirst().items().getFirst().quantityAdjustable());
     }
 
     @Test
@@ -495,6 +524,26 @@ class CartServiceTest {
                 () -> service.updateItemQuantity(BUYER_ID, 777L, 2));
         assertThrows(CartItemNotFoundException.class,
                 () -> service.removeItem(BUYER_ID, 777L));
+        verify(items, never()).save(any());
+        verify(items, never()).delete(any());
+    }
+
+    @Test
+    void lockedUserCannotUpdateOrRemoveCartItemEvenThroughDirectServiceCall() {
+        CartRepository carts = mock(CartRepository.class);
+        CartItemRepository items = mock(CartItemRepository.class);
+        IdentityApi identity = mock(IdentityApi.class);
+        MerchantApi merchant = mock(MerchantApi.class);
+        when(identity.findUser(BUYER_ID)).thenReturn(Optional.of(
+                user(BUYER_ID, UserRole.USER, AccountStatus.LOCKED)));
+        CartService service = new CartService(carts, items, identity, merchant);
+
+        assertThrows(CartOperationException.class,
+                () -> service.updateItemQuantity(BUYER_ID, 77L, 2));
+        assertThrows(CartOperationException.class,
+                () -> service.removeItem(BUYER_ID, 77L));
+
+        verify(carts, never()).findByUserIdForUpdate(any());
         verify(items, never()).save(any());
         verify(items, never()).delete(any());
     }
