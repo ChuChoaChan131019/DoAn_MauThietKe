@@ -27,6 +27,56 @@ class OrderDraftWriterTransactionTest {
     JdbcTemplate jdbc;
 
     @Test
+    void rejectsProductAssignedToAnotherShopBeforeWritingOrders() {
+
+        long ordersBefore = count("orders");
+        long linesBefore = count("order_items");
+        long paymentsBefore = count("payments");
+
+        PreparedCheckout valid = fixture();
+        var first = valid.shopOrders().get(0);
+        var second = valid.shopOrders().get(1);
+        var originalLine = second.items().get(0);
+        var misplacedLine = new PreparedCheckout.Line(
+                first.items().get(0).productId(),
+                originalLine.productNameSnapshot(),
+                originalLine.unitPrice(),
+                originalLine.quantity(),
+                originalLine.subtotal()
+        );
+        var wrongGroup = new PreparedCheckout.ShopOrder(
+                second.buyerId(),
+                second.shopId(),
+                List.of(misplacedLine),
+                second.totalAmount()
+        );
+        var forged = new PreparedCheckout(
+                valid.buyerId(),
+                valid.delivery(),
+                valid.paymentMethod(),
+                List.of(first, wrongGroup),
+                valid.grandTotal(),
+                valid.purchasedCartItems()
+        );
+
+        CheckoutPreparationException error = assertThrows(
+                CheckoutPreparationException.class,
+                () -> transactions.executeWithoutResult(status -> writer.save(
+                        forged,
+                        (method, code, total) -> {
+                            fail("Không được khởi tạo payment cho nhóm sai shop");
+                            return null;
+                        }
+                ))
+        );
+
+        assertTrue(error.getMessage().contains("không thuộc gian hàng"));
+        assertEquals(ordersBefore, count("orders"));
+        assertEquals(linesBefore, count("order_items"));
+        assertEquals(paymentsBefore, count("payments"));
+    }
+
+    @Test
     void savesOneOrderPaymentAndSnapshotPerShopInCallerTransaction() {
 
         long before = count("orders");

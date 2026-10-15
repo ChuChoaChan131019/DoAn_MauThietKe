@@ -1,5 +1,6 @@
 package com.senvia.doangiuaky.ordering.service;
 
+import com.senvia.doangiuaky.merchant.api.MerchantApi;
 import com.senvia.doangiuaky.ordering.entity.*;
 import com.senvia.doangiuaky.ordering.repository.*;
 
@@ -21,11 +22,14 @@ public class OrderDraftWriter {
     private final OrderRepository orders;
     private final OrderItemRepository items;
     private final PaymentRepository payments;
+    private final MerchantApi merchantApi;
 
-    public OrderDraftWriter(OrderRepository orders, OrderItemRepository items, PaymentRepository payments) {
+    public OrderDraftWriter(OrderRepository orders, OrderItemRepository items, PaymentRepository payments,
+            MerchantApi merchantApi) {
         this.orders = orders;
         this.items = items;
         this.payments = payments;
+        this.merchantApi = merchantApi;
     }
 
     // Ket qua khoi tao payment tu PAY 04
@@ -59,6 +63,23 @@ public class OrderDraftWriter {
 
             if (!shopIds.add(group.shopId())) {
                 throw new CheckoutPreparationException("Gian hàng " + group.shopId() + " xuất hiện nhiều lần trong một checkout.");
+            }
+        }
+
+        // Xac minh tung san pham thuoc dung shop truoc khi ghi bat ky don hang nao.
+        for (PreparedCheckout.ShopOrder group : checkout.shopOrders()) {
+            for (PreparedCheckout.Line line : group.items()) {
+                if (line.productId() == null || line.productId() <= 0) {
+                    throw new CheckoutPreparationException("Sản phẩm trong nhóm đơn hàng không hợp lệ.");
+                }
+
+                var product = merchantApi.findProductForCart(line.productId())
+                        .orElseThrow(() -> new CheckoutPreparationException("Sản phẩm trong nhóm đơn hàng không tồn tại."));
+
+                if (!line.productId().equals(product.productId())
+                        || !group.shopId().equals(product.shopId())) {
+                    throw new CheckoutPreparationException("Sản phẩm không thuộc gian hàng của đơn hàng.");
+                }
             }
         }
 
