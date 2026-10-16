@@ -7,6 +7,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.UUID;
 
@@ -80,6 +83,28 @@ class NotificationRepositoryTest {
         Notification saved = notificationRepository.findAllByEventIdOrderByReceiverIdAsc(eventId).getFirst();
         assertFalse(saved.isRead());
         assertNotNull(saved.getCreatedAt());
+    }
+
+    @Test
+    @Transactional
+    void inboxQueriesAreScopedOrderedAndBulkUpdateOnlyUnreadForReceiver() {
+        Long receiverA = insertUser("notification-inbox-a-" + UUID.randomUUID() + "@example.test", "USER");
+        Long receiverB = insertUser("notification-inbox-b-" + UUID.randomUUID() + "@example.test", "USER");
+        Notification olderA = notificationRepository.saveAndFlush(notification(UUID.randomUUID(), receiverA, 81L));
+        Notification newerA = notificationRepository.saveAndFlush(notification(UUID.randomUUID(), receiverA, 82L));
+        notificationRepository.saveAndFlush(notification(UUID.randomUUID(), receiverB, 83L));
+        jdbcTemplate.update("update notifications set created_at = CURRENT_TIMESTAMP - INTERVAL '1' DAY where id = ?", olderA.getId());
+
+        var page = notificationRepository.findByReceiverId(receiverA, PageRequest.of(
+                0, 10, Sort.by(Sort.Order.desc("createdAt"), Sort.Order.desc("id"))));
+
+        assertEquals(2, page.getTotalElements());
+        assertEquals(newerA.getId(), page.getContent().getFirst().getId());
+        assertEquals(2, notificationRepository.countByReceiverIdAndReadFalse(receiverA));
+        assertEquals(2, notificationRepository.markAllReadByReceiverId(receiverA));
+        assertEquals(0, notificationRepository.markAllReadByReceiverId(receiverA));
+        assertEquals(0, notificationRepository.countByReceiverIdAndReadFalse(receiverA));
+        assertEquals(1, notificationRepository.countByReceiverIdAndReadFalse(receiverB));
     }
 
     private Notification notification(UUID eventId, Long receiverId, Long referenceId) {
