@@ -1,0 +1,96 @@
+package com.senvia.doangiuaky.engagement.controller;
+
+import com.senvia.doangiuaky.engagement.dto.NotificationListItem;
+import com.senvia.doangiuaky.engagement.dto.NotificationPageView;
+import com.senvia.doangiuaky.engagement.entity.NotificationType;
+import com.senvia.doangiuaky.engagement.service.NotificationNotFoundException;
+import com.senvia.doangiuaky.engagement.service.NotificationService;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.web.servlet.MockMvc;
+
+import java.time.Instant;
+import java.util.List;
+
+import static org.mockito.Mockito.when;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.flash;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.model;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.view;
+
+@SpringBootTest
+@AutoConfigureMockMvc
+class EngagementControllerTest {
+
+    @Autowired
+    private MockMvc mockMvc;
+
+    @MockitoBean
+    private NotificationService notificationService;
+
+    @Test
+    void anonymousListRedirectsToLogin() throws Exception {
+        mockMvc.perform(get("/account/notifications"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/login"));
+    }
+
+    @Test
+    void listRendersDtoPageAndRealUnreadCount() throws Exception {
+        NotificationListItem item = new NotificationListItem(
+                1L, NotificationType.SHOP_REQUESTED, "Title", "Content", false, Instant.EPOCH);
+        when(notificationService.getNotifications(1))
+                .thenReturn(new NotificationPageView(List.of(item), 1, 1, 1, 1));
+
+        mockMvc.perform(get("/account/notifications").with(user("receiver")))
+                .andExpect(status().isOk())
+                .andExpect(view().name("engagement/notifications"))
+                .andExpect(model().attribute("notifications", List.of(item)))
+                .andExpect(model().attribute("unreadNotifications", 1L));
+    }
+
+    @Test
+    void markOneUsesPostRedirectGetAndKeepsNormalizedPage() throws Exception {
+        when(notificationService.markRead(7L)).thenReturn(true);
+
+        mockMvc.perform(post("/account/notifications/7/read")
+                        .param("page", "0").with(user("receiver")).with(csrf()))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/account/notifications?page=1"))
+                .andExpect(flash().attributeExists("successMessage"));
+    }
+
+    @Test
+    void foreignOrMissingNotificationReturnsNotFound() throws Exception {
+        when(notificationService.markRead(8L)).thenThrow(new NotificationNotFoundException());
+
+        mockMvc.perform(post("/account/notifications/8/read")
+                        .with(user("receiver")).with(csrf()))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void mutationWithoutCsrfIsForbidden() throws Exception {
+        mockMvc.perform(post("/account/notifications/read-all").with(user("receiver")))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void markAllUsesPostRedirectGetAndSupportsNoOp() throws Exception {
+        when(notificationService.markAllRead()).thenReturn(0);
+
+        mockMvc.perform(post("/account/notifications/read-all")
+                        .param("page", "3").with(user("receiver")).with(csrf()))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/account/notifications?page=3"))
+                .andExpect(flash().attribute("successMessage", "Bạn không có thông báo chưa đọc."));
+    }
+}
