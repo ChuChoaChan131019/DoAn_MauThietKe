@@ -2,6 +2,7 @@ package com.senvia.doangiuaky.merchant.controller;
 
 import com.senvia.doangiuaky.merchant.dto.CatalogFilterForm;
 import com.senvia.doangiuaky.merchant.dto.CatalogFilterResult;
+import com.senvia.doangiuaky.merchant.dto.CatalogProductCardView;
 import com.senvia.doangiuaky.merchant.dto.CatalogProductDetailView;
 import com.senvia.doangiuaky.merchant.entity.Category;
 import com.senvia.doangiuaky.merchant.service.CategoryManagementService;
