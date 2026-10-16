@@ -5,6 +5,7 @@ import com.senvia.doangiuaky.ordering.entity.PaymentMethod;
 import com.senvia.doangiuaky.ordering.dto.CheckoutSelectionView;
 import com.senvia.doangiuaky.ordering.service.CheckoutSelectionService;
 import com.senvia.doangiuaky.ordering.service.CheckoutPreviewService;
+import com.senvia.doangiuaky.ordering.service.SellerOrderReadService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -44,6 +45,9 @@ class PaymentMethodSelectionTest {
 
     @MockitoBean
     private CheckoutTransactionService checkoutTransactionService;
+
+    @MockitoBean
+    private SellerOrderReadService sellerOrderReadService;
 
     @BeforeEach
     void setUp() {

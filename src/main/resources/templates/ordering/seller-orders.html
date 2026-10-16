@@ -14,7 +14,7 @@
                             <img src="https://images.unsplash.com/photo-1540200049848-d9813ea0e120?w=100&q=80" alt="Shop" class="w-100 h-100 object-fit-cover">
                         </div>
                         <div>
-                            <div class="fw-bold text-plum">NOLA Official</div>
+                            <div class="fw-bold text-plum">Gian hàng của bạn</div>
                             <a th:href="@{/merchant/shop-public}" class="small text-burgundy text-decoration-none">Xem gian hàng &rarr;</a>
                         </div>
                     </div>
@@ -71,85 +71,34 @@
                         </div>
                         
                         <div class="d-flex gap-3 mb-3 seller-order-product">
-                            <img th:src="${order.productImage}" alt="Product" class="bg-ivory object-fit-cover flex-shrink-0" style="width: 80px; height: 80px; min-width: 80px;" onerror="this.src='https://placehold.co/80x80/f5f0ea/7c4a5e?text=SP'">
+                            <div class="bg-ivory d-flex align-items-center justify-content-center flex-shrink-0" style="width: 80px; height: 80px; min-width: 80px;"><i class="bi bi-box-seam fs-3 text-plum"></i></div>
                             <div class="flex-grow-1" style="min-width: 0;">
-                                <h6 class="text-plum mb-1" th:text="${order.productName}">Nước Hoa Le Labo Santal 33</h6>
-                                <p class="text-muted small mb-2" th:text="${order.productVariant}">Phân loại: 50ml</p>
-                                <div class="d-flex flex-wrap justify-content-between gap-2">
-                                    <span class="text-plum">x1</span>
-                                    <span class="text-plum fw-medium" th:text="${order.productPrice}">4.500.000₫</span>
+                                <div th:each="item : ${order.items}" class="mb-2">
+                                    <h6 class="text-plum mb-1" th:text="${item.name}">Sản phẩm</h6>
+                                    <p class="text-muted small mb-1">Mã sản phẩm: <span th:text="${item.productId}"></span></p>
+                                    <div class="d-flex flex-wrap justify-content-between gap-2">
+                                        <span class="text-plum">x<span th:text="${item.quantity}">1</span></span>
+                                        <span class="text-plum fw-medium" th:text="${#numbers.formatDecimal(item.subtotal, 1, 'POINT', 0, 'COMMA')} + '₫'">0₫</span>
+                                    </div>
                                 </div>
                             </div>
                         </div>
                         
                         <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center border-top pt-3 gap-3">
-                            <div class="text-muted">Tổng tiền: <span class="text-burgundy fw-bold fs-5 ms-2" th:text="${order.total}">4.530.000₫</span> <span class="small" th:text="'(' + ${order.payment} + ')'">(COD)</span></div>
+                            <div class="text-muted">Tổng tiền: <span class="text-burgundy fw-bold fs-5 ms-2" th:text="${#numbers.formatDecimal(order.total, 1, 'POINT', 0, 'COMMA')} + '₫'">0₫</span> <span class="small" th:text="'(' + ${order.payment.method} + ')'">(COD)</span></div>
                             <div class="d-flex flex-wrap gap-2">
-                                <button th:if="${order.status == 'PENDING' or order.status == 'CONFIRMED' or order.status == 'PREPARING'}" class="btn border border-clay text-muted rounded-0 px-4 hover-border-plum transition-colors" data-bs-toggle="modal" data-bs-target="#cancelOrderModal" th:attr="data-id=${order.id}">Hủy đơn</button>
-                                <a th:href="@{/merchant/orders/detail(id=${order.id})}" class="btn bg-burgundy text-white rounded-0 px-4 hover-bg-plum transition-colors">Xem chi tiết & Xử lý</a>
+                                <a th:href="@{/merchant/orders/detail(id=${order.id})}" class="btn bg-burgundy text-white rounded-0 px-4 hover-bg-plum transition-colors">Xem chi tiết</a>
                             </div>
                         </div>
                     </div>
                 </div>
-                <!-- Pagination -->
-                <nav class="mt-5" th:if="${!orders.isEmpty()}">
-                    <ul class="pagination justify-content-center border-0 gap-2">
-                        <li class="page-item disabled"><a class="page-link border-0 text-muted shadow-none bg-transparent" href="#">&larr; Trước</a></li>
-                        <li class="page-item active"><a class="page-link border-0 bg-plum text-white rounded-circle shadow-none" href="#" style="width: 36px; height: 36px; display: flex; align-items: center; justify-content: center;">1</a></li>
-                        <li class="page-item disabled"><a class="page-link border-0 text-muted shadow-none bg-transparent" href="#">Sau &rarr;</a></li>
-                    </ul>
-                </nav>
             </div>
         </div>
     </main>
 
-    <!-- Cancel Order Modal -->
-    <div class="modal fade" id="cancelOrderModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content rounded-0 border-0 shadow">
-                <div class="modal-header border-bottom-0 pt-4 px-4 pb-0">
-                    <h5 class="modal-title fw-bold text-plum">Hủy Đơn Hàng</h5>
-                    <button type="button" class="btn-close shadow-none" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body p-4">
-                    <p class="text-muted mb-3">Vui lòng chọn lý do bạn từ chối/hủy đơn hàng này:</p>
-                    <form id="cancelOrderForm" th:action="@{/merchant/orders/status}" method="get">
-                        <input type="hidden" name="id" value="">
-                        <input type="hidden" name="action" value="CANCEL">
-                        <input type="hidden" name="redirect" value="/merchant/orders">
-                        <select name="reason" class="form-select bg-ivory border-0 rounded-0 shadow-none mb-3 py-2 text-plum" required>
-                            <option value="" selected disabled>Chọn lý do hủy...</option>
-                            <option value="Hết hàng">Hết hàng</option>
-                            <option value="Không thể giao đến khu vực này">Không thể giao đến khu vực này</option>
-                            <option value="Khách hàng yêu cầu hủy">Khách hàng yêu cầu hủy</option>
-                            <option value="Khách hàng chưa thanh toán quá hạn">Khách hàng chưa thanh toán quá hạn</option>
-                            <option value="Lý do khác">Lý do khác</option>
-                        </select>
-                        <textarea class="form-control bg-ivory border-0 rounded-0 shadow-none text-plum" rows="3" placeholder="Chi tiết lý do (không bắt buộc)"></textarea>
-                    </form>
-                </div>
-                <div class="modal-footer border-top-0 pb-4 px-4 pt-0 d-flex gap-2 flex-nowrap">
-                    <button type="button" class="btn border border-clay text-plum rounded-0 flex-grow-1 m-0 hover-border-plum transition-colors" data-bs-dismiss="modal">Đóng</button>
-                    <button type="submit" form="cancelOrderForm" class="btn bg-burgundy text-white rounded-0 flex-grow-1 m-0 hover-bg-plum transition-colors">Xác nhận hủy</button>
-                </div>
-            </div>
-        </div>
-    </div>
-    
     <div th:replace="~{fragments/footer :: footer}"></div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            var cancelOrderModal = document.getElementById('cancelOrderModal')
-            cancelOrderModal.addEventListener('show.bs.modal', function (event) {
-                var button = event.relatedTarget
-                var orderId = button.getAttribute('data-id')
-                var modalInput = cancelOrderModal.querySelector('input[name="id"]')
-                modalInput.value = orderId
-            })
-        })
-    </script>
 </body>
 </html>

@@ -8,6 +8,7 @@ import com.senvia.doangiuaky.ordering.service.CheckoutPreparationException;
 import com.senvia.doangiuaky.ordering.service.CheckoutPreviewService;
 import com.senvia.doangiuaky.ordering.service.CheckoutSelectionException;
 import com.senvia.doangiuaky.ordering.service.CheckoutSelectionService;
+import com.senvia.doangiuaky.ordering.service.SellerOrderReadService;
 import com.senvia.doangiuaky.ordering.service.PreparedCheckout;
 import com.senvia.doangiuaky.shopping.api.CheckoutCartItem;
 import org.junit.jupiter.api.BeforeEach;
@@ -50,6 +51,9 @@ class CheckoutPreviewControllerTest {
 
     @MockitoBean
     private CheckoutTransactionService checkoutTransactionService;
+
+    @MockitoBean
+    private SellerOrderReadService sellerOrderReadService;
 
     @BeforeEach
     void selection() {
