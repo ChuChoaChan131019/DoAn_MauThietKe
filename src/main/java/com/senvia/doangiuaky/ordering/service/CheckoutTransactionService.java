@@ -22,13 +22,13 @@ public class CheckoutTransactionService {
     private final CheckoutPreparationService preparation;
     private final MerchantStockApi merchantStock;
     private final OrderDraftWriter writer;
-    private final PaymentInitializationService payments;
+    private final OrderDraftWriter.PaymentSeedProvider payments;
     private final CheckoutCartApi checkoutCart;
     private final OrderRepository orders;
     private final PaymentRepository paymentRepository;
 
     public CheckoutTransactionService(CheckoutPreparationService preparation, MerchantStockApi merchantStock,
-            OrderDraftWriter writer, PaymentInitializationService payments, CheckoutCartApi checkoutCart,
+            OrderDraftWriter writer, OrderDraftWriter.PaymentSeedProvider payments, CheckoutCartApi checkoutCart,
             OrderRepository orders, PaymentRepository paymentRepository) {
         this.preparation = preparation;
         this.merchantStock = merchantStock;
