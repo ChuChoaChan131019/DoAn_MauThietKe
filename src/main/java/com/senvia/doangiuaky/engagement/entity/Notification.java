@@ -106,6 +106,14 @@ public class Notification {
         return read;
     }
 
+    public boolean markRead() {
+        if (read) {
+            return false;
+        }
+        read = true;
+        return true;
+    }
+
     public Instant getCreatedAt() {
         return createdAt;
     }
