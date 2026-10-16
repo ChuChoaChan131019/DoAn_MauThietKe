@@ -46,6 +46,8 @@ class Pay06RollbackIntegrationTest {
     @Autowired
     private Faults faults;
 
+    private String fixtureEmail;
+
     // Chỉ dùng trong kiểm thử, không ảnh hưởng production.
     static class Faults {
         final AtomicBoolean failOnSecondDeduction =
@@ -173,7 +175,48 @@ class Pay06RollbackIntegrationTest {
 
     @AfterEach
     void afterEach() {
-        faults.reset();
+        try {
+            if (fixtureEmail != null) {
+                deleteFixtureRows(fixtureEmail);
+            }
+        } finally {
+            fixtureEmail = null;
+            faults.reset();
+        }
+    }
+
+    private void deleteFixtureRows(String email) {
+        // Dọn cả dữ liệu checkout nếu test thất bại trước khi kiểm tra rollback.
+        db.update("""
+                DELETE FROM payments
+                WHERE order_id IN (
+                    SELECT id FROM orders
+                    WHERE buyer_id IN (SELECT id FROM users WHERE email = ?)
+                )
+                """, email);
+        db.update("""
+                DELETE FROM order_items
+                WHERE order_id IN (
+                    SELECT id FROM orders
+                    WHERE buyer_id IN (SELECT id FROM users WHERE email = ?)
+                )
+                """, email);
+        db.update("""
+                DELETE FROM orders
+                WHERE buyer_id IN (SELECT id FROM users WHERE email = ?)
+                """, email);
+        db.update("""
+                DELETE FROM cart_items
+                WHERE cart_id IN (
+                    SELECT id FROM carts
+                    WHERE user_id IN (SELECT id FROM users WHERE email = ?)
+                )
+                """, email);
+        db.update("""
+                DELETE FROM carts
+                WHERE user_id IN (SELECT id FROM users WHERE email = ?)
+                """, email);
+        db.update("DELETE FROM users WHERE email = ?", email);
     }
 
     // Dữ liệu dành riêng cho mỗi test.
@@ -194,6 +237,8 @@ class Pay06RollbackIntegrationTest {
 
         String email = "pay06-" + UUID.randomUUID()
                 + "@example.com";
+
+        fixtureEmail = email;
 
         db.update("""
                 INSERT INTO users (
