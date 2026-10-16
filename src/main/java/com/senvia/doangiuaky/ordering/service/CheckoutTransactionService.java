@@ -3,10 +3,8 @@ package com.senvia.doangiuaky.ordering.service;
 import com.senvia.doangiuaky.merchant.api.MerchantStockApi;
 
 import com.senvia.doangiuaky.ordering.entity.Order;
-import com.senvia.doangiuaky.ordering.entity.Payment;
-
 import com.senvia.doangiuaky.ordering.repository.OrderRepository;
-import com.senvia.doangiuaky.ordering.repository.PaymentRepository;
+import com.senvia.doangiuaky.ordering.dto.PaymentDetails;
 
 import com.senvia.doangiuaky.shopping.api.CheckoutCartApi;
 
@@ -22,21 +20,21 @@ public class CheckoutTransactionService {
     private final CheckoutPreparationService preparation;
     private final MerchantStockApi merchantStock;
     private final OrderDraftWriter writer;
-    private final PaymentInitializationService payments;
+    private final OrderDraftWriter.PaymentSeedProvider payments;
     private final CheckoutCartApi checkoutCart;
     private final OrderRepository orders;
-    private final PaymentRepository paymentRepository;
+    private final PaymentQueryService paymentQueryService;
 
     public CheckoutTransactionService(CheckoutPreparationService preparation, MerchantStockApi merchantStock,
-            OrderDraftWriter writer, PaymentInitializationService payments, CheckoutCartApi checkoutCart,
-            OrderRepository orders, PaymentRepository paymentRepository) {
+            OrderDraftWriter writer, OrderDraftWriter.PaymentSeedProvider payments, CheckoutCartApi checkoutCart,
+            OrderRepository orders, PaymentQueryService paymentQueryService) {
         this.preparation = preparation;
         this.merchantStock = merchantStock;
         this.writer = writer;
         this.payments = payments;
         this.checkoutCart = checkoutCart;
         this.orders = orders;
-        this.paymentRepository = paymentRepository;
+        this.paymentQueryService = paymentQueryService;
     }
 
     @Transactional(rollbackFor = Exception.class)
@@ -96,7 +94,7 @@ public class CheckoutTransactionService {
         for (int i = 0; i < orderIds.size(); i++) {
             Long orderId = orderIds.get(i);
             Order order = orders.findById(orderId).orElseThrow();
-            Payment payment = paymentRepository.findByOrderId(orderId).orElseThrow();
+            PaymentDetails payment = paymentQueryService.getByOrderId(orderId);
 
             summaries.add(
                     new CheckoutReceipt.ShopReceipt(
@@ -105,9 +103,9 @@ public class CheckoutTransactionService {
                                     .shopNameSnapshot(),
                             order.getOrderCode(),
                             order.getTotalAmount(),
-                            payment.getMethod(),
-                            payment.getStatus(),
-                            payment.getTransactionReference()
+                            payment.method(),
+                            payment.status(),
+                            payment.transactionReference()
                     )
             );
         }
