@@ -382,6 +382,16 @@ class Pay06ConcurrentCheckoutIntegrationTest {
 
         db.update(
                 """
+                DELETE FROM order_status_histories
+                WHERE order_id IN (
+                    SELECT id FROM orders WHERE buyer_id = ?
+                )
+                """,
+                buyer.userId()
+        );
+
+        db.update(
+                """
                 DELETE FROM payments
                 WHERE order_id IN (
                     SELECT id FROM orders WHERE buyer_id = ?
