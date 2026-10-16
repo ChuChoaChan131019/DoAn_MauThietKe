@@ -2,11 +2,15 @@
 package com.senvia.doangiuaky.ordering.controller;
 
 import com.senvia.doangiuaky.merchant.api.MerchantApi;
+import com.senvia.doangiuaky.ordering.api.OrderCreatedEvent;
+
 import com.senvia.doangiuaky.ordering.service.OrderDraftWriter;
 import com.senvia.doangiuaky.ordering.service.PreparedCheckout;
+
 import com.senvia.doangiuaky.ordering.repository.OrderItemRepository;
 import com.senvia.doangiuaky.ordering.repository.OrderRepository;
 import com.senvia.doangiuaky.ordering.repository.PaymentRepository;
+import com.senvia.doangiuaky.ordering.repository.OrderStatusHistoryRepository;
 
 import org.junit.jupiter.api.Test;
 
@@ -21,8 +25,12 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.mock.web.MockHttpSession;
 import org.springframework.test.web.servlet.MockMvc;
 
+import org.springframework.transaction.event.TransactionPhase;
+import org.springframework.transaction.event.TransactionalEventListener;
+
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -42,20 +50,75 @@ class CheckoutRollbackIntegrationTest {
     @Autowired
     FailureAfterSaveConfiguration failureConfiguration;
 
+    @Autowired
+    OrderCreatedEventProbe eventProbe;
+
+    /**
+     * Listener chi ghi nhan event khi transaction commit.
+     */
+    static class OrderCreatedEventProbe {
+
+        private final List<OrderCreatedEvent> handledEvents =
+                new CopyOnWriteArrayList<>();
+
+        @TransactionalEventListener(
+                phase = TransactionPhase.AFTER_COMMIT,
+                fallbackExecution = false
+        )
+        public void handle(OrderCreatedEvent event) {
+            handledEvents.add(event);
+        }
+
+        long countForBuyer(Long buyerId) {
+            return handledEvents.stream()
+                    .filter(event ->
+                            buyerId.equals(event.buyerId()))
+                    .count();
+        }
+    }
+
     @TestConfiguration(proxyBeanMethods = false)
     static class FailureAfterSaveConfiguration {
-        private final AtomicBoolean savedBeforeFailure = new AtomicBoolean();
+
+        private final AtomicBoolean savedBeforeFailure =
+                new AtomicBoolean();
+
+        @Bean
+        OrderCreatedEventProbe orderCreatedEventProbe() {
+            return new OrderCreatedEventProbe();
+        }
 
         @Bean
         @Primary
-        OrderDraftWriter failingOrderDraftWriter(OrderRepository orders, OrderItemRepository items,
-                PaymentRepository payments, MerchantApi merchantApi) {
-            return new OrderDraftWriter(orders, items, payments, merchantApi) {
+        OrderDraftWriter failingOrderDraftWriter(
+                OrderRepository orders,
+                OrderItemRepository items,
+                PaymentRepository payments,
+                OrderStatusHistoryRepository histories,
+                MerchantApi merchantApi
+        ) {
+            return new OrderDraftWriter(
+                    orders,
+                    items,
+                    payments,
+                    histories,
+                    merchantApi
+            ) {
                 @Override
-                public List<Long> save(PreparedCheckout checkout, PaymentSeedProvider paymentSeedProvider) {
-                    super.save(checkout, paymentSeedProvider);
+                public List<Long> save(
+                        PreparedCheckout checkout,
+                        PaymentSeedProvider paymentSeedProvider
+                ) {
+                    super.save(
+                            checkout,
+                            paymentSeedProvider
+                    );
+
                     savedBeforeFailure.set(true);
-                    throw new IllegalStateException("Simulated failure after insert");
+
+                    throw new IllegalStateException(
+                            "Simulated failure after insert"
+                    );
                 }
             };
         }
@@ -99,7 +162,11 @@ class CheckoutRollbackIntegrationTest {
         );
 
         Long product = db.queryForObject(
-                "SELECT id FROM products WHERE name = 'Canvas Tote Bag'",
+                """
+                SELECT id
+                FROM products
+                WHERE name = 'Canvas Tote Bag'
+                """,
                 Long.class
         );
 
@@ -139,9 +206,19 @@ class CheckoutRollbackIntegrationTest {
                 cart
         );
 
+        // ORDER 03:
+        // Lay so luong history TRUOC khi checkout.
+        int historiesBefore = db.queryForObject(
+                "SELECT COUNT(*) FROM order_status_histories",
+                Integer.class
+        );
+
+        // So event da duoc xu ly cua buyer nay.
+        long eventsBefore = eventProbe.countForBuyer(buyer);
+
         MockHttpSession session = new MockHttpSession();
 
-        // 1. Tạo bản xem trước hợp lệ.
+        // 1. Tao ban xem truoc hop le.
         var preview = mvc.perform(
                     post("/checkout")
                             .session(session)
@@ -150,7 +227,10 @@ class CheckoutRollbackIntegrationTest {
                             .param("itemIds", item.toString())
                             .param("receiverName", "Buyer")
                             .param("receiverPhone", "0901234567")
-                            .param("shippingAddress", "123 Test Street")
+                            .param(
+                                    "shippingAddress",
+                                    "123 Test Street"
+                            )
                             .param("paymentMethod", "COD")
                 )
                 .andReturn();
@@ -162,7 +242,9 @@ class CheckoutRollbackIntegrationTest {
 
         assertNotNull(token);
 
-        // 2. Xác nhận đơn hàng; test bean phát sinh lỗi sau khi lưu thật.
+        // 2. Confirm checkout.
+        // Test bean se gay loi sau khi OrderDraftWriter
+        // luu order/items/payment/history.
         var result = mvc.perform(
                     post("/checkout/confirm")
                             .session(session)
@@ -172,28 +254,36 @@ class CheckoutRollbackIntegrationTest {
                 )
                 .andReturn();
 
-        // Controller hiển thị lỗi, không báo thành công.
+        // 3. Controller hien thi loi.
         assertEquals(
                 200,
                 result.getResponse().getStatus()
         );
-        assertTrue(failureConfiguration.savedBeforeFailure.get(),
-                "Test phải đi qua bước lưu order/payment trước khi phát sinh lỗi.");
 
-        // 4. Không có Order được lưu.
+        assertTrue(
+                failureConfiguration.savedBeforeFailure.get(),
+                "Phải lưu dữ liệu trước khi phát sinh lỗi."
+        );
+
+        // 4. Order phai rollback.
         assertEquals(
                 0,
                 db.queryForObject(
-                        "SELECT COUNT(*) FROM orders WHERE buyer_id = ?",
+                        """
+                        SELECT COUNT(*)
+                        FROM orders
+                        WHERE buyer_id = ?
+                        """,
                         Integer.class,
                         buyer
                 )
         );
 
-        // 5. Không có Payment được lưu.
+        // 5. Payment phai rollback.
         assertEquals(
                 0,
-                db.queryForObject("""
+                db.queryForObject(
+                        """
                         SELECT COUNT(*)
                         FROM payments p
                         JOIN orders o ON p.order_id = o.id
@@ -204,24 +294,51 @@ class CheckoutRollbackIntegrationTest {
                 )
         );
 
-        // 6. Kho phải được khôi phục.
+        // 6. Stock phai duoc khoi phuc.
         assertEquals(
                 stock,
                 db.queryForObject(
-                        "SELECT stock_quantity FROM products WHERE id = ?",
+                        """
+                        SELECT stock_quantity
+                        FROM products
+                        WHERE id = ?
+                        """,
                         Integer.class,
                         product
                 )
         );
 
-        // 7. Cart item vẫn tồn tại.
+        // 7. Cart item van ton tai.
         assertEquals(
                 1,
                 db.queryForObject(
-                        "SELECT COUNT(*) FROM cart_items WHERE cart_id = ?",
+                        """
+                        SELECT COUNT(*)
+                        FROM cart_items
+                        WHERE cart_id = ?
+                        """,
                         Integer.class,
                         cart
                 )
+        );
+
+        // 8. ORDER 03:
+        // So sanh history truoc va sau checkout.
+        assertEquals(
+                historiesBefore,
+                db.queryForObject(
+                        "SELECT COUNT(*) FROM order_status_histories",
+                        Integer.class
+                ),
+                "Checkout lỗi không được giữ lại history."
+        );
+
+        // 9. ORDER 03:
+        // Event khong duoc listener AFTER_COMMIT xu ly.
+        assertEquals(
+                eventsBefore,
+                eventProbe.countForBuyer(buyer),
+                "Rollback không được xử lý OrderCreatedEvent."
         );
     }
 }

@@ -1,20 +1,28 @@
 
 package com.senvia.doangiuaky.ordering.controller;
 
+import com.senvia.doangiuaky.ordering.api.OrderCreatedEvent;
 import org.junit.jupiter.api.Test;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.context.annotation.Bean;
 
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.mock.web.MockHttpSession;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.transaction.event.TransactionPhase;
+import org.springframework.transaction.event.TransactionalEventListener;
 
 import java.math.BigDecimal;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.*;
@@ -30,6 +38,32 @@ class CheckoutTransactionIntegrationTest {
 
     @Autowired
     JdbcTemplate db;
+
+    @Autowired
+    OrderCreatedEventProbe eventProbe;
+
+    static class OrderCreatedEventProbe {
+        private final List<OrderCreatedEvent> handledEvents = new CopyOnWriteArrayList<>();
+
+        @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = false)
+        public void handle(OrderCreatedEvent event) {
+            handledEvents.add(event);
+        }
+
+        List<OrderCreatedEvent> eventsForBuyer(Long buyerId) {
+            return handledEvents.stream()
+                    .filter(event -> buyerId.equals(event.buyerId()))
+                    .toList();
+        }
+    }
+
+    @TestConfiguration(proxyBeanMethods = false)
+    static class OrderCreatedEventTestConfiguration {
+        @Bean
+        OrderCreatedEventProbe orderCreatedEventProbe() {
+            return new OrderCreatedEventProbe();
+        }
+    }
 
     record Fixture(
             String email,
@@ -226,6 +260,7 @@ class CheckoutTransactionIntegrationTest {
             assertEquals(2, db.queryForObject(
                     "SELECT COUNT(*) FROM payments p JOIN orders o ON o.id = p.order_id WHERE o.buyer_id = ?",
                     Integer.class, f.buyerId()));
+            assertOrder03Created(f);
         } finally {
             db.update("UPDATE products SET stock_quantity = ? WHERE id = ?", f.toteBefore(), f.toteId());
             db.update("UPDATE products SET stock_quantity = ? WHERE id = ?", f.lampBefore(), f.lampId());
@@ -257,6 +292,8 @@ class CheckoutTransactionIntegrationTest {
                 "/checkout/success",
                 result.getResponse().getRedirectedUrl()
         );
+
+        assertOrder03Created(f);
 
         // Mỗi shop phải có một Order.
         assertEquals(
@@ -424,6 +461,8 @@ class CheckoutTransactionIntegrationTest {
                         f.buyerId()
                 )
         );
+
+        assertEquals(2, eventProbe.eventsForBuyer(f.buyerId()).size());
     }
 
     @Test
@@ -497,6 +536,8 @@ class CheckoutTransactionIntegrationTest {
                     stock(f.lampId())
             );
 
+            assertNoOrder03SideEffects(f);
+
         } finally {
 
             db.update(
@@ -559,6 +600,8 @@ class CheckoutTransactionIntegrationTest {
                     stock(f.toteId())
             );
 
+            assertNoOrder03SideEffects(f);
+
         } finally {
 
             db.update(
@@ -567,6 +610,66 @@ class CheckoutTransactionIntegrationTest {
                     f.lampId()
             );
         }
+    }
+
+    void assertOrder03Created(Fixture f) {
+        List<Long> orderIds = db.queryForList(
+                "SELECT id FROM orders WHERE buyer_id = ? ORDER BY id",
+                Long.class,
+                f.buyerId());
+        assertEquals(2, orderIds.size());
+        assertEquals(2, db.queryForObject(
+                "SELECT COUNT(*) FROM orders WHERE buyer_id = ? AND status = 'PENDING'",
+                Integer.class,
+                f.buyerId()));
+        assertEquals(2, db.queryForObject("""
+                SELECT COUNT(*) FROM order_status_histories h
+                JOIN orders o ON o.id = h.order_id
+                WHERE o.buyer_id = ?
+                  AND h.old_status IS NULL
+                  AND h.new_status = 'PENDING'
+                  AND h.changed_by = ?
+                """, Integer.class, f.buyerId(), f.buyerId()));
+
+        for (Long orderId : orderIds) {
+            assertEquals(1, db.queryForObject(
+                    "SELECT COUNT(*) FROM order_status_histories WHERE order_id = ?",
+                    Integer.class,
+                    orderId));
+        }
+
+        List<OrderCreatedEvent> events = eventProbe.eventsForBuyer(f.buyerId());
+        assertEquals(2, events.size());
+        Set<Long> eventOrderIds = new HashSet<>();
+        Set<UUID> eventIds = new HashSet<>();
+        for (OrderCreatedEvent event : events) {
+            assertNotNull(event.eventId());
+            assertNotNull(event.occurredAt());
+            assertNotNull(event.orderCode());
+            assertEquals("PENDING", event.status());
+            assertEquals(f.buyerId(), event.buyerId());
+            assertEquals(f.buyerId(), event.actorId());
+            assertTrue(eventIds.add(event.eventId()), "Event ID không được trùng.");
+            assertTrue(eventOrderIds.add(event.orderId()), "Một order không được phát event trùng.");
+
+            Long persistedShopId = db.queryForObject(
+                    "SELECT shop_id FROM orders WHERE id = ?", Long.class, event.orderId());
+            String persistedCode = db.queryForObject(
+                    "SELECT order_code FROM orders WHERE id = ?", String.class, event.orderId());
+            assertEquals(persistedShopId, event.shopId());
+            assertEquals(persistedCode, event.orderCode());
+        }
+        assertEquals(new HashSet<>(orderIds), eventOrderIds);
+    }
+
+    void assertNoOrder03SideEffects(Fixture f) {
+        assertEquals(0, db.queryForObject("""
+                SELECT COUNT(*) FROM order_status_histories h
+                JOIN orders o ON o.id = h.order_id
+                WHERE o.buyer_id = ?
+                """, Integer.class, f.buyerId()));
+        assertTrue(eventProbe.eventsForBuyer(f.buyerId()).isEmpty(),
+                "Checkout thất bại không được xử lý OrderCreatedEvent.");
     }
 
     int stock(Long productId) {
