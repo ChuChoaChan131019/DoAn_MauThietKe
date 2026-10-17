@@ -138,77 +138,125 @@
                     </div>
                 </div>
 
-                <!-- Order Status Information -->
-                <h5 class="fw-bold text-plum mb-3 border-bottom pb-3 mt-4">
-                    Thông tin trạng thái đơn hàng
-                </h5>
+                <!-- ORDER 07: Real Order Status History -->
+                <section class="mb-5">
 
-                <div class="mb-5 px-3">
+                    <div class="d-flex align-items-center justify-content-between
+                                border-bottom pb-3 mb-4">
 
-                    <!-- Order Created -->
-                    <div class="d-flex position-relative border-start border-2 border-burgundy pb-4 ps-4">
+                        <h5 class="fw-bold text-plum mb-0">
+                            <i class="bi bi-clock-history me-2"></i>
+                            Lịch sử trạng thái đơn hàng
+                        </h5>
 
-                        <span class="position-absolute bg-burgundy rounded-circle"
-                              style="width: 12px; height: 12px; left: -7px; top: 0;">
+                        <span class="small text-muted"
+                            th:text="${#lists.size(history)} + ' mốc'">
                         </span>
-
-                        <div class="d-flex flex-column mt-n1">
-
-                            <span class="fw-bold text-plum">
-                                Khách hàng đặt đơn
-                            </span>
-
-                            <span class="text-muted small"
-                                  th:text="${order.date}">
-                            </span>
-                        </div>
                     </div>
 
-                    <!-- Current Order Status -->
-                    <div class="d-flex position-relative border-start border-2 border-clay pb-4 ps-4">
+                    <!-- Không có lịch sử -->
+                    <div th:if="${#lists.isEmpty(history)}"
+                        class="bg-ivory border border-clay p-4 text-muted small">
 
-                        <span class="position-absolute bg-clay rounded-circle"
-                              style="width: 12px; height: 12px; left: -7px; top: 0;">
-                        </span>
+                        <i class="bi bi-info-circle me-2"></i>
+                        Chưa có lịch sử trạng thái cho đơn hàng này.
+                    </div>
 
-                        <div class="d-flex flex-column mt-n1 text-muted">
+                    <!-- Timeline thật -->
+                    <div th:unless="${#lists.isEmpty(history)}"
+                        class="ps-3">
 
-                            <span class="fw-bold">
-                                Trạng thái hiện tại
+                        <div th:each="entry, iter : ${history}"
+                            class="d-flex position-relative border-start border-2
+                                    border-clay ps-4"
+                            th:classappend="${iter.last} ? ' pb-0' : ' pb-4'">
+
+                            <!-- Timeline dot -->
+                            <span class="position-absolute rounded-circle"
+                                th:classappend="${entry.newStatus == 'CANCELLED'}
+                                        ? ' bg-danger'
+                                        : ' bg-burgundy'"
+                                style="width: 13px;
+                                        height: 13px;
+                                        left: -8px;
+                                        top: 2px;">
                             </span>
 
-                            <span th:if="${status == 'PENDING'}"
-                                  class="small">
-                                Chờ xác nhận
-                            </span>
+                            <div class="w-100">
 
-                            <span th:if="${status == 'CONFIRMED'}"
-                                  class="small">
-                                Đã xác nhận
-                            </span>
+                                <!-- Tên trạng thái -->
+                                <h6 class="fw-bold text-plum mb-1"
+                                    th:text="${entry.statusLabel}">
+                                    Đơn hàng được tạo
+                                </h6>
 
-                            <span th:if="${status == 'PREPARING'}"
-                                  class="small">
-                                Đang chuẩn bị hàng
-                            </span>
+                                <!-- Thời điểm -->
+                                <div class="small text-muted mb-2">
 
-                            <span th:if="${status == 'SHIPPING'}"
-                                  class="small">
-                                Đang giao hàng
-                            </span>
+                                    <i class="bi bi-calendar-event me-1"></i>
 
-                            <span th:if="${status == 'COMPLETED'}"
-                                  class="small text-success">
-                                Đã hoàn thành
-                            </span>
+                                    <span th:text="${entry.displayTime}">
+                                    </span>
+                                </div>
 
-                            <span th:if="${status == 'CANCELLED'}"
-                                  class="small text-danger">
-                                Đơn hàng đã bị hủy
-                            </span>
+                                <!-- Trạng thái trước và sau -->
+                                <div class="small mb-2">
+
+                                    <span th:if="${entry.oldStatus == null}"
+                                        class="text-muted">
+                                        Khởi tạo đơn hàng
+                                    </span>
+
+                                    <div th:if="${entry.oldStatus != null}"
+                                        class="d-flex align-items-center
+                                                flex-wrap gap-2">
+
+                                        <span class="border border-clay
+                                                    px-2 py-1 text-muted"
+                                            th:text="${entry.oldStatus}">
+                                        </span>
+
+                                        <i class="bi bi-arrow-right text-burgundy">
+                                        </i>
+
+                                        <span class="border border-clay
+                                                    px-2 py-1 fw-bold text-plum"
+                                            th:text="${entry.newStatus}">
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <!-- Người thực hiện -->
+                                <div class="text-muted small mb-2">
+
+                                    <i class="bi bi-person me-1"></i>
+
+                                    Người thực hiện: #
+
+                                    <span th:text="${entry.changedBy}">
+                                    </span>
+                                </div>
+
+                                <!-- Ghi chú thực tế -->
+                                <div th:if="${entry.note != null
+                                            and !#strings.isEmpty(entry.note)}"
+                                    class="bg-ivory border-start border-3
+                                            border-clay p-3 mt-2">
+
+                                    <div class="small text-muted mb-1">
+                                        Ghi chú
+                                    </div>
+
+                                    <div class="small text-plum"
+                                        style="white-space: pre-wrap;
+                                                overflow-wrap: anywhere;"
+                                        th:text="${entry.note}">
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
-                </div>
+                </section>
 
                 <!-- Seller Actions -->
                 <!-- ORDER 04: Seller Status Actions -->

@@ -50,59 +50,66 @@ class Pay05BankTransferConfirmationIntegrationTest {
     @Autowired
     EntityManager entityManager;
 
-    // Danh sách buyer do test PAY 05 tạo ra.
-    // Dùng để cleanup sau mỗi test.
+    // Danh sách buyer được tạo trong quá trình test.
     private final List<String> createdBuyerEmails =
             new ArrayList<>();
 
     /**
      * Dọn dữ liệu sau mỗi test.
      *
-     * @AfterEach vẫn chạy khi test thất bại
-     * do assertion hoặc exception.
-     *
-     * Chỉ xóa dữ liệu thuộc buyer do PAY 05 tạo.
-     * Không xóa tài khoản/shop demo có sẵn.
+     * Chỉ xóa dữ liệu của buyer do PAY 05 tạo.
+     * Không xóa tài khoản hoặc shop demo.
      */
     @AfterEach
     void cleanupPay05Fixtures() {
         try {
             for (String email : createdBuyerEmails) {
 
-                // 1. Xóa payment của các đơn test.
+                // ORDER 07:
+                // Xóa lịch sử trước để tránh lỗi khóa ngoại.
+                db.update("""
+                        DELETE FROM order_status_histories
+                        WHERE order_id IN (
+                            SELECT o.id
+                            FROM orders o
+                            JOIN users u ON u.id = o.buyer_id
+                            WHERE u.email = ?
+                        )
+                        """, email);
+
+                // Xóa payment.
                 db.update("""
                         DELETE FROM payments
                         WHERE order_id IN (
-                            SELECT id FROM orders
-                            WHERE buyer_id IN (
-                                SELECT id FROM users
-                                WHERE email = ?
-                            )
+                            SELECT o.id
+                            FROM orders o
+                            JOIN users u ON u.id = o.buyer_id
+                            WHERE u.email = ?
                         )
                         """, email);
 
-                // 2. Xóa order items nếu có.
+                // Xóa order items nếu có.
                 db.update("""
                         DELETE FROM order_items
                         WHERE order_id IN (
-                            SELECT id FROM orders
-                            WHERE buyer_id IN (
-                                SELECT id FROM users
-                                WHERE email = ?
-                            )
+                            SELECT o.id
+                            FROM orders o
+                            JOIN users u ON u.id = o.buyer_id
+                            WHERE u.email = ?
                         )
                         """, email);
 
-                // 3. Xóa các đơn hàng của buyer test.
+                // Xóa đơn hàng.
                 db.update("""
                         DELETE FROM orders
                         WHERE buyer_id IN (
-                            SELECT id FROM users
+                            SELECT id
+                            FROM users
                             WHERE email = ?
                         )
                         """, email);
 
-                // 4. Xóa buyer do test tạo.
+                // Xóa buyer.
                 db.update(
                         "DELETE FROM users WHERE email = ?",
                         email
@@ -114,13 +121,17 @@ class Pay05BankTransferConfirmationIntegrationTest {
     }
 
     /**
-     * TEST 1:
+     * TEST 1 - PAY 05 + ORDER 07
+     *
      * Chủ shop xác nhận thanh toán thành công.
      *
      * Payment: PENDING -> PAID.
      * paid_at được ghi nhận.
      * Order vẫn PENDING.
      * Mã tham chiếu không thay đổi.
+     *
+     * ORDER 07:
+     * Xác nhận payment không tạo thêm history của order.
      */
     @Test
     void ownBankTransferBecomesPaidWithoutConfirmingOrder()
@@ -132,6 +143,42 @@ class Pay05BankTransferConfirmationIntegrationTest {
                 OrderStatus.PENDING
         );
 
+        // ORDER 07:
+        // Tạo history khởi tạo để kiểm tra PAY 05
+        // không sinh thêm mốc lịch sử trạng thái đơn.
+        Long buyerId = db.queryForObject(
+                "SELECT id FROM users WHERE email = ?",
+                Long.class,
+                f.buyerEmail()
+        );
+
+        db.update("""
+                INSERT INTO order_status_histories (
+                    order_id,
+                    old_status,
+                    new_status,
+                    changed_by,
+                    note
+                )
+                VALUES (
+                    ?, NULL, 'PENDING', ?,
+                    'Khởi tạo đơn hàng'
+                )
+                """,
+                f.id(),
+                buyerId
+        );
+
+        // Đếm history trước khi xác nhận payment.
+        Long historyBefore = historyCount(f.id());
+
+        assertEquals(
+                1L,
+                historyBefore,
+                "Đơn phải có một mốc lịch sử khởi tạo."
+        );
+
+        // Chủ shop xác nhận đã nhận tiền.
         mvc.perform(
                 post("/merchant/orders/payment/confirm")
                         .param("id", f.code())
@@ -146,115 +193,229 @@ class Pay05BankTransferConfirmationIntegrationTest {
                         flash().attributeExists("paymentSuccess")
                 );
 
+        // Payment được chuyển sang PAID.
         assertEquals(
                 "PAID",
                 paymentStatus(f.id())
         );
 
+        // Có thời điểm thanh toán.
         assertNotNull(
                 paidAt(f.id())
+        );
+
+        // Order không tự động chuyển sang CONFIRMED.
+        assertEquals(
+                "PENDING",
+                orderStatus(f.id())
+        );
+
+        // Mã tham chiếu giữ nguyên.
+        assertEquals(
+                "SENVIA-" + f.code(),
+                reference(f.id())
+        );
+
+        // ORDER 07:
+        // Đếm lịch sử sau khi xác nhận payment.
+        Long historyAfter = historyCount(f.id());
+
+        assertEquals(
+                historyBefore,
+                historyAfter,
+                "Xác nhận payment không được tạo history của order."
+        );
+
+        // Kiểm tra mốc lịch sử ban đầu không bị sửa.
+        String latestStatus = db.queryForObject("""
+                SELECT new_status
+                FROM order_status_histories
+                WHERE order_id = ?
+                ORDER BY changed_at DESC, id DESC
+                LIMIT 1
+                """,
+                String.class,
+                f.id()
+        );
+
+        assertEquals(
+                "PENDING",
+                latestStatus,
+                "PAY 05 không được thay đổi lịch sử trạng thái đơn."
+        );
+    }
+
+    /**
+     * TEST 2
+     *
+     * Kiểm tra trang chi tiết shop.
+     * Hiển thị nút xác nhận payment.
+     * Sau xác nhận có thông báo thành công.
+     * Xác nhận lặp có thông báo lỗi.
+     */
+    @Test
+    void sellerDetailShowsConfirmationAndFeedback()
+            throws Exception {
+
+        Fixture f = createOrder(
+                PaymentMethod.BANK_TRANSFER,
+                PaymentStatus.PENDING,
+                OrderStatus.PENDING
+        );
+
+        // Trước khi thanh toán.
+        mvc.perform(
+                get("/merchant/orders/detail")
+                        .param("id", f.code())
+                        .with(user(OWNER).roles("USER"))
+        )
+                .andExpect(status().isOk())
+                .andExpect(
+                        content().string(
+                                containsString(
+                                        "Xác nhận đã nhận tiền (mô phỏng)"
+                                )
+                        )
+                )
+                .andExpect(
+                        content().string(
+                                containsString(
+                                        "/merchant/orders/payment/confirm"
+                                )
+                        )
+                );
+
+        // Xác nhận payment lần đầu.
+        MvcResult success = mvc.perform(
+                post("/merchant/orders/payment/confirm")
+                        .param("id", f.code())
+                        .with(user(OWNER).roles("USER"))
+                        .with(csrf())
+        )
+                .andExpect(status().is3xxRedirection())
+                .andReturn();
+
+        // Kiểm tra giao diện sau khi xác nhận.
+        mvc.perform(
+                get("/merchant/orders/detail")
+                        .param("id", f.code())
+                        .flashAttrs(success.getFlashMap())
+                        .with(user(OWNER).roles("USER"))
+        )
+                .andExpect(status().isOk())
+                .andExpect(
+                        content().string(
+                                containsString(
+                                        "Đã ghi nhận thanh toán mô phỏng."
+                                )
+                        )
+                )
+                .andExpect(
+                        content().string(
+                                not(containsString(
+                                        "Xác nhận đã nhận tiền (mô phỏng)"
+                                ))
+                        )
+                );
+
+        // Gửi xác nhận lần thứ hai.
+        MvcResult repeated = mvc.perform(
+                post("/merchant/orders/payment/confirm")
+                        .param("id", f.code())
+                        .with(user(OWNER).roles("USER"))
+                        .with(csrf())
+        )
+                .andExpect(status().is3xxRedirection())
+                .andReturn();
+
+        // Giao diện hiển thị lỗi xác nhận lặp.
+        mvc.perform(
+                get("/merchant/orders/detail")
+                        .param("id", f.code())
+                        .flashAttrs(repeated.getFlashMap())
+                        .with(user(OWNER).roles("USER"))
+        )
+                .andExpect(status().isOk())
+                .andExpect(
+                        content().string(
+                                containsString(
+                                        "Thanh toán không còn ở trạng thái chờ xác nhận."
+                                )
+                        )
+                );
+    }
+
+    /**
+     * TEST 3
+     *
+     * Chủ shop LOCKED vẫn được xác nhận payment
+     * của đơn hàng đã tồn tại.
+     */
+    @Test
+    @Transactional
+    void lockedShopOwnerCanConfirmExistingOrder()
+            throws Exception {
+
+        Fixture f = createOrder(
+                PaymentMethod.BANK_TRANSFER,
+                PaymentStatus.PENDING,
+                OrderStatus.PENDING
+        );
+
+        Long shopId = db.queryForObject(
+                "SELECT shop_id FROM orders WHERE id = ?",
+                Long.class,
+                f.id()
+        );
+
+        Long ownerId = db.queryForObject(
+                "SELECT owner_id FROM shops WHERE id = ?",
+                Long.class,
+                shopId
+        );
+
+        // Transaction của test rollback việc khóa shop.
+        db.update("""
+                UPDATE shops
+                SET status = 'LOCKED',
+                    lock_reason = 'Kiểm thử PAY 05',
+                    locked_by = ?,
+                    locked_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+                """,
+                ownerId,
+                shopId
+        );
+
+        mvc.perform(
+                post("/merchant/orders/payment/confirm")
+                        .param("id", f.code())
+                        .with(user(OWNER).roles("USER"))
+                        .with(csrf())
+        )
+                .andExpect(status().is3xxRedirection())
+                .andExpect(
+                        flash().attributeExists("paymentSuccess")
+                );
+
+        entityManager.flush();
+
+        assertEquals(
+                "PAID",
+                paymentStatus(f.id())
         );
 
         assertEquals(
                 "PENDING",
                 orderStatus(f.id())
         );
-
-        assertEquals(
-                "SENVIA-" + f.code(),
-                reference(f.id())
-        );
-    }
-
-    @Test
-    void sellerDetailShowsConfirmationAndFeedback() throws Exception {
-        Fixture f = createOrder(
-                PaymentMethod.BANK_TRANSFER,
-                PaymentStatus.PENDING,
-                OrderStatus.PENDING
-        );
-
-        mvc.perform(get("/merchant/orders/detail")
-                        .param("id", f.code())
-                        .with(user(OWNER).roles("USER")))
-                .andExpect(status().isOk())
-                .andExpect(content().string(containsString(
-                        "Xác nhận đã nhận tiền (mô phỏng)")))
-                .andExpect(content().string(containsString(
-                        "/merchant/orders/payment/confirm")));
-
-        MvcResult success = mvc.perform(post("/merchant/orders/payment/confirm")
-                        .param("id", f.code())
-                        .with(user(OWNER).roles("USER"))
-                        .with(csrf()))
-                .andExpect(status().is3xxRedirection())
-                .andReturn();
-
-        mvc.perform(get("/merchant/orders/detail")
-                        .param("id", f.code())
-                        .flashAttrs(success.getFlashMap())
-                        .with(user(OWNER).roles("USER")))
-                .andExpect(status().isOk())
-                .andExpect(content().string(containsString(
-                        "Đã ghi nhận thanh toán mô phỏng.")))
-                .andExpect(content().string(not(containsString(
-                        "Xác nhận đã nhận tiền (mô phỏng)"))));
-
-        MvcResult repeated = mvc.perform(post("/merchant/orders/payment/confirm")
-                        .param("id", f.code())
-                        .with(user(OWNER).roles("USER"))
-                        .with(csrf()))
-                .andExpect(status().is3xxRedirection())
-                .andReturn();
-
-        mvc.perform(get("/merchant/orders/detail")
-                        .param("id", f.code())
-                        .flashAttrs(repeated.getFlashMap())
-                        .with(user(OWNER).roles("USER")))
-                .andExpect(status().isOk())
-                .andExpect(content().string(containsString(
-                        "Thanh toán không còn ở trạng thái chờ xác nhận.")));
-    }
-
-    @Test
-    @Transactional
-    void lockedShopOwnerCanConfirmExistingOrder() throws Exception {
-        Fixture f = createOrder(
-                PaymentMethod.BANK_TRANSFER,
-                PaymentStatus.PENDING,
-                OrderStatus.PENDING
-        );
-        Long shopId = db.queryForObject(
-                "SELECT shop_id FROM orders WHERE id = ?", Long.class, f.id());
-        Long ownerId = db.queryForObject(
-                "SELECT owner_id FROM shops WHERE id = ?", Long.class, shopId);
-
-        // Giao dịch của test rollback cả thay đổi trạng thái shop sau khi chạy.
-        db.update("""
-                UPDATE shops
-                SET status = 'LOCKED', lock_reason = 'Kiểm thử PAY 05',
-                    locked_by = ?, locked_at = CURRENT_TIMESTAMP
-                WHERE id = ?
-                """, ownerId, shopId);
-
-        mvc.perform(post("/merchant/orders/payment/confirm")
-                        .param("id", f.code())
-                        .with(user(OWNER).roles("USER"))
-                        .with(csrf()))
-                .andExpect(status().is3xxRedirection())
-                .andExpect(flash().attributeExists("paymentSuccess"));
-
-        entityManager.flush();
-        assertEquals("PAID", paymentStatus(f.id()));
-        assertEquals("PENDING", orderStatus(f.id()));
     }
 
     /**
-     * TEST 2:
-     * Không cho xác nhận thanh toán lần thứ hai.
+     * TEST 4
      *
-     * Payment vẫn PAID.
-     * paid_at không bị thay đổi.
+     * Không cho xác nhận thanh toán lần thứ hai.
+     * paid_at phải giữ nguyên.
      */
     @Test
     void secondConfirmationDoesNotChangePaidAt()
@@ -305,9 +466,9 @@ class Pay05BankTransferConfirmationIntegrationTest {
     }
 
     /**
-     * TEST 3:
-     * Chủ shop khác không được xác nhận
-     * thanh toán của đơn không thuộc shop mình.
+     * TEST 5
+     *
+     * Chủ shop khác không được xác nhận payment.
      */
     @Test
     void foreignOwnerCannotConfirm()
@@ -338,8 +499,9 @@ class Pay05BankTransferConfirmationIntegrationTest {
     }
 
     /**
-     * TEST 4:
-     * Buyer không được xác nhận thanh toán.
+     * TEST 6
+     *
+     * Buyer không được xác nhận payment.
      */
     @Test
     void buyerCannotConfirm()
@@ -370,10 +532,10 @@ class Pay05BankTransferConfirmationIntegrationTest {
     }
 
     /**
-     * TEST 5:
-     * Admin không được xác nhận.
+     * TEST 7
      *
-     * Request không có CSRF cũng bị từ chối.
+     * Admin không được xác nhận payment.
+     * Request không có CSRF cũng phải bị chặn.
      */
     @Test
     void adminAndMissingCsrfCannotConfirm()
@@ -397,7 +559,7 @@ class Pay05BankTransferConfirmationIntegrationTest {
         )
                 .andExpect(status().isForbidden());
 
-        // Thiếu CSRF bị chặn.
+        // Thiếu CSRF.
         mvc.perform(
                 post("/merchant/orders/payment/confirm")
                         .param("id", f.code())
@@ -416,14 +578,12 @@ class Pay05BankTransferConfirmationIntegrationTest {
     }
 
     /**
-     * TEST 6:
-     * Các trường hợp không được xác nhận:
+     * TEST 8
      *
-     * - Thanh toán COD.
-     * - Đơn hàng đã hủy.
-     * - Payment đã hoàn tiền.
-     *
-     * Không trường hợp nào được ghi paid_at.
+     * Không cho xác nhận:
+     * - COD.
+     * - Order đã hủy.
+     * - Payment đã REFUNDED.
      */
     @Test
     void codOrCancelledOrderCannotBeConfirmed()
@@ -469,19 +629,16 @@ class Pay05BankTransferConfirmationIntegrationTest {
             );
         }
 
-        // COD giữ nguyên trạng thái.
         assertEquals(
                 "COD_PENDING",
                 paymentStatus(cod.id())
         );
 
-        // Payment đã hủy giữ nguyên.
         assertEquals(
                 "CANCELLED",
                 paymentStatus(cancelled.id())
         );
 
-        // Payment đã hoàn tiền giữ nguyên.
         assertEquals(
                 "REFUNDED",
                 paymentStatus(refunded.id())
@@ -517,10 +674,10 @@ class Pay05BankTransferConfirmationIntegrationTest {
     }
 
     /**
-     * TEST 7:
-     * Endpoint xác nhận chỉ chấp nhận POST.
+     * TEST 9
      *
-     * GET không được làm thay đổi payment.
+     * Xác nhận payment chỉ chấp nhận POST.
+     * GET không được thay đổi dữ liệu.
      */
     @Test
     void paymentConfirmationIsPostOnly()
@@ -534,17 +691,15 @@ class Pay05BankTransferConfirmationIntegrationTest {
     }
 
     /**
-     * Tạo dữ liệu thật trong H2:
+     * Tạo fixture PAY 05 trong H2.
      *
-     * 1. Lấy shop NOLA demo.
-     * 2. Tạo buyer test.
-     * 3. Tạo order cho buyer.
-     * 4. Tạo payment cho order.
+     * 1. Lấy shop demo của NOLA.
+     * 2. Tạo buyer.
+     * 3. Tạo order.
+     * 4. Tạo payment.
      *
-     * Mỗi buyer có email UUID riêng.
-     *
-     * Đăng ký cleanup trước INSERT để
-     * dữ liệu tạo dở vẫn được dọn sau test.
+     * Không tạo history mặc định tại đây.
+     * Test ORDER 07 sẽ chủ động tạo mốc cần kiểm tra.
      */
     private Fixture createOrder(
             PaymentMethod method,
@@ -563,19 +718,16 @@ class Pay05BankTransferConfirmationIntegrationTest {
                 OWNER
         );
 
-        // 2. Tạo email buyer duy nhất.
+        // 2. Email buyer duy nhất.
         String buyerEmail =
                 "pay05-buyer-"
                         + UUID.randomUUID()
                         + "@example.com";
 
-        // QUAN TRỌNG:
         // Đăng ký cleanup trước INSERT.
-        // Nếu quá trình tạo fixture thất bại giữa chừng,
-        // @AfterEach vẫn biết buyer nào cần xóa.
         createdBuyerEmails.add(buyerEmail);
 
-        // 3. Tạo buyer thật trong H2.
+        // 3. Tạo buyer.
         db.update("""
                 INSERT INTO users (
                     full_name,
@@ -599,14 +751,14 @@ class Pay05BankTransferConfirmationIntegrationTest {
                 buyerEmail
         );
 
-        // 4. Lấy ID buyer vừa tạo.
+        // 4. Lấy ID buyer.
         Long buyerId = db.queryForObject(
                 "SELECT id FROM users WHERE email = ?",
                 Long.class,
                 buyerEmail
         );
 
-        // 5. Tạo mã đơn hàng duy nhất.
+        // 5. Tạo mã đơn hàng.
         String code =
                 "ORD-PAY05-"
                         + UUID.randomUUID()
@@ -614,7 +766,7 @@ class Pay05BankTransferConfirmationIntegrationTest {
                         .replace("-", "")
                         .substring(0, 16);
 
-        // 6. Tạo đơn hàng.
+        // 6. Tạo order.
         db.update("""
                 INSERT INTO orders (
                     order_code,
@@ -645,14 +797,14 @@ class Pay05BankTransferConfirmationIntegrationTest {
                 new BigDecimal("150000.00")
         );
 
-        // 7. Lấy ID order vừa tạo.
+        // 7. Lấy ID order.
         Long id = db.queryForObject(
                 "SELECT id FROM orders WHERE order_code = ?",
                 Long.class,
                 code
         );
 
-        // 8. Tạo payment cho order.
+        // 8. Tạo payment.
         db.update("""
                 INSERT INTO payments (
                     order_id,
@@ -676,7 +828,7 @@ class Pay05BankTransferConfirmationIntegrationTest {
                         : null
         );
 
-        // 9. Trả fixture cho test.
+        // 9. Trả fixture.
         return new Fixture(
                 id,
                 code,
@@ -685,7 +837,7 @@ class Pay05BankTransferConfirmationIntegrationTest {
     }
 
     /**
-     * Đọc trạng thái payment từ database.
+     * Đọc trạng thái payment.
      */
     private String paymentStatus(Long id) {
         return db.queryForObject(
@@ -696,7 +848,7 @@ class Pay05BankTransferConfirmationIntegrationTest {
     }
 
     /**
-     * Đọc trạng thái order từ database.
+     * Đọc trạng thái order.
      */
     private String orderStatus(Long id) {
         return db.queryForObject(
@@ -707,7 +859,7 @@ class Pay05BankTransferConfirmationIntegrationTest {
     }
 
     /**
-     * Đọc thời điểm đã thanh toán.
+     * Đọc thời gian đã thanh toán.
      */
     private Timestamp paidAt(Long id) {
         return db.queryForObject(
@@ -718,7 +870,7 @@ class Pay05BankTransferConfirmationIntegrationTest {
     }
 
     /**
-     * Đọc mã tham chiếu chuyển khoản.
+     * Đọc mã tham chiếu.
      */
     private String reference(Long id) {
         return db.queryForObject(
@@ -729,7 +881,23 @@ class Pay05BankTransferConfirmationIntegrationTest {
     }
 
     /**
-     * Dữ liệu fixture phục vụ test PAY 05.
+     * ORDER 07:
+     * Đếm số bản ghi lịch sử trạng thái của order.
+     */
+    private Long historyCount(Long orderId) {
+        return db.queryForObject(
+                """
+                SELECT COUNT(*)
+                FROM order_status_histories
+                WHERE order_id = ?
+                """,
+                Long.class,
+                orderId
+        );
+    }
+
+    /**
+     * Dữ liệu phục vụ các test PAY 05.
      */
     private record Fixture(
             Long id,

@@ -26,6 +26,9 @@ import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import com.senvia.doangiuaky.ordering.api.OrderHistoryApi;
+import com.senvia.doangiuaky.ordering.api.OrderHistoryEntry;
+import java.time.Instant;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -36,6 +39,9 @@ class SellerOrderViewTest {
 
     @MockitoBean
     SellerOrderReadService sellerOrders;
+
+    @MockitoBean
+    private OrderHistoryApi orderHistoryApi;
 
     @Test
     void listRendersRealOrderAndPaymentData() throws Exception {
@@ -138,36 +144,135 @@ class SellerOrderViewTest {
     }
 
     private static SellerOrderView order() {
-        BigDecimal amount = new BigDecimal("120000.00");
+            BigDecimal amount = new BigDecimal("120000.00");
 
-        PaymentDetails payment = new PaymentDetails(
-                21L,
-                PaymentMethod.BANK_TRANSFER,
-                PaymentStatus.PAID,
-                amount,
-                "REF-1",
-                null,
-                null
-        );
+            PaymentDetails payment = new PaymentDetails(
+                            21L,
+                            PaymentMethod.BANK_TRANSFER,
+                            PaymentStatus.PAID,
+                            amount,
+                            "REF-1",
+                            null,
+                            null);
 
-        SellerOrderView.Item item = new SellerOrderView.Item(
-                5L,
-                "Sản phẩm thử",
-                amount,
-                1,
-                amount
-        );
+            SellerOrderView.Item item = new SellerOrderView.Item(
+                            5L,
+                            "Sản phẩm thử",
+                            amount,
+                            1,
+                            amount);
 
-        return new SellerOrderView(
-                "ORD-1",
-                "16/10/2026 07:00",
-                "Người nhận",
-                "0900000000",
-                "Địa chỉ",
-                "PENDING",
-                amount,
-                payment,
-                List.of(item)
-        );
+            return new SellerOrderView(
+                            "ORD-1",
+                            "16/10/2026 07:00",
+                            "Người nhận",
+                            "0900000000",
+                            "Địa chỉ",
+                            "PENDING",
+                            amount,
+                            payment,
+                            List.of(item));
     }
+
+    @Test
+    void sellerDetailDisplaysRealStatusHistory() throws Exception {
+
+            when(sellerOrders.getOwnOrder("ORD-1"))
+                            .thenReturn(order());
+
+            when(orderHistoryApi.forCurrentSeller("ORD-1"))
+                            .thenReturn(List.of(
+                                            new OrderHistoryEntry(
+                                                            1L,
+                                                            null,
+                                                            "PENDING",
+                                                            "Đơn hàng được tạo",
+                                                            10L,
+                                                            "Đơn hàng được tạo thành công",
+                                                            Instant.parse("2026-10-17T09:00:00Z"),
+                                                            "17/10/2026 16:00:00"),
+                                            new OrderHistoryEntry(
+                                                            2L,
+                                                            "PENDING",
+                                                            "CONFIRMED",
+                                                            "Đơn hàng đã được xác nhận",
+                                                            11L,
+                                                            "Chủ shop xác nhận đơn hàng",
+                                                            Instant.parse("2026-10-17T09:15:00Z"),
+                                                            "17/10/2026 16:15:00")));
+
+            mvc.perform(
+                            get("/merchant/orders/detail")
+                                            .param("id", "ORD-1")
+                                            .with(user("owner@example.com").roles("USER")))
+                            .andExpect(status().isOk())
+                            .andExpect(view().name("ordering/seller-order-detail"))
+                            .andExpect(content().string(
+                                            containsString("Lịch sử trạng thái đơn hàng")))
+                            .andExpect(content().string(
+                                            containsString("Đơn hàng được tạo thành công")))
+                            .andExpect(content().string(
+                                            containsString("Đơn hàng đã được xác nhận")))
+                            .andExpect(content().string(
+                                            containsString("17/10/2026 16:15:00")));
+    }
+
+    @Test
+void buyerCanOpenOrderHistoryPage() throws Exception {
+
+    when(orderHistoryApi.forCurrentBuyer("ORD-1"))
+            .thenReturn(List.of(
+                    new OrderHistoryEntry(
+                            1L,
+                            null,
+                            "PENDING",
+                            "Đơn hàng được tạo",
+                            10L,
+                            "Đơn hàng được tạo thành công",
+                            Instant.parse("2026-10-17T09:00:00Z"),
+                            "17/10/2026 16:00:00"
+                    )
+            ));
+
+    mvc.perform(
+            get("/account/orders/history")
+                    .param("id", "ORD-1")
+                    .with(user("buyer@example.com").roles("USER"))
+    )
+            .andExpect(status().isOk())
+            .andExpect(view().name("ordering/order-history"))
+            .andExpect(content().string(
+                    containsString("Đơn hàng được tạo thành công")
+            ));
+}
+
+        @Test
+        void adminCanOpenOrderHistoryPage() throws Exception {
+
+        when(orderHistoryApi.forCurrentAdmin("ORD-1"))
+                .thenReturn(List.of(
+                        new OrderHistoryEntry(
+                                1L,
+                                null,
+                                "PENDING",
+                                "Đơn hàng được tạo",
+                                10L,
+                                "Khởi tạo đơn hàng",
+                                Instant.parse("2026-10-17T09:00:00Z"),
+                                "17/10/2026 16:00:00"
+                        )
+                ));
+
+        mvc.perform(
+                get("/admin/orders/history")
+                        .param("id", "ORD-1")
+                        .with(user("admin@example.com").roles("ADMIN"))
+        )
+                .andExpect(status().isOk())
+                .andExpect(view().name("ordering/order-history"))
+                .andExpect(content().string(
+                        containsString("Khởi tạo đơn hàng")
+                ));
+        }
+
 }
