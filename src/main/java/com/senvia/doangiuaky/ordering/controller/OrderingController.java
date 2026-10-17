@@ -42,6 +42,7 @@ import com.senvia.doangiuaky.ordering.entity.PaymentMethod;
 import com.senvia.doangiuaky.ordering.entity.PaymentStatus;
 import com.senvia.doangiuaky.ordering.service.SellerOrderStatusService;
 import com.senvia.doangiuaky.ordering.service.OrderCancellationService;
+import com.senvia.doangiuaky.ordering.api.OrderHistoryApi;
 
 @Controller
 public class OrderingController {
@@ -52,10 +53,11 @@ public class OrderingController {
     private final SellerPaymentConfirmationService sellerPaymentConfirmationService;
     private final SellerOrderStatusService sellerOrderStatusService;
     private final OrderCancellationService orderCancellationService;
+    private final OrderHistoryApi orderHistoryApi;
 
     private static final String SESSION_QUOTE = "ordering.checkout.quote";
 
-    public OrderingController(CheckoutSelectionService checkoutSelectionService, CheckoutPreviewService checkoutPreviewService, CheckoutTransactionService checkoutTransactionService, SellerOrderReadService sellerOrderReadService, SellerPaymentConfirmationService sellerPaymentConfirmationService, SellerOrderStatusService sellerOrderStatusService, OrderCancellationService orderCancellationService) {
+    public OrderingController(CheckoutSelectionService checkoutSelectionService, CheckoutPreviewService checkoutPreviewService, CheckoutTransactionService checkoutTransactionService, SellerOrderReadService sellerOrderReadService, SellerPaymentConfirmationService sellerPaymentConfirmationService, SellerOrderStatusService sellerOrderStatusService, OrderCancellationService orderCancellationService, OrderHistoryApi orderHistoryApi) {
         this.checkoutSelectionService = checkoutSelectionService;
         this.checkoutPreviewService = checkoutPreviewService;
         this.checkoutTransactionService = checkoutTransactionService;
@@ -63,6 +65,7 @@ public class OrderingController {
         this.sellerPaymentConfirmationService = sellerPaymentConfirmationService;
         this.sellerOrderStatusService = sellerOrderStatusService;
         this.orderCancellationService = orderCancellationService;
+        this.orderHistoryApi = orderHistoryApi;
     }
 
     @GetMapping("/checkout")
@@ -240,6 +243,7 @@ public class OrderingController {
         model.addAttribute("order", order);
         model.addAttribute("paymentDetails", order.payment());
         model.addAttribute("status", order.status());
+        model.addAttribute("history", orderHistoryApi.forCurrentSeller(id));
 
         String nextStatus = switch (order.status()) {
             case "PENDING" -> "CONFIRMED";
@@ -355,7 +359,8 @@ public class OrderingController {
 
     // ORDER 08 - Admin hủy đơn hợp lệ.
     @PostMapping("/admin/orders/cancel")
-    public String cancelAdminOrder(@RequestParam("id") String code, @RequestParam("reason") String reason, RedirectAttributes redirectAttributes) {
+    public String cancelAdminOrder(@RequestParam("id") String code, @RequestParam("reason") String reason,
+            RedirectAttributes redirectAttributes) {
         try {
             orderCancellationService.cancelAsAdmin(code, reason);
             redirectAttributes.addFlashAttribute("cancelSuccess", "Đã hủy đơn hàng.");
@@ -367,6 +372,30 @@ public class OrderingController {
             redirectAttributes.addFlashAttribute("cancelError", exception.getReason());
         }
         return "redirect:/admin/orders";
+    }
+
+    // ORDER 07: Buyer xem lịch sử đơn thuộc sở hữu.
+    @GetMapping("/account/orders/history")
+    public String buyerOrderHistory(@RequestParam("id") String orderCode, Model model) {
+        var history = orderHistoryApi.forCurrentBuyer(orderCode);
+
+        model.addAttribute("orderCode", orderCode);
+        model.addAttribute("history", history);
+        model.addAttribute("backUrl", "/account/orders");
+
+        return "ordering/order-history";
+    }
+
+    // ORDER 07: Admin xem lịch sử đơn.
+    @GetMapping("/admin/orders/history")
+    public String adminOrderHistory(@RequestParam("id") String orderCode, Model model) {
+        var history = orderHistoryApi.forCurrentAdmin(orderCode);
+
+        model.addAttribute("orderCode", orderCode);
+        model.addAttribute("history", history);
+        model.addAttribute("backUrl", "/admin/orders");
+
+        return "ordering/order-history";
     }
 
     @GetMapping("/admin/orders")
