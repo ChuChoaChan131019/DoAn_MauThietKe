@@ -340,16 +340,32 @@ public class OrderingController {
     // ORDER 08 - Buyer hủy đơn thuộc quyền sở hữu.
     @PostMapping("/account/orders/cancel")
     public String cancelBuyerOrder(@RequestParam("id") String code, @RequestParam("reason") String reason, RedirectAttributes redirectAttributes) {
-        orderCancellationService.cancelAsBuyer(code, reason);
-        redirectAttributes.addFlashAttribute("cancelSuccess", "Đã hủy đơn hàng.");
+        try {
+            orderCancellationService.cancelAsBuyer(code, reason);
+            redirectAttributes.addFlashAttribute("cancelSuccess", "Đã hủy đơn hàng.");
+        } catch (ResponseStatusException exception) {
+            int status = exception.getStatusCode().value();
+            if (status != 400 && status != 409) {
+                throw exception;
+            }
+            redirectAttributes.addFlashAttribute("cancelError", exception.getReason());
+        }
         return "redirect:/account/orders";
     }
 
     // ORDER 08 - Admin hủy đơn hợp lệ.
     @PostMapping("/admin/orders/cancel")
     public String cancelAdminOrder(@RequestParam("id") String code, @RequestParam("reason") String reason, RedirectAttributes redirectAttributes) {
-        orderCancellationService.cancelAsAdmin(code, reason);
-        redirectAttributes.addFlashAttribute("cancelSuccess", "Đã hủy đơn hàng.");
+        try {
+            orderCancellationService.cancelAsAdmin(code, reason);
+            redirectAttributes.addFlashAttribute("cancelSuccess", "Đã hủy đơn hàng.");
+        } catch (ResponseStatusException exception) {
+            int status = exception.getStatusCode().value();
+            if (status != 400 && status != 409) {
+                throw exception;
+            }
+            redirectAttributes.addFlashAttribute("cancelError", exception.getReason());
+        }
         return "redirect:/admin/orders";
     }
 

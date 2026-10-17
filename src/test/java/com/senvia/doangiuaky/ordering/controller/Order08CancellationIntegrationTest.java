@@ -30,8 +30,10 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.hamcrest.Matchers.containsString;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -262,6 +264,31 @@ class Order08CancellationIntegrationTest {
     }
 
     @Test
+    void buyerAndAdminSeeValidationAndStateErrorsAfterRedirect() throws Exception {
+        Fixture pending = fixture("PENDING", "COD", "COD_PENDING", false);
+        Fixture shipping = fixture("SHIPPING", "COD", "COD_PENDING", false);
+
+        String reasonError = "Lý do hủy phải có từ 1 đến 500 ký tự.";
+        String stateError = "Đơn ở trạng thái SHIPPING không thể hủy.";
+
+        assertCancellationErrorOnPage(pending, "/account/orders/cancel", "/account/orders",
+                pending.buyerEmail(), "USER", "   ", reasonError);
+        assertCancellationErrorOnPage(pending, "/admin/orders/cancel", "/admin/orders",
+                pending.adminEmail(), "ADMIN", "   ", reasonError);
+        assertCancellationErrorOnPage(shipping, "/account/orders/cancel", "/account/orders",
+                shipping.buyerEmail(), "USER", "Không nhận hàng", stateError);
+        assertCancellationErrorOnPage(shipping, "/admin/orders/cancel", "/admin/orders",
+                shipping.adminEmail(), "ADMIN", "Không giao được", stateError);
+
+        assertEquals("PENDING", orderStatus(pending));
+        assertEquals("SHIPPING", orderStatus(shipping));
+        assertEquals(3, stock(pending));
+        assertEquals(3, stock(shipping));
+        assertEquals(0, restorationCount(pending));
+        assertEquals(0, restorationCount(shipping));
+    }
+
+    @Test
     void lockedShopCanCancelOldOrder()
             throws Exception {
         Fixture f = fixture(
@@ -389,6 +416,25 @@ class Order08CancellationIntegrationTest {
                         .with(csrf())
         ).andExpect(status().is3xxRedirection())
          .andReturn();
+    }
+
+    private void assertCancellationErrorOnPage(Fixture fixture, String action, String page,
+            String email, String role, String reason, String expectedError) throws Exception {
+        MvcResult response = mvc.perform(post(action)
+                        .param("id", fixture.code())
+                        .param("reason", reason)
+                        .with(user(email).roles(role))
+                        .with(csrf()))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl(page))
+                .andExpect(flash().attribute("cancelError", expectedError))
+                .andReturn();
+
+        mvc.perform(get(page)
+                        .with(user(email).roles(role))
+                        .flashAttrs(response.getFlashMap()))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString(expectedError)));
     }
 
     private Fixture fixture(
