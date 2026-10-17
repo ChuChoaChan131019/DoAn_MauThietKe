@@ -33,6 +33,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 import com.senvia.doangiuaky.ordering.service.CheckoutTransactionService;
+import com.senvia.doangiuaky.ordering.service.SellerPaymentConfirmationService;
 
 @WebMvcTest(OrderingController.class)
 @Import(SecurityConfig.class)
@@ -42,6 +43,9 @@ class CheckoutDeliveryAddressTest {
 
     @MockitoBean
     private SellerOrderReadService sellerOrderReadService;
+
+    @MockitoBean
+    private SellerPaymentConfirmationService sellerPaymentConfirmationService;
 
     @Autowired
     private MockMvc mockMvc;
