@@ -100,6 +100,11 @@ public class SellerOrderReadService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Số trang không hợp lệ.");
         }
 
+        long offset = ((long) requestedPage - 1) * PAGE_SIZE;
+        if (offset > Integer.MAX_VALUE) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Số trang vượt giới hạn hỗ trợ.");
+        }
+
         OrderStatus status = parseStatusFilter(statusFilter);
 
         List<Long> ownedShopIds = findOwnedShopIds(actor.userId());
