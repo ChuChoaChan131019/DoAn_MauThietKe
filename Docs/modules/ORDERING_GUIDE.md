@@ -21,6 +21,7 @@
 - Dùng `merchant.api` cho khả năng bán, giá và trừ/hoàn stock.
 - Cung cấp `ordering.api`: Buyer/Admin query, cancel command, review verification, statistics và order event.
 - `OrderCreatedEvent(eventId, orderId, shopId, buyerId, actorId, orderCode, status, occurredAt)` là contract trong `ordering.api`. Checkout phát một event cho mỗi order sau khi lưu order, payment và history, trừ kho và xóa mục giỏ trong cùng transaction. Listener xử lý bằng `@TransactionalEventListener(AFTER_COMMIT)` để chỉ nhận event khi checkout commit; `eventId` riêng cho từng order hỗ trợ chống xử lý trùng.
+- `OrderStatusChangedEvent(eventId, orderId, shopId, buyerId, actorId, orderCode, oldStatus, newStatus, occurredAt)` là contract trong `ordering.api`. Mỗi lần chủ shop chuyển trạng thái hợp lệ, Ordering lưu order và history trong cùng transaction rồi phát event. Listener dùng `@TransactionalEventListener(AFTER_COMMIT)` để chỉ xử lý khi transaction commit; chuyển trạng thái thất bại hoặc rollback không gửi thông báo. `eventId` riêng cho từng lần chuyển hỗ trợ chống xử lý trùng.
 - Không công bố Order Entity/Repository/Service nội bộ.
 
 ## Thứ tự feature
@@ -50,8 +51,9 @@
 - Trang giỏ cho buyer chọn các `cartItemId` hợp lệ và chuyển chúng tới `GET /checkout`; form giữ danh sách này khi gửi `POST /checkout`.
 - `POST /checkout` kiểm tra lựa chọn và biểu mẫu PAY 01/PAY 03, lấy lại đúng các mục đã chọn qua `shopping.api`, đọc lại giá, trạng thái, tồn kho và shop qua `merchant.api`, rồi hiển thị bản xem trước theo từng shop.
 - Bản xem trước chỉ phản ánh dữ liệu tại thời điểm kiểm tra. Khi buyer xác nhận, checkout đọc lại dữ liệu, kiểm tra giá, trừ kho, tạo `orders`/`payments` theo shop và xóa các mục đã mua trong cùng transaction. Mục không chọn vẫn ở giỏ. Phí vận chuyển chưa được tính.
-- Danh sách và chi tiết đơn của shop đọc order/item thực từ Ordering; phương thức, trạng thái, số tiền và mã tham chiếu thanh toán luôn đọc từ `payments`. Service kiểm tra chủ shop trước khi trả dữ liệu; shop `LOCKED` vẫn xem được đơn cũ khi tài khoản chủ shop còn hoạt động. Danh sách lọc trạng thái và phân trang 10 đơn/trang tại database, giữ bộ lọc khi chuyển trang; trang hoặc trạng thái không hợp lệ trả lỗi 400. Các thao tác chuyển trạng thái/hủy đơn trên giao diện shop chưa được kết nối.
+- Danh sách và chi tiết đơn của shop đọc order/item thực từ Ordering; phương thức, trạng thái, số tiền và mã tham chiếu thanh toán luôn đọc từ `payments`. Service kiểm tra chủ shop trước khi trả dữ liệu; shop `LOCKED` vẫn xem được đơn cũ khi tài khoản chủ shop còn hoạt động. Danh sách lọc trạng thái và phân trang 10 đơn/trang tại database, giữ bộ lọc khi chuyển trang; trang hoặc trạng thái không hợp lệ trả lỗi 400. Thao tác hủy đơn trên giao diện shop chưa được kết nối.
 - Với đơn chuyển khoản còn `PENDING`, chủ shop (kể cả shop `LOCKED` có tài khoản chủ còn hoạt động) xác nhận đã nhận tiền mô phỏng trên trang chi tiết. Ordering khóa đơn, kiểm tra quyền sở hữu và payment, rồi ghi `PAID` cùng `paid_at` trong một transaction; đơn vẫn `PENDING` để ORDER 04 xử lý bước xác nhận đơn. Xác nhận lặp hoặc sai trạng thái bị từ chối.
+- Chủ shop có tài khoản còn hoạt động (kể cả shop `LOCKED`) chuyển đơn cũ lần lượt `PENDING → CONFIRMED → PREPARING → SHIPPING → COMPLETED` trên trang chi tiết. Đơn chuyển khoản phải `PAID` trước khi xác nhận; COD giữ `COD_PENDING` đến lúc hoàn thành rồi chuyển `PAID`. Ordering khóa đơn, kiểm tra quyền sở hữu và trạng thái payment, ghi history, và phát `OrderStatusChangedEvent` cho mỗi lần chuyển hợp lệ; chuyển sai hoặc lặp bị từ chối.
 
 ## Kiểm thử/bàn giao
 

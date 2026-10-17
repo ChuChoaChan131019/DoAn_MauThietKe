@@ -121,4 +121,14 @@ public class Payment {
         status = PaymentStatus.PAID;
         paidAt = Instant.now();
     }
+
+    // Khi đơn COD hoàn thành, xác nhận đã thu tiền.
+    public void markCodPaid() {
+        if (method != PaymentMethod.COD || status != PaymentStatus.COD_PENDING || paidAt != null) {
+            throw new IllegalStateException("Thanh toán COD không ở trạng thái chờ thu tiền.");
+        }
+
+        status = PaymentStatus.PAID;
+        paidAt = Instant.now();
+    }
 }
