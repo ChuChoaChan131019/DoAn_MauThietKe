@@ -6,6 +6,7 @@ import com.senvia.doangiuaky.identity.api.UserRole;
 import com.senvia.doangiuaky.identity.api.UserSummary;
 import com.senvia.doangiuaky.merchant.api.MerchantApi;
 import com.senvia.doangiuaky.merchant.api.MerchantStockApi;
+import com.senvia.doangiuaky.ordering.api.OrderCancellationApi;
 import com.senvia.doangiuaky.ordering.api.OrderStatusChangedEvent;
 import com.senvia.doangiuaky.ordering.entity.Order;
 import com.senvia.doangiuaky.ordering.entity.OrderItem;
@@ -29,7 +30,7 @@ import java.util.Objects;
 import java.util.UUID;
 
 @Service
-public class OrderCancellationService {
+public class OrderCancellationService implements OrderCancellationApi {
     private final CurrentUserApi currentUserApi;
     private final MerchantApi merchantApi;
     private final MerchantStockApi stockApi;
@@ -39,7 +40,9 @@ public class OrderCancellationService {
     private final OrderStatusHistoryRepository histories;
     private final ApplicationEventPublisher events;
 
-    public OrderCancellationService(CurrentUserApi currentUserApi, MerchantApi merchantApi, MerchantStockApi stockApi, OrderRepository orders, OrderItemRepository items, PaymentRepository payments, OrderStatusHistoryRepository histories, ApplicationEventPublisher events) {
+    public OrderCancellationService(CurrentUserApi currentUserApi, MerchantApi merchantApi, MerchantStockApi stockApi,
+            OrderRepository orders, OrderItemRepository items, PaymentRepository payments,
+            OrderStatusHistoryRepository histories, ApplicationEventPublisher events) {
         this.currentUserApi = currentUserApi;
         this.merchantApi = merchantApi;
         this.stockApi = stockApi;
@@ -50,69 +53,77 @@ public class OrderCancellationService {
         this.events = events;
     }
 
+    @Override
     @Transactional
     public void cancelAsSeller(String orderCode, String reason) {
         cancel(orderCode, reason, ActorType.SELLER);
     }
 
+    @Override
     @Transactional
     public void cancelAsBuyer(String orderCode, String reason) {
         cancel(orderCode, reason, ActorType.BUYER);
     }
 
+    @Override
     @Transactional
     public void cancelAsAdmin(String orderCode, String reason) {
         cancel(orderCode, reason, ActorType.ADMIN);
     }
 
     private void cancel(String orderCode, String reason, ActorType actorType) {
+        // 1. Lay tai khoan dang nhap thuc te.
         UserSummary actor = currentUserApi.requireCurrentUser();
 
-        if (actor.userId() == null || actor.accountStatus() != AccountStatus.ACTIVE) {
+        if (actor == null || actor.userId() == null || actor.accountStatus() != AccountStatus.ACTIVE) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Tài khoản không được xử lý đơn hàng.");
         }
 
+        // 2. Kiem tra ma don.
         if (orderCode == null || orderCode.isBlank()) {
             throw notFound();
         }
 
+        // 3. Khoa order trong transaction.
+        Order order = orders
+                .findByOrderCodeForUpdate(orderCode.strip())
+                .orElseThrow(OrderCancellationService::notFound);
+
+        // 4. Kiem tra quyen truoc khi xu ly du lieu huy.
+        requireAuthorized(actor, actorType, order);
+
+        // 5. Kiem tra ly do sau khi da xac nhan quyen.
         if (reason == null || reason.strip().isEmpty() || reason.strip().length() > 500) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Lý do hủy phải có từ 1 đến 500 ký tự.");
         }
 
         String normalizedReason = reason.strip();
 
-        // 1. Khóa order ngay từ truy vấn đầu tiên.
-        Order order = orders.findByOrderCodeForUpdate(orderCode).orElseThrow(OrderCancellationService::notFound);
-
-        // 2. Kiểm tra quyền ngay tại backend.
-        requireAuthorized(actor, actorType, order);
-
-        // 3. Chỉ cho hủy 3 trạng thái hợp lệ.
+        // 6. Chỉ cho hủy 3 trạng thái hợp lệ.
         OrderStatus oldStatus = order.getStatus();
 
         if (oldStatus != OrderStatus.PENDING && oldStatus != OrderStatus.CONFIRMED && oldStatus != OrderStatus.PREPARING) {
             throw conflict("Đơn ở trạng thái " + oldStatus + " không thể hủy.");
         }
 
-        // 4. Lấy payment thực tế.
+        // 7. Lấy payment thực tế.
         Payment payment = payments.findByOrderId(order.getId()).orElseThrow(() -> conflict("Đơn không có payment hợp lệ."));
 
-        // 5. Đọc order items.
+        // 8. Đọc order items.
         List<OrderItem> orderedItems = items.findAllByOrderIdOrderByIdAsc(order.getId());
 
         if (orderedItems.isEmpty()) {
             throw conflict("Đơn không có sản phẩm để hoàn kho.");
         }
 
-        // 6. Kiểm tra payment trước khi hoàn kho.
+        // 9. Kiểm tra payment trước khi hoàn kho.
         try {
             payment.ensureCancellable();
         } catch (IllegalStateException exception) {
             throw conflict(exception.getMessage());
         }
 
-        // 7. Hoàn kho đúng một lần theo từng orderItemId.
+        // 10. Hoàn kho đúng một lần theo từng orderItemId.
         // Sắp xếp productId để giảm nguy cơ deadlock.
         // MerchantStockApi tham gia transaction hiện tại.
         orderedItems.stream()
@@ -126,17 +137,17 @@ public class OrderCancellationService {
                         )
                 );
 
-        // 8. Cập nhật payment và order.
+        // 11. Cập nhật payment và order.
         payment.settleForCancellation();
         order.changeStatus(OrderStatus.CANCELLED);
 
         payments.save(payment);
         orders.save(order);
 
-        // 9. Lưu lịch sử với actor và lý do hủy.
+        // 12. Lưu lịch sử với actor và lý do hủy.
         histories.save(new OrderStatusHistory(order.getId(), oldStatus, OrderStatus.CANCELLED, actor.userId(), "Hủy đơn. Lý do: " + normalizedReason));
 
-        // 10. Publish event trong transaction.
+        // 13. Publish event trong transaction.
         // Listener AFTER_COMMIT chỉ chạy sau commit thành công.
         events.publishEvent(new OrderStatusChangedEvent(UUID.randomUUID(), order.getId(), order.getShopId(), order.getBuyerId(), actor.userId(), order.getOrderCode(), oldStatus.name(), OrderStatus.CANCELLED.name(), Instant.now()));
     }
