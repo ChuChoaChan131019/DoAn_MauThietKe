@@ -17,8 +17,11 @@ public class PaymentQueryService {
         this.paymentRepository = paymentRepository;
     }
 
+    // ORDER 09: Helper nội bộ module Ordering.
+    // Chỉ gọi sau khi service đã xác thực quyền trên order,
+    // hoặc khi tạo receipt ngay trong transaction checkout.
     @Transactional(readOnly = true)
-    public PaymentDetails getByOrderId(Long orderId) {
+    PaymentDetails getByOrderId(Long orderId) {
         if (orderId == null || orderId <= 0) {
             throw new IllegalArgumentException("orderId không hợp lệ.");
         }
