@@ -111,4 +111,14 @@ public class Payment {
     public Instant getCreatedAt() {
         return createdAt;
     }
+
+    // PAY 05: Xác nhận đã nhận tiền chuyển khoản mô phỏng.
+    public void markBankTransferPaid() {
+        if (method != PaymentMethod.BANK_TRANSFER || status != PaymentStatus.PENDING || paidAt != null) {
+            throw new IllegalStateException("Thanh toán không ở trạng thái chờ chuyển khoản.");
+        }
+
+        status = PaymentStatus.PAID;
+        paidAt = Instant.now();
+    }
 }

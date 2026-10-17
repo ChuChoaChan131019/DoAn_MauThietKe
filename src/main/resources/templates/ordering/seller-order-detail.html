@@ -259,6 +259,17 @@
                         Thanh toán & Vận chuyển
                     </h5>
 
+                    <!-- PAY 05: Thông báo kết quả xác nhận -->
+                    <div th:if="${paymentSuccess}"
+                        class="alert alert-success rounded-0"
+                        th:text="${paymentSuccess}">
+                    </div>
+
+                    <div th:if="${paymentError}"
+                        class="alert alert-warning rounded-0"
+                        th:text="${paymentError}">
+                    </div>
+
                     <!-- Payment Method -->
                     <div class="text-plum mb-2 fw-bold"
                          th:text="${paymentDetails.method.name() == 'BANK_TRANSFER'
@@ -335,6 +346,38 @@
                               th:text="${paymentDetails.transactionReference}">
                         </span>
                     </div>
+
+                    <!-- PAY 05: Xác nhận chuyển khoản mô phỏng -->
+                    <form th:if="${status == 'PENDING'
+                                and paymentDetails.method.name() == 'BANK_TRANSFER'
+                                and paymentDetails.status.name() == 'PENDING'}"
+                        th:action="@{/merchant/orders/payment/confirm}"
+                        method="post"
+                        class="mt-4">
+
+                        <!-- Mã đơn hàng thật -->
+                        <input type="hidden"
+                            name="id"
+                            th:value="${order.id}">
+
+                        <!-- CSRF -->
+                        <input type="hidden"
+                            th:name="${_csrf.parameterName}"
+                            th:value="${_csrf.token}">
+
+                        <button type="submit"
+                                class="btn bg-burgundy text-white rounded-0 w-100">
+
+                            <i class="bi bi-check-circle me-2"></i>
+                            Xác nhận đã nhận tiền (mô phỏng)
+                        </button>
+
+                        <p class="text-muted small mt-2 mb-0">
+                            Chỉ ghi nhận payment là đã thanh toán;
+                            đơn hàng vẫn chờ xác nhận.
+                            Không cần chuyển khoản thật.
+                        </p>
+                    </form>
 
                     <!-- Paid At -->
                     <div class="text-muted small mt-3"

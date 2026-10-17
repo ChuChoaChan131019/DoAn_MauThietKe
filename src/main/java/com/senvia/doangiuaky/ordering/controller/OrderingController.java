@@ -31,6 +31,7 @@ import com.senvia.doangiuaky.ordering.dto.SellerOrderView;
 import com.senvia.doangiuaky.ordering.service.SellerOrderReadService;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
+import com.senvia.doangiuaky.ordering.service.SellerPaymentConfirmationService;
 
 import com.senvia.doangiuaky.ordering.dto.SellerOrderPage;
 import java.util.Locale;
@@ -42,14 +43,16 @@ public class OrderingController {
     private final CheckoutPreviewService checkoutPreviewService;
     private final CheckoutTransactionService checkoutTransactionService;
     private final SellerOrderReadService sellerOrderReadService;
+    private final SellerPaymentConfirmationService sellerPaymentConfirmationService;
 
     private static final String SESSION_QUOTE = "ordering.checkout.quote";
 
-    public OrderingController(CheckoutSelectionService checkoutSelectionService, CheckoutPreviewService checkoutPreviewService, CheckoutTransactionService checkoutTransactionService, SellerOrderReadService sellerOrderReadService) {
+    public OrderingController(CheckoutSelectionService checkoutSelectionService, CheckoutPreviewService checkoutPreviewService, CheckoutTransactionService checkoutTransactionService, SellerOrderReadService sellerOrderReadService, SellerPaymentConfirmationService sellerPaymentConfirmationService) {
         this.checkoutSelectionService = checkoutSelectionService;
         this.checkoutPreviewService = checkoutPreviewService;
         this.checkoutTransactionService = checkoutTransactionService;
         this.sellerOrderReadService = sellerOrderReadService;
+        this.sellerPaymentConfirmationService = sellerPaymentConfirmationService;
     }
 
     @GetMapping("/checkout")
@@ -229,6 +232,27 @@ public class OrderingController {
         model.addAttribute("status", order.status());
 
         return "ordering/seller-order-detail";
+    }
+
+    // PAY 05: Chủ shop xác nhận đã nhận tiền mô phỏng.
+    @PostMapping("/merchant/orders/payment/confirm")
+    public String confirmSellerPayment(@RequestParam("id") String orderCode, RedirectAttributes redirectAttributes) {
+        try {
+            sellerPaymentConfirmationService.confirmBankTransfer(orderCode);
+            redirectAttributes.addFlashAttribute("paymentSuccess", "Đã ghi nhận thanh toán mô phỏng.");
+        } catch (ResponseStatusException exception) {
+            // Các lỗi trạng thái được hiển thị lại
+            // trên trang chi tiết đơn hàng.
+            if (exception.getStatusCode().value() != HttpStatus.CONFLICT.value()) {
+                throw exception;
+            }
+
+            redirectAttributes.addFlashAttribute("paymentError", exception.getReason());
+        }
+
+        redirectAttributes.addAttribute("id", orderCode);
+
+        return "redirect:/merchant/orders/detail";
     }
 
     @GetMapping("/merchant/orders/status")
