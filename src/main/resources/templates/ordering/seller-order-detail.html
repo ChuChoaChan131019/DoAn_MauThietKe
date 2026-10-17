@@ -230,6 +230,59 @@
                         th:text="${statusError}">
                     </div>
 
+                    <!-- ORDER 08: Thông báo kết quả hủy -->
+                    <div th:if="${cancelSuccess}"
+                        class="alert alert-success rounded-0"
+                        th:text="${cancelSuccess}">
+                    </div>
+
+                    <div th:if="${cancelError}"
+                        class="alert alert-danger rounded-0"
+                        th:text="${cancelError}">
+                    </div>
+
+                    <!-- ORDER 08: Hủy đơn khi còn hợp lệ -->
+                    <form th:if="${status == 'PENDING'
+                                or status == 'CONFIRMED'
+                                or status == 'PREPARING'}"
+                        th:action="@{/merchant/orders/cancel}"
+                        method="post"
+                        class="mt-3 mb-4">
+
+                        <input type="hidden"
+                            name="id"
+                            th:value="${order.id}">
+
+                        <input type="hidden"
+                            th:name="${_csrf.parameterName}"
+                            th:value="${_csrf.token}">
+
+                        <label for="cancel-reason"
+                            class="form-label fw-bold text-plum">
+                            Lý do hủy đơn
+                        </label>
+
+                        <textarea id="cancel-reason"
+                                name="reason"
+                                rows="3"
+                                maxlength="500"
+                                required
+                                class="form-control rounded-0 mb-2"
+                                placeholder="Nhập lý do hủy (tối đa 500 ký tự)"></textarea>
+
+                        <button type="submit"
+                                class="btn btn-outline-danger rounded-0 w-100"
+                                onclick="return confirm('Bạn có chắc muốn hủy đơn này?');">
+                            <i class="bi bi-x-circle me-2"></i>
+                            Hủy đơn hàng
+                        </button>
+
+                        <p class="small text-muted mt-2 mb-0">
+                            Khi hủy đơn, hệ thống sẽ tự động hoàn tồn kho
+                            và cập nhật trạng thái thanh toán.
+                        </p>
+                    </form>
+
                     <!-- Chờ thanh toán chuyển khoản -->
                     <div th:if="${status == 'PENDING'
                                 and paymentDetails.method.name() == 'BANK_TRANSFER'
