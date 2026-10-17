@@ -239,7 +239,11 @@ class Order02SellerAccessIntegrationTest {
                     .andExpect(content().string(containsString(nolaOrderCode)))
                     .andExpect(content().string(containsString(moriOrderCode)))
                     .andExpect(content().string(containsString(
-                            "/account/orders/detail?id=" + nolaOrderCode)));
+                            "/account/orders/detail?id=" + nolaOrderCode)))
+                    .andExpect(content().string(containsString(
+                            "/account/orders/history?id=" + nolaOrderCode)))
+                    .andExpect(content().string(containsString(
+                            "/account/orders/history?id=" + moriOrderCode)));
 
             mvc.perform(get("/account/orders")
                             .with(user(otherEmail).roles("USER")))
@@ -253,6 +257,12 @@ class Order02SellerAccessIntegrationTest {
                                             .param("id", nolaOrderCode)
                                             .with(user(buyerEmail).roles("USER")))
                             .andExpect(status().isOk());
+
+            mvc.perform(get("/account/orders/history")
+                            .param("id", nolaOrderCode)
+                            .with(user(buyerEmail).roles("USER")))
+                    .andExpect(status().isOk())
+                    .andExpect(content().string(containsString(nolaOrderCode)));
 
             // Buyer khác tự thay URL để xem chi tiết.
             mvc.perform(
@@ -367,7 +377,7 @@ class Order02SellerAccessIntegrationTest {
     }
 
     @Test
-    void order09AdminListUsesRealOrdersAndLinksToDetail() throws Exception {
+    void order09AdminListUsesRealOrdersAndLinksToDetailAndHistory() throws Exception {
         String adminEmail = "order09-admin-" + UUID.randomUUID() + "@example.com";
         db.update("""
                 INSERT INTO users (
@@ -384,9 +394,19 @@ class Order02SellerAccessIntegrationTest {
                 .andExpect(content().string(containsString(nolaOrderCode)))
                 .andExpect(content().string(containsString(moriOrderCode)))
                 .andExpect(content().string(containsString(
-                        "/admin/orders/detail?id=" + nolaOrderCode)));
+                        "/admin/orders/detail?id=" + nolaOrderCode)))
+                .andExpect(content().string(containsString(
+                        "/admin/orders/history?id=" + nolaOrderCode)))
+                .andExpect(content().string(containsString(
+                        "/admin/orders/history?id=" + moriOrderCode)));
 
         mvc.perform(get("/admin/orders/detail")
+                        .param("id", nolaOrderCode)
+                        .with(user(adminEmail).roles("ADMIN")))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString(nolaOrderCode)));
+
+        mvc.perform(get("/admin/orders/history")
                         .param("id", nolaOrderCode)
                         .with(user(adminEmail).roles("ADMIN")))
                 .andExpect(status().isOk())

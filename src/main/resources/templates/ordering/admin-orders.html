@@ -46,10 +46,16 @@
                                 <td th:text="${order.totalAmount} + ' ₫'"></td>
                                 <td th:text="${order.status}"></td>
                                 <td class="text-end px-4">
-                                    <a th:href="@{/admin/orders/detail(id=${order.orderCode})}"
-                                       class="btn btn-sm border border-plum text-plum rounded-0">
-                                        Chi tiết
-                                    </a>
+                                    <div class="d-flex flex-wrap justify-content-end gap-2">
+                                        <a th:href="@{/admin/orders/detail(id=${order.orderCode})}"
+                                           class="btn btn-sm border border-plum text-plum rounded-0">
+                                            Chi tiết
+                                        </a>
+                                        <a th:href="@{/admin/orders/history(id=${order.orderCode})}"
+                                           class="btn btn-sm border border-plum text-plum rounded-0">
+                                            Xem lịch sử
+                                        </a>
+                                    </div>
                                 </td>
                             </tr>
                         </tbody>

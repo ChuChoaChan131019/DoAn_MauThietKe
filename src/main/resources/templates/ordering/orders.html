@@ -37,10 +37,16 @@
                             Tổng tiền:
                             <strong th:text="${order.totalAmount} + ' ₫'"></strong>
                         </span>
-                        <a th:href="@{/account/orders/detail(id=${order.orderCode})}"
-                           class="btn border border-plum text-plum rounded-0 px-4">
-                            Xem chi tiết
-                        </a>
+                        <div class="d-flex flex-wrap gap-2">
+                            <a th:href="@{/account/orders/detail(id=${order.orderCode})}"
+                               class="btn border border-plum text-plum rounded-0 px-4">
+                                Xem chi tiết
+                            </a>
+                            <a th:href="@{/account/orders/history(id=${order.orderCode})}"
+                               class="btn border border-plum text-plum rounded-0 px-4">
+                                Xem lịch sử
+                            </a>
+                        </div>
                     </div>
                 </div>
             </div>
