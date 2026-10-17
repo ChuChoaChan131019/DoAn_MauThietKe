@@ -20,6 +20,7 @@
   không vào trang thanh toán hoặc đơn hàng và vẫn ở giỏ.
 - Dùng `merchant.api` cho khả năng bán, giá và trừ/hoàn stock.
 - Cung cấp `ordering.api`: Buyer/Admin query, cancel command, review verification, statistics và order event.
+- `OrderCreatedEvent(eventId, orderId, shopId, buyerId, actorId, orderCode, status, occurredAt)` là contract trong `ordering.api`. Checkout phát một event cho mỗi order sau khi lưu order, payment và history, trừ kho và xóa mục giỏ trong cùng transaction. Listener xử lý bằng `@TransactionalEventListener(AFTER_COMMIT)` để chỉ nhận event khi checkout commit; `eventId` riêng cho từng order hỗ trợ chống xử lý trùng.
 - Không công bố Order Entity/Repository/Service nội bộ.
 
 ## Thứ tự feature

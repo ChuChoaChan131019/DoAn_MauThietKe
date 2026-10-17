@@ -188,6 +188,13 @@ class Pay06RollbackIntegrationTest {
     private void deleteFixtureRows(String email) {
         // Dọn cả dữ liệu checkout nếu test thất bại trước khi kiểm tra rollback.
         db.update("""
+                DELETE FROM order_status_histories
+                WHERE order_id IN (
+                    SELECT id FROM orders
+                    WHERE buyer_id IN (SELECT id FROM users WHERE email = ?)
+                )
+                """, email);
+        db.update("""
                 DELETE FROM payments
                 WHERE order_id IN (
                     SELECT id FROM orders
