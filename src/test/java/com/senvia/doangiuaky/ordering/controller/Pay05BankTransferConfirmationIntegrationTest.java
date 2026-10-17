@@ -488,6 +488,34 @@ class Pay05BankTransferConfirmationIntegrationTest {
         );
     }
 
+    @Test
+    void pendingPaymentWithExistingPaymentOrRefundTimeCannotBeConfirmed() throws Exception {
+        Fixture paidTime = createOrder(
+                PaymentMethod.BANK_TRANSFER, PaymentStatus.PENDING, OrderStatus.PENDING);
+        Fixture refundedTime = createOrder(
+                PaymentMethod.BANK_TRANSFER, PaymentStatus.PENDING, OrderStatus.PENDING);
+        Timestamp unexpectedTime = Timestamp.valueOf("2026-01-01 00:00:00");
+
+        db.update("UPDATE payments SET paid_at = ? WHERE order_id = ?", unexpectedTime, paidTime.id());
+        db.update("UPDATE payments SET refunded_at = ? WHERE order_id = ?", unexpectedTime, refundedTime.id());
+
+        for (Fixture fixture : new Fixture[]{paidTime, refundedTime}) {
+            var paymentBefore = db.queryForMap(
+                    "SELECT status, paid_at, refunded_at FROM payments WHERE order_id = ?", fixture.id());
+
+            mvc.perform(post("/merchant/orders/payment/confirm")
+                            .param("id", fixture.code())
+                            .with(user(OWNER).roles("USER"))
+                            .with(csrf()))
+                    .andExpect(status().is3xxRedirection())
+                    .andExpect(flash().attributeExists("paymentError"));
+
+            assertEquals(paymentBefore, db.queryForMap(
+                    "SELECT status, paid_at, refunded_at FROM payments WHERE order_id = ?", fixture.id()));
+            assertEquals("PENDING", orderStatus(fixture.id()));
+        }
+    }
+
     /**
      * TEST 7:
      * Endpoint xác nhận chỉ chấp nhận POST.

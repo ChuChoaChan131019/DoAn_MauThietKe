@@ -193,6 +193,42 @@ class Order04SellerStatusIntegrationTest {
     }
 
     @Test
+    void inconsistentPaymentTimesCannotAdvanceOrder() throws Exception {
+        Fixture bankWithoutPaidAt = createFixture(
+                PaymentMethod.BANK_TRANSFER, PaymentStatus.PAID, false);
+        Fixture bankWithRefundedAt = createFixture(
+                PaymentMethod.BANK_TRANSFER, PaymentStatus.PAID, false);
+        Fixture codWithPaidAt = createFixture(
+                PaymentMethod.COD, PaymentStatus.COD_PENDING, false);
+        Fixture codWithRefundedAt = createFixture(
+                PaymentMethod.COD, PaymentStatus.COD_PENDING, false);
+        Timestamp unexpectedTime = Timestamp.valueOf("2026-01-01 00:00:00");
+
+        db.update("UPDATE payments SET paid_at = NULL WHERE order_id = ?", bankWithoutPaidAt.orderId());
+        db.update("UPDATE payments SET refunded_at = ? WHERE order_id = ?",
+                unexpectedTime, bankWithRefundedAt.orderId());
+        db.update("UPDATE payments SET paid_at = ? WHERE order_id = ?",
+                unexpectedTime, codWithPaidAt.orderId());
+        db.update("UPDATE payments SET refunded_at = ? WHERE order_id = ?",
+                unexpectedTime, codWithRefundedAt.orderId());
+
+        for (Fixture fixture : new Fixture[]{
+                bankWithoutPaidAt, bankWithRefundedAt, codWithPaidAt, codWithRefundedAt}) {
+            var paymentBefore = db.queryForMap(
+                    "SELECT status, paid_at, refunded_at FROM payments WHERE order_id = ?", fixture.orderId());
+
+            MvcResult response = submit(fixture, "CONFIRMED");
+
+            assertTrue(response.getFlashMap().containsKey("statusError"));
+            assertEquals("PENDING", orderStatus(fixture));
+            assertEquals(1, historyCount(fixture));
+            assertEquals(paymentBefore, db.queryForMap(
+                    "SELECT status, paid_at, refunded_at FROM payments WHERE order_id = ?", fixture.orderId()));
+        }
+        assertTrue(events.received.isEmpty());
+    }
+
+    @Test
     void skipAndRepeatedTransitionsAreRejected() throws Exception {
         Fixture f = createFixture(
                 PaymentMethod.COD,

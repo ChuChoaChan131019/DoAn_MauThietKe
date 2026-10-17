@@ -112,18 +112,34 @@ public class Payment {
         return createdAt;
     }
 
-    // ORDER 08: Kiểm tra payment trước khi hủy đơn.
+    // PAY 08: Kiểm tra payment có được phép hủy hay không.
     public void ensureCancellable() {
         switch (status) {
-            case PENDING, COD_PENDING, FAILED -> {
+            case PENDING -> {
+                // Chỉ chuyển khoản mới có trạng thái PENDING.
+                if (method != PaymentMethod.BANK_TRANSFER || paidAt != null || refundedAt != null) {
+                    throw new IllegalStateException("Payment chuyển khoản đang chờ không hợp lệ.");
+                }
+            }
+
+            case COD_PENDING -> {
+                // Chỉ COD mới có trạng thái COD_PENDING.
+                if (method != PaymentMethod.COD || paidAt != null || refundedAt != null) {
+                    throw new IllegalStateException("Payment COD đang chờ không hợp lệ.");
+                }
+            }
+
+            case FAILED -> {
+                // FAILED được lưu trữ nhưng chưa có luồng phát sinh.
                 if (paidAt != null || refundedAt != null) {
-                    throw new IllegalStateException("Payment chưa trả có mốc thanh toán không hợp lệ.");
+                    throw new IllegalStateException("Payment thất bại có thời gian thanh toán không hợp lệ.");
                 }
             }
 
             case PAID -> {
-                if (refundedAt != null) {
-                    throw new IllegalStateException("Payment đã có mốc hoàn tiền.");
+                // Đã trả tiền thì bắt buộc phải có paid_at.
+                if (paidAt == null || refundedAt != null) {
+                    throw new IllegalStateException("Payment đã thanh toán có dữ liệu thời gian không hợp lệ.");
                 }
             }
 
@@ -147,7 +163,7 @@ public class Payment {
 
     // PAY 05: Xác nhận đã nhận tiền chuyển khoản mô phỏng.
     public void markBankTransferPaid() {
-        if (method != PaymentMethod.BANK_TRANSFER || status != PaymentStatus.PENDING || paidAt != null) {
+        if (method != PaymentMethod.BANK_TRANSFER || status != PaymentStatus.PENDING || paidAt != null || refundedAt != null) {
             throw new IllegalStateException("Thanh toán không ở trạng thái chờ chuyển khoản.");
         }
 
@@ -157,7 +173,7 @@ public class Payment {
 
     // Khi đơn COD hoàn thành, xác nhận đã thu tiền.
     public void markCodPaid() {
-        if (method != PaymentMethod.COD || status != PaymentStatus.COD_PENDING || paidAt != null) {
+        if (method != PaymentMethod.COD || status != PaymentStatus.COD_PENDING || paidAt != null || refundedAt != null) {
             throw new IllegalStateException("Thanh toán COD không ở trạng thái chờ thu tiền.");
         }
 
