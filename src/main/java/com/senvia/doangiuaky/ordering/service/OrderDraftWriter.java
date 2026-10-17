@@ -10,25 +10,26 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
-import java.util.UUID;
-
-import java.util.HashSet;
 import java.util.Set;
+import java.util.UUID;
 
 @Service
 public class OrderDraftWriter {
     private final OrderRepository orders;
     private final OrderItemRepository items;
     private final PaymentRepository payments;
+    private final OrderStatusHistoryRepository histories;
     private final MerchantApi merchantApi;
 
     public OrderDraftWriter(OrderRepository orders, OrderItemRepository items, PaymentRepository payments,
-            MerchantApi merchantApi) {
+           OrderStatusHistoryRepository histories, MerchantApi merchantApi) {
         this.orders = orders;
         this.items = items;
         this.payments = payments;
+        this.histories = histories;
         this.merchantApi = merchantApi;
     }
 
@@ -50,7 +51,7 @@ public class OrderDraftWriter {
             throw new CheckoutPreparationException("Không có gian hàng để tạo đơn.");
         }
 
-        // Kiem tra shop trung truoc khi luu bat ky du lieu nao
+        // 1. Kiem tra cac shop co bi trung khong.
         Set<Long> shopIds = new HashSet<>();
 
         for (PreparedCheckout.ShopOrder group : checkout.shopOrders()) {
@@ -66,8 +67,7 @@ public class OrderDraftWriter {
             }
         }
 
-        // Xac minh lai du lieu authoritative cua Merchant truoc khi ghi bat ky don hang nao.
-        // Gia trong PreparedCheckout la quote server-side ma buyer vua xac nhan.
+        // 2. Kiem tra lai du lieu san pham tu Merchant API.
         BigDecimal currentGrandTotal = BigDecimal.ZERO;
         boolean priceChanged = false;
 
@@ -94,9 +94,8 @@ public class OrderDraftWriter {
                     throw new CheckoutPreparationException("Sản phẩm không thuộc gian hàng của đơn hàng.");
                 }
 
-                // CheckoutTransactionService đã kiểm tra saleability và trừ kho nguyên tử
-                // qua MerchantStockApi trước khi gọi writer. Không kiểm tra saleability hoặc
-                // số tồn tại đây vì sản phẩm vừa bán hết có stockQuantity = 0 là hợp lệ.
+                // 2. Kiem tra lai du lieu san pham tu Merchant API.
+                // viec kiem tra va tru kho nguyen tu.
                 currentGrandTotal = currentGrandTotal.add(
                         product.currentPrice().multiply(BigDecimal.valueOf(line.quantity())));
                 if (product.currentPrice().compareTo(line.unitPrice()) != 0) {
@@ -109,9 +108,7 @@ public class OrderDraftWriter {
             throw new CheckoutPriceChangedException(currentGrandTotal);
         }
 
-        List<Long> savedIds = new ArrayList<>();
-
-        // 1. Kiem tra tong tien toan gio
+        // 3. Kiem tra tong tien toan bo checkout.
         BigDecimal expectedGrandTotal = checkout
                 .shopOrders()
                 .stream()
@@ -119,13 +116,14 @@ public class OrderDraftWriter {
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         if (expectedGrandTotal.compareTo(
-                checkout.grandTotal()
-        ) != 0) {
+                checkout.grandTotal()) != 0) {
             throw new CheckoutPreparationException("Tổng tiền toàn giỏ không chính xác.");
         }
 
-        // 2. Tao moi don cho moi shop
-        for (var group : checkout.shopOrders()) {
+        List<Long> savedIds = new ArrayList<>();
+
+        // 4. Moi shop tao mot don rieng.
+        for (PreparedCheckout.ShopOrder group : checkout.shopOrders()) {
             if (!checkout.buyerId().equals(group.buyerId())
                     || group.items().isEmpty()
                     || group.shopId() == null
@@ -134,7 +132,7 @@ public class OrderDraftWriter {
                 throw new CheckoutPreparationException("Nhóm đơn hàng không hợp lệ.");
             }
 
-            // 3. Kiem tra lai thanh tien tung dong
+            // 5. Tinh lai tong tien theo tung dong.
             BigDecimal calculated = group.items()
                     .stream()
                     .map(line -> {
@@ -155,42 +153,54 @@ public class OrderDraftWriter {
                     .reduce(BigDecimal.ZERO, BigDecimal::add);
 
             if (calculated.compareTo(
-                    group.totalAmount()
-            ) != 0 || calculated.signum() <= 0) {
+                    group.totalAmount()) != 0
+                    || calculated.signum() <= 0) {
                 throw new CheckoutPreparationException("Tổng tiền gian hàng không chính xác.");
             }
 
-            // 4. Lay dia chi giao hang
             var delivery = checkout.delivery();
 
-            // 5. Tao ma don hang duy nhat
+            // 6. Tao ma don hang duy nhat.
             String code = "ORD-" +
                     UUID.randomUUID()
                             .toString()
                             .replace("-", "")
                             .substring(0, 24);
 
-            // 6. Luu order
-            Order order = orders.save(new Order(code, checkout.buyerId(), group.shopId(), delivery.receiverName(), delivery.receiverPhone(), delivery.shippingAddress(), delivery.note(), group.totalAmount()));
+            // ORDER 03: Order moi mac dinh PENDING.
+            Order newOrder = new Order(code, checkout.buyerId(), group.shopId(), delivery.receiverName(),
+                    delivery.receiverPhone(), delivery.shippingAddress(), delivery.note(), group.totalAmount());
 
-            // 7. Luu cac order_items
-            for (var line : group.items()) {
+            if (newOrder.getStatus() != OrderStatus.PENDING) {
+                throw new IllegalStateException("Đơn mới phải có trạng thái PENDING.");
+            }
+
+            Order order = orders.save(newOrder);
+
+            // 7. Luu snapshot cac san pham.
+            for (PreparedCheckout.Line line : group.items()) {
                 items.save(new OrderItem(order.getId(), line.productId(), line.productNameSnapshot(), line.unitPrice(), line.quantity(), line.subtotal()));
             }
 
             // 8. Khoi tao payment qua PAY 04
-            PaymentSeed seed = Objects.requireNonNull(paymentSeedProvider.initialize( checkout.paymentMethod(), code, group.totalAmount()), "PAY 04 initialization is required");
+            PaymentSeed seed = Objects.requireNonNull(paymentSeedProvider.initialize(checkout.paymentMethod(), code, group.totalAmount()), "PAY 04 initialization is required");
 
             // 9. Luu payment
-            payments.save(new Payment(order.getId(), checkout.paymentMethod(), group.totalAmount(), seed.status(), seed.transactionReference()));
+            payments.save(new Payment(order.getId(), checkout.paymentMethod(), group.totalAmount(), seed.status(),
+                    seed.transactionReference()));
+
+            // 10. ORDER 03: Luu lich su khoi tao PENDING.
+            histories.save(new OrderStatusHistory(order.getId(), null, OrderStatus.PENDING, checkout.buyerId(),
+                    "Đơn hàng được tạo thành công"));
 
             savedIds.add(order.getId());
         }
 
-        // 10. Flush de phat hien loi database
-        payments.flush();
-        items.flush();
+        // 11. Flush de phat hien loi ghi database.
         orders.flush();
+        items.flush();
+        payments.flush();
+        histories.flush();
 
         return List.copyOf(savedIds);
     }

@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 class OrderDraftWriterTest {
@@ -89,6 +90,10 @@ class OrderDraftWriterTest {
                 orders,
                 items,
                 payments,
+                mock(
+                        com.senvia.doangiuaky.ordering.repository
+                                .OrderStatusHistoryRepository.class
+                ),
                 merchantApi
         );
 
@@ -185,8 +190,24 @@ class OrderDraftWriterTest {
                         price.multiply(BigDecimal.valueOf(2)))),
                 price.multiply(BigDecimal.valueOf(2)),
                 List.of());
-        return new Fixture(new OrderDraftWriter(orders, items, payments, merchant), checkout,
-                orders, items, payments, merchant);
+
+        return new Fixture(
+                new OrderDraftWriter(
+                        orders,
+                        items,
+                        payments,
+                        mock(
+                                com.senvia.doangiuaky.ordering.repository
+                                        .OrderStatusHistoryRepository.class
+                        ),
+                        merchant
+                ),
+                checkout,
+                orders,
+                items,
+                payments,
+                merchant
+        );
     }
 
     private static CartProductView product(String price, int stock, boolean active) {

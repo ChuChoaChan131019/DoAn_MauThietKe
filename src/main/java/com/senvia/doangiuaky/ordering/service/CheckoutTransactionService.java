@@ -1,19 +1,21 @@
 package com.senvia.doangiuaky.ordering.service;
 
 import com.senvia.doangiuaky.merchant.api.MerchantStockApi;
-
-import com.senvia.doangiuaky.ordering.entity.Order;
-import com.senvia.doangiuaky.ordering.repository.OrderRepository;
-import com.senvia.doangiuaky.ordering.dto.PaymentDetails;
-
 import com.senvia.doangiuaky.shopping.api.CheckoutCartApi;
 
+import com.senvia.doangiuaky.ordering.api.OrderCreatedEvent;
+import com.senvia.doangiuaky.ordering.dto.PaymentDetails;
+import com.senvia.doangiuaky.ordering.entity.Order;
+import com.senvia.doangiuaky.ordering.repository.OrderRepository;
+
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.UUID;
 
 @Service
 public class CheckoutTransactionService {
@@ -24,10 +26,11 @@ public class CheckoutTransactionService {
     private final CheckoutCartApi checkoutCart;
     private final OrderRepository orders;
     private final PaymentQueryService paymentQueryService;
+    private final ApplicationEventPublisher eventPublisher;
 
     public CheckoutTransactionService(CheckoutPreparationService preparation, MerchantStockApi merchantStock,
             OrderDraftWriter writer, OrderDraftWriter.PaymentSeedProvider payments, CheckoutCartApi checkoutCart,
-            OrderRepository orders, PaymentQueryService paymentQueryService) {
+            OrderRepository orders, PaymentQueryService paymentQueryService, ApplicationEventPublisher eventPublisher) {
         this.preparation = preparation;
         this.merchantStock = merchantStock;
         this.writer = writer;
@@ -35,6 +38,7 @@ public class CheckoutTransactionService {
         this.checkoutCart = checkoutCart;
         this.orders = orders;
         this.paymentQueryService = paymentQueryService;
+        this.eventPublisher = eventPublisher;
     }
 
     @Transactional(rollbackFor = Exception.class)
@@ -81,8 +85,8 @@ public class CheckoutTransactionService {
             );
         }
 
-        // 6. Tạo Order, OrderItem và Payment.
-        // PaymentInitializationService chính là PAY 04.
+        // 6. Tạo Order, OrderItem, Payment và
+        // OrderStatusHistory thông qua OrderDraftWriter.
         List<Long> orderIds = writer.save(fresh, payments);
 
         // 7. Chỉ xóa các cart item được mua.
@@ -91,26 +95,39 @@ public class CheckoutTransactionService {
         // 8. Lấy thông tin Order và Payment đã lưu.
         List<CheckoutReceipt.ShopReceipt> summaries = new ArrayList<>();
 
-        for (int i = 0; i < orderIds.size(); i++) {
-            Long orderId = orderIds.get(i);
-            Order order = orders.findById(orderId).orElseThrow();
-            PaymentDetails payment = paymentQueryService.getByOrderId(orderId);
+        // ORDER 03: Tập hợp event cho mỗi order.
+        List<OrderCreatedEvent> createdEvents = new ArrayList<>();
 
-            summaries.add(
-                    new CheckoutReceipt.ShopReceipt(
-                            fresh.shopOrders()
-                                    .get(i)
-                                    .shopNameSnapshot(),
-                            order.getOrderCode(),
-                            order.getTotalAmount(),
-                            payment.method(),
-                            payment.status(),
-                            payment.transactionReference()
-                    )
-            );
+        for (int i = 0; i < orderIds.size(); i++) {
+                Long orderId = orderIds.get(i);
+                Order order = orders.findById(orderId).orElseThrow();
+                PaymentDetails payment = paymentQueryService.getByOrderId(orderId);
+
+                summaries.add(
+                                new CheckoutReceipt.ShopReceipt(
+                                                fresh.shopOrders()
+                                                                .get(i)
+                                                                .shopNameSnapshot(),
+                                                order.getOrderCode(),
+                                                order.getTotalAmount(),
+                                                payment.method(),
+                                                payment.status(),
+                                                payment.transactionReference()));
+
+                // 9. ORDER 03: Tạo event contract.
+                // Mỗi shop/order có eventId riêng.
+                createdEvents.add(new OrderCreatedEvent(UUID.randomUUID(), order.getId(), order.getShopId(),
+                                order.getBuyerId(), order.getBuyerId(), order.getOrderCode(), order.getStatus().name(),
+                                order.getCreatedAt()));
         }
 
-        // 9. Trả kết quả sau khi chuẩn bị xong.
+        // 10. Publish trong transaction.
+        for (OrderCreatedEvent event : createdEvents) {
+                eventPublisher.publishEvent(event);
+        }
+
+        // 11. Transaction commit khi method
+        // @Transactional kết thúc thành công.
         return new CheckoutReceipt(summaries,fresh.grandTotal());
     }
 }
