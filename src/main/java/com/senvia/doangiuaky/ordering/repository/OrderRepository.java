@@ -7,6 +7,11 @@ import org.springframework.data.jpa.repository.Query;
 import java.util.List;
 import java.util.Optional;
 
+import com.senvia.doangiuaky.ordering.entity.OrderStatus;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import java.util.Collection;
+
 public interface OrderRepository extends JpaRepository<Order, Long> {
     Optional<Order> findByOrderCode(String orderCode);
     List<Order> findAllByBuyerIdOrderByCreatedAtDesc(Long buyerId);
@@ -15,4 +20,13 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
 
     @Query("select distinct o.shopId from Order o")
     List<Long> findDistinctShopIds();
+
+    // ORDER 02 - Danh sách đơn theo shop, có phân trang.
+    Page<Order> findByShopIdIn(Collection<Long> shopIds, Pageable pageable);
+
+    // ORDER 02 - Lọc trạng thái và phân trang tại database.
+    Page<Order> findByShopIdInAndStatus(Collection<Long> shopIds, OrderStatus status, Pageable pageable);
+
+    // ORDER 02 - Đếm đơn theo shop và trạng thái.
+    long countByShopIdInAndStatus(Collection<Long> shopIds, OrderStatus status);
 }

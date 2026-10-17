@@ -32,6 +32,10 @@ import com.senvia.doangiuaky.ordering.service.SellerOrderReadService;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 
+import com.senvia.doangiuaky.ordering.dto.SellerOrderPage;
+import java.util.Locale;
+import java.util.stream.IntStream;
+
 @Controller
 public class OrderingController {
     private final CheckoutSelectionService checkoutSelectionService;
@@ -189,23 +193,28 @@ public class OrderingController {
     public String orderDetail() { return "ordering/order-detail"; }
 
     @GetMapping("/merchant/orders")
-    public String merchantOrders(@RequestParam(required = false) String status, Model model) {
-        List<SellerOrderView> all = sellerOrderReadService.listOwnOrders(null);
+    public String merchantOrders(@RequestParam(required = false) String status, @RequestParam(defaultValue = "1") int page, Model model) {
+        SellerOrderPage result = sellerOrderReadService.pageOwnOrders(status, page);
 
-        List<SellerOrderView> filtered = all.stream()
-                .filter(order ->
-                        status == null
-                        || status.isBlank()
-                        || order.status().equals(status))
-                .toList();
+        model.addAttribute("orders", result.orders());
+        model.addAttribute("pendingCount", result.pendingCount());
+        model.addAttribute("totalOrders", result.totalElements());
+        model.addAttribute("currentPage", result.currentPage());
+        model.addAttribute("totalPages", result.totalPages());
 
-        model.addAttribute("orders", filtered);
+        String selectedStatus = status == null || status.isBlank() ? null : status.trim().toUpperCase(Locale.ROOT);
+
+        model.addAttribute("selectedStatus", selectedStatus);
+
+        int firstPage = Math.max(1, result.currentPage() - 2);
+
+        int lastPage = Math.min(result.totalPages(), result.currentPage() + 2);
 
         model.addAttribute(
-                "pendingCount",
-                all.stream()
-                        .filter(order -> "PENDING".equals(order.status()))
-                        .count()
+                "pageNumbers",
+                IntStream.rangeClosed(firstPage, lastPage)
+                        .boxed()
+                        .toList()
         );
 
         return "ordering/seller-orders";

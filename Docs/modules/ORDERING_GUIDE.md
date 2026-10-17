@@ -50,7 +50,7 @@
 - Trang giỏ cho buyer chọn các `cartItemId` hợp lệ và chuyển chúng tới `GET /checkout`; form giữ danh sách này khi gửi `POST /checkout`.
 - `POST /checkout` kiểm tra lựa chọn và biểu mẫu PAY 01/PAY 03, lấy lại đúng các mục đã chọn qua `shopping.api`, đọc lại giá, trạng thái, tồn kho và shop qua `merchant.api`, rồi hiển thị bản xem trước theo từng shop.
 - Bản xem trước chỉ phản ánh dữ liệu tại thời điểm kiểm tra. Khi buyer xác nhận, checkout đọc lại dữ liệu, kiểm tra giá, trừ kho, tạo `orders`/`payments` theo shop và xóa các mục đã mua trong cùng transaction. Mục không chọn vẫn ở giỏ. Phí vận chuyển chưa được tính.
-- Danh sách và chi tiết đơn của shop đọc order/item thực từ Ordering; phương thức, trạng thái, số tiền và mã tham chiếu thanh toán luôn đọc từ `payments`. Service kiểm tra chủ shop trước khi trả dữ liệu. Các thao tác chuyển trạng thái/hủy đơn trên giao diện shop chưa được kết nối.
+- Danh sách và chi tiết đơn của shop đọc order/item thực từ Ordering; phương thức, trạng thái, số tiền và mã tham chiếu thanh toán luôn đọc từ `payments`. Service kiểm tra chủ shop trước khi trả dữ liệu; shop `LOCKED` vẫn xem được đơn cũ khi tài khoản chủ shop còn hoạt động. Danh sách lọc trạng thái và phân trang 10 đơn/trang tại database, giữ bộ lọc khi chuyển trang; trang hoặc trạng thái không hợp lệ trả lỗi 400. Các thao tác chuyển trạng thái/hủy đơn trên giao diện shop chưa được kết nối.
 
 ## Kiểm thử/bàn giao
 
