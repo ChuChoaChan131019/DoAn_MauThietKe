@@ -142,21 +142,23 @@ public class SellerOrderStatusService {
         };
     }
 
-    // Kiểm tra payment trước mỗi lần chuyển trạng thái.
+    // PAY 08: Kiểm tra payment nhất quán trước khi xử lý đơn.
     private void validatePayment(Payment payment) {
-        // Chuyển khoản phải PAID trước khi xác nhận đơn.
         if (payment.getMethod() == PaymentMethod.BANK_TRANSFER) {
-            if (payment.getStatus() != PaymentStatus.PAID) {
-                throw conflict("Đơn chuyển khoản phải được xác nhận " + "đã thanh toán trước khi xử lý.");
+            // Chuyển khoản phải thanh toán hợp lệ trước CONFIRMED.
+            if (payment.getStatus() != PaymentStatus.PAID || payment.getPaidAt() == null || payment.getRefundedAt() != null) {
+                throw conflict("Đơn chuyển khoản chưa có thanh toán PAID hợp lệ.");
             }
+
             return;
         }
 
-        // COD có thể xử lý khi đang chờ thu tiền.
         if (payment.getMethod() == PaymentMethod.COD) {
-            if (payment.getStatus() != PaymentStatus.COD_PENDING) {
-                throw conflict("Thanh toán COD không ở trạng thái hợp lệ.");
+            // COD chỉ thu tiền khi đơn hoàn thành.
+            if (payment.getStatus() != PaymentStatus.COD_PENDING || payment.getPaidAt() != null || payment.getRefundedAt() != null) {
+                throw conflict("Payment COD không ở trạng thái chờ thu tiền hợp lệ.");
             }
+
             return;
         }
 

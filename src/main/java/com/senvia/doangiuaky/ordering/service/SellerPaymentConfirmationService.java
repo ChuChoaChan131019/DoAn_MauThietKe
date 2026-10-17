@@ -52,21 +52,32 @@ public class SellerPaymentConfirmationService {
             throw notFound();
         }
 
-        // 3. Tìm đơn hàng.
-        Order order = orders.findByOrderCode(orderCode).orElseThrow(SellerPaymentConfirmationService::notFound);
+        // 3. Tìm và khóa đơn ngay từ truy vấn đầu tiên.
+        // Đồng bộ với ORDER 04 và ORDER 08.
+        Order lockedOrder = orders
+                .findByOrderCodeForUpdate(orderCode)
+                .orElseThrow(
+                        SellerPaymentConfirmationService::notFound
+                );
 
-        // 4. Kiểm tra đơn thuộc shop nào.
-        MerchantShopSummary shop = merchantApi.findShopSummary(order.getShopId()).orElseThrow(SellerPaymentConfirmationService::notFound);
+        // 4. Kiểm tra shop từ đơn đã khóa.
+        MerchantShopSummary shop = merchantApi
+                .findShopSummary(lockedOrder.getShopId())
+                .orElseThrow(
+                        SellerPaymentConfirmationService::notFound
+                );
 
-        // 5. Chỉ chủ shop ACTIVE được xác nhận.
-        // Trả 404 để không tiết lộ đơn của shop khác.
-        if (!shop.ownerActive() || !Objects.equals(shop.ownerId(), actor.userId())) {
+        // 5. Xác nhận quyền chủ shop.
+        if (!shop.ownerActive()
+                || !Objects.equals(
+                        shop.ownerId(),
+                        actor.userId()
+                )) {
             throw notFound();
         }
 
-        // 6. Khóa đơn hàng trong transaction.
-        // Chặn hai request xác nhận cùng một đơn đồng thời.
-        Order lockedOrder = orders.findByIdForUpdate(order.getId()).orElseThrow(SellerPaymentConfirmationService::notFound);
+        // 6. Order đã được khóa tới hết transaction.
+
 
         // 7. Chỉ xác nhận cho đơn PENDING.
         if (lockedOrder.getStatus() != OrderStatus.PENDING) {
@@ -86,6 +97,11 @@ public class SellerPaymentConfirmationService {
         // 10. Chỉ PENDING mới được chuyển thành PAID.
         if (payment.getStatus() != PaymentStatus.PENDING) {
             throw conflict("Thanh toán không còn ở trạng thái chờ xác nhận.");
+        }
+
+        // PAY 08: Không ghi đè dữ liệu thời gian bất thường.
+        if (payment.getPaidAt() != null || payment.getRefundedAt() != null) {
+            throw conflict("Payment có dữ liệu thanh toán không hợp lệ.");
         }
 
         // 11. Đổi trạng thái và ghi paid_at.

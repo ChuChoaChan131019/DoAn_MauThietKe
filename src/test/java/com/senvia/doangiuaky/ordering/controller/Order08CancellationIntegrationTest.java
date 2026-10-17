@@ -192,10 +192,39 @@ class Order08CancellationIntegrationTest {
                 "CONFIRMED", "BANK_TRANSFER", "PAID", false
         );
 
+        Timestamp paidBefore = db.queryForObject(
+                "SELECT paid_at FROM payments WHERE order_id = ?",
+                Timestamp.class,
+                f.orderId()
+        );
+
+        assertNotNull(paidBefore);
+
         sellerCancel(f, "Hoàn tiền mô phỏng");
 
         assertEquals("CANCELLED", orderStatus(f));
         assertEquals("REFUNDED", paymentStatus(f));
+
+        Timestamp paidAfter = db.queryForObject(
+                "SELECT paid_at FROM payments WHERE order_id = ?",
+                Timestamp.class,
+                f.orderId()
+        );
+
+        Timestamp refundedAt = db.queryForObject(
+                "SELECT refunded_at FROM payments WHERE order_id = ?",
+                Timestamp.class,
+                f.orderId()
+        );
+
+        // PAY 08: Hoàn tiền không làm mất thời gian thanh toán.
+        assertEquals(paidBefore, paidAfter);
+
+        // PAY 08: Hoàn tiền phải có thời gian hợp lệ.
+        assertNotNull(refundedAt);
+        assertFalse(
+                refundedAt.toInstant().isBefore(paidBefore.toInstant())
+        );
 
         assertNotNull(db.queryForObject(
                 "SELECT refunded_at FROM payments WHERE order_id = ?",

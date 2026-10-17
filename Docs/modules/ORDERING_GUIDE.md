@@ -46,6 +46,12 @@
 - Cancel hoàn stock và cập nhật payment đúng một lần.
 - Revenue chỉ tính order COMPLETED của đúng shop.
 
+### PAY 08 — Vòng đời payment
+
+- `payments.status` hỗ trợ `PENDING`, `COD_PENDING`, `PAID`, `FAILED`, `CANCELLED` và `REFUNDED`. Checkout chuyển khoản tạo `PENDING`; checkout COD tạo `COD_PENDING`. Bản mô phỏng hiện chưa có thao tác phát sinh `FAILED`, nhưng payment ở trạng thái này vẫn được đọc và có thể chuyển `CANCELLED` khi hủy đơn hợp lệ.
+- Chủ shop xác nhận chuyển khoản `PENDING → PAID` và ghi `paid_at` một lần; COD chỉ chuyển `COD_PENDING → PAID` khi đơn `COMPLETED`. Các bước xử lý đơn yêu cầu payment có trạng thái và mốc thời gian phù hợp; không xác nhận lặp hoặc tiếp tục đơn với payment đã hủy/hoàn tiền.
+- Hủy đơn hợp lệ chuyển `PENDING`, `COD_PENDING` hoặc `FAILED` thành `CANCELLED`; payment `PAID` có `paid_at` chuyển `REFUNDED`, giữ `paid_at` và ghi `refunded_at` cho hoàn tiền mô phỏng. `CANCELLED` và `REFUNDED` là trạng thái kết thúc; payment có phương thức, trạng thái hoặc mốc thời gian không nhất quán bị từ chối trước khi ghi dữ liệu.
+
 ## Trạng thái giao diện Ordering hiện tại
 
 - Trang giỏ cho buyer chọn các `cartItemId` hợp lệ và chuyển chúng tới `GET /checkout`; form giữ danh sách này khi gửi `POST /checkout`.
