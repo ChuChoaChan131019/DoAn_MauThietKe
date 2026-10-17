@@ -37,6 +37,11 @@ import com.senvia.doangiuaky.ordering.dto.SellerOrderPage;
 import java.util.Locale;
 import java.util.stream.IntStream;
 
+import com.senvia.doangiuaky.ordering.entity.OrderStatus;
+import com.senvia.doangiuaky.ordering.entity.PaymentMethod;
+import com.senvia.doangiuaky.ordering.entity.PaymentStatus;
+import com.senvia.doangiuaky.ordering.service.SellerOrderStatusService;
+
 @Controller
 public class OrderingController {
     private final CheckoutSelectionService checkoutSelectionService;
@@ -44,15 +49,17 @@ public class OrderingController {
     private final CheckoutTransactionService checkoutTransactionService;
     private final SellerOrderReadService sellerOrderReadService;
     private final SellerPaymentConfirmationService sellerPaymentConfirmationService;
+    private final SellerOrderStatusService sellerOrderStatusService;
 
     private static final String SESSION_QUOTE = "ordering.checkout.quote";
 
-    public OrderingController(CheckoutSelectionService checkoutSelectionService, CheckoutPreviewService checkoutPreviewService, CheckoutTransactionService checkoutTransactionService, SellerOrderReadService sellerOrderReadService, SellerPaymentConfirmationService sellerPaymentConfirmationService) {
+    public OrderingController(CheckoutSelectionService checkoutSelectionService, CheckoutPreviewService checkoutPreviewService, CheckoutTransactionService checkoutTransactionService, SellerOrderReadService sellerOrderReadService, SellerPaymentConfirmationService sellerPaymentConfirmationService, SellerOrderStatusService sellerOrderStatusService) {
         this.checkoutSelectionService = checkoutSelectionService;
         this.checkoutPreviewService = checkoutPreviewService;
         this.checkoutTransactionService = checkoutTransactionService;
         this.sellerOrderReadService = sellerOrderReadService;
         this.sellerPaymentConfirmationService = sellerPaymentConfirmationService;
+        this.sellerOrderStatusService = sellerOrderStatusService;
     }
 
     @GetMapping("/checkout")
@@ -231,6 +238,32 @@ public class OrderingController {
         model.addAttribute("paymentDetails", order.payment());
         model.addAttribute("status", order.status());
 
+        String nextStatus = switch (order.status()) {
+            case "PENDING" -> "CONFIRMED";
+            case "CONFIRMED" -> "PREPARING";
+            case "PREPARING" -> "SHIPPING";
+            case "SHIPPING" -> "COMPLETED";
+            default -> null;
+        };
+
+        boolean paymentReady =
+                (order.payment().method() == PaymentMethod.BANK_TRANSFER && order.payment().status() == PaymentStatus.PAID)
+                || (order.payment().method() == PaymentMethod.COD && order.payment().status() == PaymentStatus.COD_PENDING);
+
+        String nextActionLabel = nextStatus == null
+                ? null
+                : switch (nextStatus) {
+                    case "CONFIRMED" -> "Xác nhận đơn hàng";
+                    case "PREPARING" -> "Bắt đầu chuẩn bị hàng";
+                    case "SHIPPING" -> "Bàn giao đơn cho vận chuyển";
+                    case "COMPLETED" -> "Hoàn thành đơn hàng";
+                    default -> null;
+                };
+
+        model.addAttribute("nextStatus", nextStatus);
+        model.addAttribute("nextActionLabel", nextActionLabel);
+        model.addAttribute("canAdvance", nextStatus != null && paymentReady);
+
         return "ordering/seller-order-detail";
     }
 
@@ -257,7 +290,27 @@ public class OrderingController {
 
     @GetMapping("/merchant/orders/status")
     public String updateOrderStatus() {
-        throw new ResponseStatusException(HttpStatus.METHOD_NOT_ALLOWED, "Cập nhật trạng thái đơn hàng chưa được kết nối với dữ liệu thật.");
+        throw new ResponseStatusException(HttpStatus.METHOD_NOT_ALLOWED,
+                "Cập nhật trạng thái đơn hàng chưa được kết nối với dữ liệu thật.");
+    }
+
+    // ORDER 04: Chủ shop chuyển trạng thái đơn hàng.
+    @PostMapping("/merchant/orders/status")
+    public String updateSellerOrderStatus(@RequestParam("id") String orderCode, @RequestParam("status") OrderStatus nextStatus, RedirectAttributes redirectAttributes) {
+        try {
+            sellerOrderStatusService.changeStatus(orderCode, nextStatus);
+            redirectAttributes.addFlashAttribute("statusSuccess", "Đã cập nhật trạng thái đơn hàng thành công.");
+        } catch (ResponseStatusException exception) {
+            // Không che giấu lỗi phân quyền hoặc đơn không tồn tại.
+            if (exception.getStatusCode().value() != HttpStatus.CONFLICT.value()) {
+                throw exception;
+            }
+
+            redirectAttributes.addFlashAttribute("statusError", exception.getReason());
+        }
+
+        redirectAttributes.addAttribute("id", orderCode);
+        return "redirect:/merchant/orders/detail";
     }
 
     @GetMapping("/admin/orders")

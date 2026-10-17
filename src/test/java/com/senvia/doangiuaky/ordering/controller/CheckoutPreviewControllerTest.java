@@ -36,6 +36,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.senvia.doangiuaky.ordering.service.CheckoutTransactionService;
 import com.senvia.doangiuaky.ordering.service.SellerPaymentConfirmationService;
+import com.senvia.doangiuaky.ordering.service.SellerOrderStatusService;
 
 @WebMvcTest(OrderingController.class)
 @Import(SecurityConfig.class)
@@ -58,6 +59,9 @@ class CheckoutPreviewControllerTest {
 
     @MockitoBean
     private SellerPaymentConfirmationService sellerPaymentConfirmationService;
+
+    @MockitoBean
+    private SellerOrderStatusService sellerOrderStatusService;
 
     @BeforeEach
     void selection() {

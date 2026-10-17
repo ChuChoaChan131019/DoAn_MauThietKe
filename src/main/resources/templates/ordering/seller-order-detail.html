@@ -211,20 +211,74 @@
                 </div>
 
                 <!-- Seller Actions -->
-                <div class="bg-ivory p-4 border border-clay d-flex gap-3 mb-4">
+                <!-- ORDER 04: Seller Status Actions -->
+                <div class="bg-white border border-clay p-4 mb-4">
 
-                    <i class="bi bi-info-circle text-plum fs-5"></i>
+                    <h5 class="fw-bold text-plum border-bottom pb-3 mb-3">
+                        Xử lý đơn hàng
+                    </h5>
 
-                    <div class="text-plum">
-                        <div class="fw-bold mb-1">
-                            Thông tin đơn hàng
-                        </div>
+                    <!-- Thành công -->
+                    <div th:if="${statusSuccess}"
+                        class="alert alert-success rounded-0"
+                        th:text="${statusSuccess}">
+                    </div>
 
-                        <p class="text-muted small mb-0">
-                            Đơn hàng đang được hiển thị bằng dữ liệu thực tế.
-                            Chức năng cập nhật trạng thái đơn hàng đang được
-                            tích hợp với hệ thống xử lý đơn hàng.
+                    <!-- Lỗi -->
+                    <div th:if="${statusError}"
+                        class="alert alert-warning rounded-0"
+                        th:text="${statusError}">
+                    </div>
+
+                    <!-- Chờ thanh toán chuyển khoản -->
+                    <div th:if="${status == 'PENDING'
+                                and paymentDetails.method.name() == 'BANK_TRANSFER'
+                                and paymentDetails.status.name() != 'PAID'}"
+                        class="alert alert-warning rounded-0">
+
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+
+                        Đơn hàng đang chờ xác nhận thanh toán chuyển khoản.
+                        Hãy xác nhận đã nhận tiền trước khi xác nhận đơn.
+                    </div>
+
+                    <!-- Nút chuyển trạng thái -->
+                    <form th:if="${canAdvance}"
+                        th:action="@{/merchant/orders/status}"
+                        method="post">
+
+                        <input type="hidden"
+                            name="id"
+                            th:value="${order.id}">
+
+                        <input type="hidden"
+                            name="status"
+                            th:value="${nextStatus}">
+
+                        <input type="hidden"
+                            th:name="${_csrf.parameterName}"
+                            th:value="${_csrf.token}">
+
+                        <button type="submit"
+                                class="btn bg-burgundy text-white rounded-0 w-100 py-3"
+                                th:text="${nextActionLabel}">
+                            Chuyển trạng thái
+                        </button>
+
+                        <p class="text-muted small mt-3 mb-0">
+                            Hệ thống chỉ cho phép chuyển sang trạng thái kế tiếp.
+                            Thao tác sẽ được ghi vào lịch sử đơn hàng.
                         </p>
+                    </form>
+
+                    <!-- Đơn đã kết thúc -->
+                    <div th:if="${status == 'COMPLETED'
+                                or status == 'CANCELLED'}"
+                        class="text-muted small">
+
+                        <i class="bi bi-info-circle me-2"></i>
+
+                        Đơn hàng đã kết thúc và không thể chuyển tiếp.
                     </div>
                 </div>
             </div>

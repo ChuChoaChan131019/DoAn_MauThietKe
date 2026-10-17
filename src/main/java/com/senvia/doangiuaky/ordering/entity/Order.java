@@ -119,6 +119,10 @@ public class Order {
         return status;
     }
 
+    public void changeStatus(OrderStatus newStatus) {
+        this.status = Objects.requireNonNull(newStatus, "Trạng thái mới không được null.");
+    }
+
     public String getReceiverName() {
         return receiverName;
     }
