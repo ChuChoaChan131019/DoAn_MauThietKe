@@ -112,6 +112,39 @@ public class Payment {
         return createdAt;
     }
 
+    // ORDER 08: Kiểm tra payment trước khi hủy đơn.
+    public void ensureCancellable() {
+        switch (status) {
+            case PENDING, COD_PENDING, FAILED -> {
+                if (paidAt != null || refundedAt != null) {
+                    throw new IllegalStateException("Payment chưa trả có mốc thanh toán không hợp lệ.");
+                }
+            }
+
+            case PAID -> {
+                if (refundedAt != null) {
+                    throw new IllegalStateException("Payment đã có mốc hoàn tiền.");
+                }
+            }
+
+            case CANCELLED, REFUNDED ->
+                throw new IllegalStateException("Payment đã kết thúc, không thể hủy lại.");
+        }
+    }
+
+    // ORDER 08: Chuyển payment khi hủy đơn.
+    // REFUNDED chỉ ghi nhận hoàn tiền mô phỏng.
+    public void settleForCancellation() {
+        ensureCancellable();
+
+        if (status == PaymentStatus.PAID) {
+            status = PaymentStatus.REFUNDED;
+            refundedAt = Instant.now();
+        } else {
+            status = PaymentStatus.CANCELLED;
+        }
+    }
+
     // PAY 05: Xác nhận đã nhận tiền chuyển khoản mô phỏng.
     public void markBankTransferPaid() {
         if (method != PaymentMethod.BANK_TRANSFER || status != PaymentStatus.PENDING || paidAt != null) {

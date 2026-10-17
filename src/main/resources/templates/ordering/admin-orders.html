@@ -29,6 +29,11 @@
                     </div>
                 </div>
 
+                <div th:if="${cancelSuccess}" class="alert alert-success rounded-0" role="status"
+                     th:text="${cancelSuccess}"></div>
+                <div th:if="${cancelError}" class="alert alert-danger rounded-0" role="alert"
+                     th:text="${cancelError}"></div>
+
                 <div class="table-responsive bg-white border border-clay p-0 mb-4">
                     <table class="table table-borderless table-hover align-middle mb-0 text-plum">
                         <thead class="border-bottom bg-ivory">

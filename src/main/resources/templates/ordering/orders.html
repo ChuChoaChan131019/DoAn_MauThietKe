@@ -24,6 +24,11 @@
             <!-- Main Content -->
             <div class="col-12 col-md-9">
                 <h2 class="text-serif text-plum mb-4">Đơn Mua Của Bạn</h2>
+
+                <div th:if="${cancelSuccess}" class="alert alert-success rounded-0" role="status"
+                     th:text="${cancelSuccess}"></div>
+                <div th:if="${cancelError}" class="alert alert-danger rounded-0" role="alert"
+                     th:text="${cancelError}"></div>
                 
                 <!-- Filters -->
                 <div class="d-flex flex-nowrap overflow-x-auto gap-3 mb-4 pb-2 hide-scrollbar">

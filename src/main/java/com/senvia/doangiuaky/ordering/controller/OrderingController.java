@@ -41,6 +41,7 @@ import com.senvia.doangiuaky.ordering.entity.OrderStatus;
 import com.senvia.doangiuaky.ordering.entity.PaymentMethod;
 import com.senvia.doangiuaky.ordering.entity.PaymentStatus;
 import com.senvia.doangiuaky.ordering.service.SellerOrderStatusService;
+import com.senvia.doangiuaky.ordering.service.OrderCancellationService;
 
 @Controller
 public class OrderingController {
@@ -50,16 +51,18 @@ public class OrderingController {
     private final SellerOrderReadService sellerOrderReadService;
     private final SellerPaymentConfirmationService sellerPaymentConfirmationService;
     private final SellerOrderStatusService sellerOrderStatusService;
+    private final OrderCancellationService orderCancellationService;
 
     private static final String SESSION_QUOTE = "ordering.checkout.quote";
 
-    public OrderingController(CheckoutSelectionService checkoutSelectionService, CheckoutPreviewService checkoutPreviewService, CheckoutTransactionService checkoutTransactionService, SellerOrderReadService sellerOrderReadService, SellerPaymentConfirmationService sellerPaymentConfirmationService, SellerOrderStatusService sellerOrderStatusService) {
+    public OrderingController(CheckoutSelectionService checkoutSelectionService, CheckoutPreviewService checkoutPreviewService, CheckoutTransactionService checkoutTransactionService, SellerOrderReadService sellerOrderReadService, SellerPaymentConfirmationService sellerPaymentConfirmationService, SellerOrderStatusService sellerOrderStatusService, OrderCancellationService orderCancellationService) {
         this.checkoutSelectionService = checkoutSelectionService;
         this.checkoutPreviewService = checkoutPreviewService;
         this.checkoutTransactionService = checkoutTransactionService;
         this.sellerOrderReadService = sellerOrderReadService;
         this.sellerPaymentConfirmationService = sellerPaymentConfirmationService;
         this.sellerOrderStatusService = sellerOrderStatusService;
+        this.orderCancellationService = orderCancellationService;
     }
 
     @GetMapping("/checkout")
@@ -296,7 +299,8 @@ public class OrderingController {
 
     // ORDER 04: Chủ shop chuyển trạng thái đơn hàng.
     @PostMapping("/merchant/orders/status")
-    public String updateSellerOrderStatus(@RequestParam("id") String orderCode, @RequestParam("status") OrderStatus nextStatus, RedirectAttributes redirectAttributes) {
+    public String updateSellerOrderStatus(@RequestParam("id") String orderCode,
+            @RequestParam("status") OrderStatus nextStatus, RedirectAttributes redirectAttributes) {
         try {
             sellerOrderStatusService.changeStatus(orderCode, nextStatus);
             redirectAttributes.addFlashAttribute("statusSuccess", "Đã cập nhật trạng thái đơn hàng thành công.");
@@ -313,11 +317,62 @@ public class OrderingController {
         return "redirect:/merchant/orders/detail";
     }
 
+    // ORDER 08 - Chủ shop hủy đơn.
+    @PostMapping("/merchant/orders/cancel")
+    public String cancelSellerOrder(@RequestParam("id") String code, @RequestParam("reason") String reason, RedirectAttributes redirectAttributes) {
+        try {
+            orderCancellationService.cancelAsSeller(code, reason);
+            redirectAttributes.addFlashAttribute("cancelSuccess", "Đã hủy đơn và hoàn kho thành công.");
+        } catch (ResponseStatusException exception) {
+            int status = exception.getStatusCode().value();
+
+            if (status != 400 && status != 409) {
+                throw exception;
+            }
+
+            redirectAttributes.addFlashAttribute("cancelError", exception.getReason());
+        }
+
+        redirectAttributes.addAttribute("id", code);
+        return "redirect:/merchant/orders/detail";
+    }
+
+    // ORDER 08 - Buyer hủy đơn thuộc quyền sở hữu.
+    @PostMapping("/account/orders/cancel")
+    public String cancelBuyerOrder(@RequestParam("id") String code, @RequestParam("reason") String reason, RedirectAttributes redirectAttributes) {
+        try {
+            orderCancellationService.cancelAsBuyer(code, reason);
+            redirectAttributes.addFlashAttribute("cancelSuccess", "Đã hủy đơn hàng.");
+        } catch (ResponseStatusException exception) {
+            int status = exception.getStatusCode().value();
+            if (status != 400 && status != 409) {
+                throw exception;
+            }
+            redirectAttributes.addFlashAttribute("cancelError", exception.getReason());
+        }
+        return "redirect:/account/orders";
+    }
+
+    // ORDER 08 - Admin hủy đơn hợp lệ.
+    @PostMapping("/admin/orders/cancel")
+    public String cancelAdminOrder(@RequestParam("id") String code, @RequestParam("reason") String reason, RedirectAttributes redirectAttributes) {
+        try {
+            orderCancellationService.cancelAsAdmin(code, reason);
+            redirectAttributes.addFlashAttribute("cancelSuccess", "Đã hủy đơn hàng.");
+        } catch (ResponseStatusException exception) {
+            int status = exception.getStatusCode().value();
+            if (status != 400 && status != 409) {
+                throw exception;
+            }
+            redirectAttributes.addFlashAttribute("cancelError", exception.getReason());
+        }
+        return "redirect:/admin/orders";
+    }
+
     @GetMapping("/admin/orders")
     public String adminOrders() {
         return "ordering/admin-orders";
     }
-
 
     private void saveQuote(HttpSession session, Model model, PreparedCheckout preview) {
         CheckoutQuote quote = CheckoutQuote.of(preview);
