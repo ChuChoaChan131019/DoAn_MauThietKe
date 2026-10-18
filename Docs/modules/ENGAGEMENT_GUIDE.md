@@ -39,6 +39,11 @@
 - Rating 1–5; unique `order_item_id`; không sửa/xóa trong MVP.
 - Dashboard chỉ hiện đúng shop; revenue chỉ từ COMPLETED.
 - Admin UI gọi Ordering API; không tự hủy/hoàn stock/refund.
+- Review form đọc order item qua `ordering.api`; POST chỉ lưu sau khi contract xác minh buyer, product và trạng thái `COMPLETED`.
+- Review list tại `/products/{productId}/reviews` hiển thị điểm trung bình và các review; product detail và buyer order detail liên kết tới luồng tương ứng.
+- Seller dashboard tại `/engagement/dashboard` tổng hợp `MerchantStatisticsApi` và `OrderingStatisticsApi`; `/merchant/dashboard` chỉ chuyển hướng tới dashboard này.
+- Admin order tại `/engagement/admin/orders` lọc qua `AdminOrderApi`; hủy đơn gọi `OrderCancellationApi`.
+- `ReviewCreatedEvent` được phát trong transaction sau khi review lưu thành công; listener xử lý notification thuộc feature owner Notification/Observer.
 
 ## Kiểm thử/bàn giao
 

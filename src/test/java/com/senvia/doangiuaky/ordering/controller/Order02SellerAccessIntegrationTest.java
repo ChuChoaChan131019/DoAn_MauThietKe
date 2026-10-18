@@ -411,6 +411,20 @@ class Order02SellerAccessIntegrationTest {
                         .with(user(adminEmail).roles("ADMIN")))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString(nolaOrderCode)));
+
+        mvc.perform(get("/engagement/admin/orders")
+                        .param("orderCode", nolaOrderCode)
+                        .with(user(adminEmail).roles("ADMIN")))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString(nolaOrderCode)))
+                .andExpect(content().string(containsString("Giám sát đơn hàng")));
+
+        mvc.perform(get("/engagement/admin/orders/{orderCode}", nolaOrderCode)
+                        .with(user(adminEmail).roles("ADMIN")))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString(nolaOrderCode)))
+                .andExpect(content().string(containsString("Thanh toán")))
+                .andExpect(content().string(containsString("Lịch sử trạng thái")));
     }
 
     private void createOrder(

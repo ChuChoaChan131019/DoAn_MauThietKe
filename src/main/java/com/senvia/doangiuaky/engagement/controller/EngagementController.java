@@ -54,6 +54,4 @@ public class EngagementController {
         return "redirect:/account/notifications?page=" + normalizedPage;
     }
 
-    @GetMapping("/account/review")
-    public String review() { return "engagement/review-form"; }
 }

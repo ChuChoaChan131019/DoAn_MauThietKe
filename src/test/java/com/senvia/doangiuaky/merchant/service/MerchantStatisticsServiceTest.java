@@ -5,9 +5,11 @@ import com.senvia.doangiuaky.identity.api.CurrentUserApi;
 import com.senvia.doangiuaky.identity.api.UserRole;
 import com.senvia.doangiuaky.identity.api.UserSummary;
 import com.senvia.doangiuaky.merchant.api.MerchantStatisticsAccessException;
+import com.senvia.doangiuaky.merchant.api.MerchantShopSummary;
 import com.senvia.doangiuaky.merchant.repository.ProductRepository;
 import com.senvia.doangiuaky.merchant.repository.ShopRepository;
 import com.senvia.doangiuaky.merchant.entity.Shop;
+import com.senvia.doangiuaky.merchant.entity.ShopStatus;
 import org.junit.jupiter.api.Test;
 
 import java.util.Optional;
@@ -35,6 +37,30 @@ class MerchantStatisticsServiceTest {
 
         assertEquals(4, service.countProductsForShop(3L));
         verify(products).countByShopId(3L);
+    }
+
+    @Test
+    void findsCurrentOwnersShopWithoutAcceptingAClientSuppliedShopId() {
+        Shop shop = mock(Shop.class);
+        when(currentUser.requireCurrentUser())
+                .thenReturn(new UserSummary(7L, "Owner", UserRole.USER, AccountStatus.ACTIVE));
+        when(shops.findByOwnerId(7L)).thenReturn(Optional.of(shop));
+        when(shop.getId()).thenReturn(3L);
+        when(shop.getOwnerId()).thenReturn(7L);
+        when(shop.getShopName()).thenReturn("Owner shop");
+        when(shop.getStatus()).thenReturn(ShopStatus.APPROVED);
+
+        assertEquals(Optional.of(new MerchantShopSummary(3L, 7L, "Owner shop", true, true)),
+                service.findCurrentShopSummary());
+    }
+
+    @Test
+    void returnsEmptyWhenActiveUserDoesNotOwnAShop() {
+        when(currentUser.requireCurrentUser())
+                .thenReturn(new UserSummary(7L, "Owner", UserRole.USER, AccountStatus.ACTIVE));
+        when(shops.findByOwnerId(7L)).thenReturn(Optional.empty());
+
+        assertEquals(Optional.empty(), service.findCurrentShopSummary());
     }
 
     @Test

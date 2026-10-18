@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/head :: head('Senvia - Đánh giá sản phẩm')}"></head>
+<body>
+    <div th:replace="~{fragments/header :: header}"></div>
+
+    <main class="w-100 mx-auto px-3 px-md-4 py-5 max-w-1440">
+        <a th:href="@{/products/{id}(id=${reviewPage.productId})}"
+           class="text-muted text-decoration-none hover-plum mb-4 d-inline-block">
+            <i class="bi bi-arrow-left me-2"></i>Quay lại sản phẩm
+        </a>
+
+        <div class="bg-white border border-clay p-4 p-md-5 mb-4">
+            <h1 class="text-serif text-plum mb-2" th:text="${reviewPage.productName}">Sản phẩm</h1>
+            <div class="d-flex align-items-center gap-3">
+                <span class="fs-3 fw-bold text-burgundy" th:text="${reviewPage.averageRating}">0.0</span>
+                <span class="text-muted">/ 5</span>
+                <span class="text-muted" th:text="${'(' + reviewPage.reviewCount + ' đánh giá)'}">(0 đánh giá)</span>
+            </div>
+        </div>
+
+        <div th:if="${successMessage}" class="alert alert-success rounded-0" role="status" th:text="${successMessage}"></div>
+        <div th:if="${infoMessage}" class="alert alert-info rounded-0" role="status" th:text="${infoMessage}"></div>
+
+        <h2 class="h4 text-plum mb-3">Đánh giá của người mua</h2>
+        <div th:if="${#lists.isEmpty(reviewPage.reviews)}" class="bg-white border border-clay p-4 text-muted">
+            Sản phẩm chưa có đánh giá.
+        </div>
+        <div th:each="review : ${reviewPage.reviews}" class="bg-white border border-clay p-4 mb-3">
+            <div class="d-flex justify-content-between gap-3 mb-2">
+                <strong class="text-plum" th:text="${review.reviewerName}">Người mua</strong>
+                <time class="text-muted small" th:datetime="${review.createdAt}" th:text="${#temporals.format(review.createdAt, 'dd/MM/yyyy HH:mm')}"></time>
+            </div>
+            <div class="text-warning mb-2" th:text="${review.rating} + ' / 5 sao'">5 / 5 sao</div>
+            <p th:if="${review.comment != null}" class="mb-0 text-plum" style="white-space: pre-wrap; overflow-wrap: anywhere;" th:text="${review.comment}"></p>
+        </div>
+
+        <nav th:if="${reviewPage.totalPages > 1}" aria-label="Trang đánh giá">
+            <ul class="pagination justify-content-center">
+                <li class="page-item" th:classappend="${reviewPage.currentPage == 1} ? 'disabled'">
+                    <a class="page-link" th:href="@{/products/{id}/reviews(id=${reviewPage.productId}, page=${reviewPage.currentPage - 1})}">Trước</a>
+                </li>
+                <li class="page-item" th:each="pageNumber : ${#numbers.sequence(1, reviewPage.totalPages)}"
+                    th:classappend="${pageNumber == reviewPage.currentPage} ? 'active'">
+                    <a class="page-link" th:href="@{/products/{id}/reviews(id=${reviewPage.productId}, page=${pageNumber})}" th:text="${pageNumber}">1</a>
+                </li>
+                <li class="page-item" th:classappend="${reviewPage.currentPage == reviewPage.totalPages} ? 'disabled'">
+                    <a class="page-link" th:href="@{/products/{id}/reviews(id=${reviewPage.productId}, page=${reviewPage.currentPage + 1})}">Sau</a>
+                </li>
+            </ul>
+        </nav>
+    </main>
+
+    <div th:replace="~{fragments/footer :: footer}"></div>
+</body>
+</html>

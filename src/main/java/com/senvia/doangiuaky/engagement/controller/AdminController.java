@@ -24,5 +24,4 @@ public class AdminController {
         model.addAttribute("pendingShopRequests", pendingShopRequests);
         return "engagement/admin-dashboard";
     }
-
 }

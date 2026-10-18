@@ -42,6 +42,10 @@
 
                     <p class="text-muted mb-4 pb-4 border-bottom border-clay" style="line-height: 1.8;"
                        th:text="${product.description}">Mô tả sản phẩm</p>
+                    <a th:href="@{/products/{id}/reviews(id=${product.id})}"
+                       class="text-burgundy text-decoration-none mb-4">
+                        <i class="bi bi-star-fill me-1"></i>Xem đánh giá sản phẩm
+                    </a>
 
                     <div class="mb-4">
                         <span class="badge bg-success rounded-0 px-3 py-2 fs-6"

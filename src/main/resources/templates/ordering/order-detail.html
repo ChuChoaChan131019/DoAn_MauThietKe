@@ -90,6 +90,17 @@
                              th:text="${item.subtotal} + ' ₫'">
                         </div>
                     </div>
+                    <div th:if="${!adminView and order.status == 'COMPLETED'}">
+                        <div th:each="reviewItem : ${reviewItems}" class="border-bottom pb-3 mb-3">
+                            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+                                <span class="text-muted" th:text="${reviewItem.productName}">Sản phẩm</span>
+                                <a class="btn btn-sm border border-plum text-plum rounded-0"
+                                   th:href="@{/account/review(orderItemId=${reviewItem.orderItemId},productId=${reviewItem.productId})}">
+                                    Viết đánh giá
+                                </a>
+                            </div>
+                        </div>
+                    </div>
                 </section>
 
                 <!-- Order history -->

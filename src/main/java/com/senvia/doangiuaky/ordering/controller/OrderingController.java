@@ -44,6 +44,7 @@ import com.senvia.doangiuaky.ordering.service.SellerOrderStatusService;
 import com.senvia.doangiuaky.ordering.service.OrderCancellationService;
 import com.senvia.doangiuaky.ordering.api.OrderHistoryApi;
 import com.senvia.doangiuaky.ordering.api.OrderQueryApi;
+import com.senvia.doangiuaky.ordering.api.BuyerOrderApi;
 
 @Controller
 public class OrderingController {
@@ -56,10 +57,11 @@ public class OrderingController {
     private final OrderCancellationService orderCancellationService;
     private final OrderHistoryApi orderHistoryApi;
     private final OrderQueryApi orderQueryApi;
+    private final BuyerOrderApi buyerOrderApi;
 
     private static final String SESSION_QUOTE = "ordering.checkout.quote";
 
-    public OrderingController(CheckoutSelectionService checkoutSelectionService, CheckoutPreviewService checkoutPreviewService, CheckoutTransactionService checkoutTransactionService, SellerOrderReadService sellerOrderReadService, SellerPaymentConfirmationService sellerPaymentConfirmationService, SellerOrderStatusService sellerOrderStatusService, OrderCancellationService orderCancellationService, OrderHistoryApi orderHistoryApi, OrderQueryApi orderQueryApi) {
+    public OrderingController(CheckoutSelectionService checkoutSelectionService, CheckoutPreviewService checkoutPreviewService, CheckoutTransactionService checkoutTransactionService, SellerOrderReadService sellerOrderReadService, SellerPaymentConfirmationService sellerPaymentConfirmationService, SellerOrderStatusService sellerOrderStatusService, OrderCancellationService orderCancellationService, OrderHistoryApi orderHistoryApi, OrderQueryApi orderQueryApi, BuyerOrderApi buyerOrderApi) {
         this.checkoutSelectionService = checkoutSelectionService;
         this.checkoutPreviewService = checkoutPreviewService;
         this.checkoutTransactionService = checkoutTransactionService;
@@ -69,6 +71,7 @@ public class OrderingController {
         this.orderCancellationService = orderCancellationService;
         this.orderHistoryApi = orderHistoryApi;
         this.orderQueryApi = orderQueryApi;
+        this.buyerOrderApi = buyerOrderApi;
     }
 
     @GetMapping("/checkout")
@@ -218,6 +221,7 @@ public class OrderingController {
 
         model.addAttribute("order", order);
         model.addAttribute("history", orderHistoryApi.forCurrentBuyer(id));
+        model.addAttribute("reviewItems", buyerOrderApi.getOwnOrder(id).items());
         model.addAttribute("backUrl", "/account/orders");
         model.addAttribute("adminView", false);
 

@@ -38,6 +38,7 @@ import com.senvia.doangiuaky.ordering.service.SellerOrderStatusService;
 import com.senvia.doangiuaky.ordering.service.OrderCancellationService;
 import com.senvia.doangiuaky.ordering.api.OrderHistoryApi;
 import com.senvia.doangiuaky.ordering.api.OrderQueryApi;
+import com.senvia.doangiuaky.ordering.api.BuyerOrderApi;
 
 @WebMvcTest(OrderingController.class)
 @Import(SecurityConfig.class)
@@ -71,6 +72,9 @@ class CheckoutDeliveryAddressTest {
 
     @MockitoBean
     private OrderQueryApi orderQueryApi;
+
+    @MockitoBean
+    private BuyerOrderApi buyerOrderApi;
 
     @BeforeEach
     void setUp() {
