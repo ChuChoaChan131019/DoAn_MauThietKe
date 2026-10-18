@@ -116,6 +116,7 @@ public class CheckoutPreparationService {
         // 5. Nhom san pham theo shopId
         Map<Long, List<PreparedCheckout.Line>> grouped = new LinkedHashMap<>();
         Map<Long, String> shopNames = new HashMap<>();
+        Map<Long, Long> shopOwnerIds = new HashMap<>();
 
         Set<Long> seenCartItemIds = new HashSet<>();
         Set<Long> seenProductIds = new HashSet<>();
@@ -152,6 +153,11 @@ public class CheckoutPreparationService {
             // 9. Buyer khong duoc mua hang shop minh
             if (buyer.userId().equals(product.shopOwnerId())) {
                 throw new CheckoutPreparationException("Không thể mua sản phẩm của gian hàng chính mình.");
+            }
+
+            Long knownOwnerId = shopOwnerIds.putIfAbsent(product.shopId(), product.shopOwnerId());
+            if (knownOwnerId != null && !knownOwnerId.equals(product.shopOwnerId())) {
+                throw new CheckoutPreparationException("Chủ sở hữu gian hàng không nhất quán.");
             }
 
             // 10. Kiem tra shop duoc nhan don
@@ -224,6 +230,7 @@ public class CheckoutPreparationService {
                     new PreparedCheckout.ShopOrder(
                             buyer.userId(),
                             group.getKey(),
+                            shopOwnerIds.get(group.getKey()),
                             shopNames.get(group.getKey()),
                             group.getValue(),
                             sum

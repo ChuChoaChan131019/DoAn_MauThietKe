@@ -76,6 +76,7 @@ class CheckoutPreparationServiceTest {
                 21L,
                 result.shopOrders().getFirst().shopId()
         );
+        assertEquals(99L, result.shopOrders().getFirst().shopOwnerId());
 
         assertEquals(
                 new BigDecimal("280000.00"),
@@ -191,6 +192,8 @@ class CheckoutPreparationServiceTest {
                 22L,
                 result.shopOrders().get(1).shopId()
         );
+        assertEquals(99L, result.shopOrders().get(0).shopOwnerId());
+        assertEquals(98L, result.shopOrders().get(1).shopOwnerId());
 
         assertEquals(
                 new BigDecimal("280000.00"),
@@ -324,6 +327,18 @@ class CheckoutPreparationServiceTest {
 
         verify(merchant, never())
                 .findShopOrderCapabilities(anyLong());
+    }
+
+    @Test
+    void inconsistentOwnersForTheSameShopAreRejected() {
+        when(cartApi.getCheckoutSnapshot()).thenReturn(List.of(
+                new CheckoutCartItem(1L, 101L, 1),
+                new CheckoutCartItem(2L, 102L, 1)));
+        product(101, 21, 99, "Túi", "100000.00", 5, true);
+        product(102, 21, 98, "Cốc", "80000.00", 5, true);
+        shop(21, true);
+
+        assertThrows(CheckoutPreparationException.class, () -> service.prepare(form()));
     }
 
     @Test

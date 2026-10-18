@@ -15,13 +15,19 @@ public record PreparedCheckout(Long buyerId, DeliverySnapshot delivery, PaymentM
     public record DeliverySnapshot(String receiverName, String receiverPhone, String shippingAddress, String note) {
     }
 
-    public record ShopOrder(Long buyerId, Long shopId, String shopNameSnapshot, List<Line> items, BigDecimal totalAmount) {
+    public record ShopOrder(Long buyerId, Long shopId, Long shopOwnerId, String shopNameSnapshot,
+                            List<Line> items, BigDecimal totalAmount) {
         public ShopOrder {
             items = List.copyOf(items);
         }
 
+        public ShopOrder(Long buyerId, Long shopId, String shopNameSnapshot,
+                         List<Line> items, BigDecimal totalAmount) {
+            this(buyerId, shopId, null, shopNameSnapshot, items, totalAmount);
+        }
+
         public ShopOrder(Long buyerId, Long shopId, List<Line> items, BigDecimal totalAmount) {
-            this(buyerId, shopId, "Gian hàng #" + shopId, items, totalAmount);
+            this(buyerId, shopId, null, "Gian hàng #" + shopId, items, totalAmount);
         }
     }
 
