@@ -43,6 +43,7 @@ import com.senvia.doangiuaky.ordering.entity.PaymentStatus;
 import com.senvia.doangiuaky.ordering.service.SellerOrderStatusService;
 import com.senvia.doangiuaky.ordering.service.OrderCancellationService;
 import com.senvia.doangiuaky.ordering.api.OrderHistoryApi;
+import com.senvia.doangiuaky.ordering.api.OrderQueryApi;
 
 @Controller
 public class OrderingController {
@@ -54,10 +55,11 @@ public class OrderingController {
     private final SellerOrderStatusService sellerOrderStatusService;
     private final OrderCancellationService orderCancellationService;
     private final OrderHistoryApi orderHistoryApi;
+    private final OrderQueryApi orderQueryApi;
 
     private static final String SESSION_QUOTE = "ordering.checkout.quote";
 
-    public OrderingController(CheckoutSelectionService checkoutSelectionService, CheckoutPreviewService checkoutPreviewService, CheckoutTransactionService checkoutTransactionService, SellerOrderReadService sellerOrderReadService, SellerPaymentConfirmationService sellerPaymentConfirmationService, SellerOrderStatusService sellerOrderStatusService, OrderCancellationService orderCancellationService, OrderHistoryApi orderHistoryApi) {
+    public OrderingController(CheckoutSelectionService checkoutSelectionService, CheckoutPreviewService checkoutPreviewService, CheckoutTransactionService checkoutTransactionService, SellerOrderReadService sellerOrderReadService, SellerPaymentConfirmationService sellerPaymentConfirmationService, SellerOrderStatusService sellerOrderStatusService, OrderCancellationService orderCancellationService, OrderHistoryApi orderHistoryApi, OrderQueryApi orderQueryApi) {
         this.checkoutSelectionService = checkoutSelectionService;
         this.checkoutPreviewService = checkoutPreviewService;
         this.checkoutTransactionService = checkoutTransactionService;
@@ -66,6 +68,7 @@ public class OrderingController {
         this.sellerOrderStatusService = sellerOrderStatusService;
         this.orderCancellationService = orderCancellationService;
         this.orderHistoryApi = orderHistoryApi;
+        this.orderQueryApi = orderQueryApi;
     }
 
     @GetMapping("/checkout")
@@ -203,10 +206,23 @@ public class OrderingController {
     }
 
     @GetMapping("/account/orders")
-    public String orders() { return "ordering/orders"; }
+    public String orders(Model model) {
+        model.addAttribute("orders", orderQueryApi.listForCurrentBuyer());
+        return "ordering/orders";
+    }
 
+    // ORDER 09: Buyer xem chi tiết đơn thật.
     @GetMapping("/account/orders/detail")
-    public String orderDetail() { return "ordering/order-detail"; }
+    public String orderDetail(@RequestParam("id") String id, Model model) {
+        var order = orderQueryApi.getBuyerOrder(id);
+
+        model.addAttribute("order", order);
+        model.addAttribute("history", orderHistoryApi.forCurrentBuyer(id));
+        model.addAttribute("backUrl", "/account/orders");
+        model.addAttribute("adminView", false);
+
+        return "ordering/order-detail";
+    }
 
     @GetMapping("/merchant/orders")
     public String merchantOrders(@RequestParam(required = false) String status, @RequestParam(defaultValue = "1") int page, Model model) {
@@ -398,8 +414,22 @@ public class OrderingController {
         return "ordering/order-history";
     }
 
+    // ORDER 09: Admin ACTIVE được xem chi tiết đơn.
+    @GetMapping("/admin/orders/detail")
+    public String adminOrderDetail(@RequestParam("id") String id, Model model) {
+        var order = orderQueryApi.getAdminOrder(id);
+
+        model.addAttribute("order", order);
+        model.addAttribute("history", orderHistoryApi.forCurrentAdmin(id));
+        model.addAttribute("backUrl", "/admin/orders");
+        model.addAttribute("adminView", true);
+
+        return "ordering/order-detail";
+    }
+
     @GetMapping("/admin/orders")
-    public String adminOrders() {
+    public String adminOrders(Model model) {
+        model.addAttribute("orders", orderQueryApi.listForCurrentAdmin());
         return "ordering/admin-orders";
     }
 
