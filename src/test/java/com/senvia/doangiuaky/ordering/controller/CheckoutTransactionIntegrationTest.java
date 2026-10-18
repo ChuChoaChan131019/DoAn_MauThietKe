@@ -234,6 +234,38 @@ class CheckoutTransactionIntegrationTest {
     }
 
     @Test
+    void singleShopCheckoutCreatesOneNotificationForItsOwner() throws Exception {
+        Fixture f = fixture();
+        MockHttpSession session = new MockHttpSession();
+        MvcResult preview = mvc.perform(
+                        post("/checkout")
+                                .session(session)
+                                .with(user(f.email()).roles("USER"))
+                                .with(csrf())
+                                .param("itemIds", f.toteItemId().toString())
+                                .param("receiverName", "Buyer")
+                                .param("receiverPhone", "0901234567")
+                                .param("shippingAddress", "123 Test Street")
+                                .param("paymentMethod", "COD"))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        String token = (String) preview.getModelAndView().getModel().get("checkoutToken");
+        MvcResult result = confirm(f, session, token);
+
+        assertEquals(302, result.getResponse().getStatus());
+        assertEquals(1, db.queryForObject("""
+                SELECT COUNT(*)
+                FROM notifications n
+                JOIN orders o ON o.id = n.reference_id
+                JOIN shops s ON s.id = o.shop_id
+                WHERE o.buyer_id = ?
+                  AND n.type = 'ORDER_CREATED'
+                  AND n.receiver_id = s.owner_id
+                """, Integer.class, f.buyerId()));
+    }
+
+    @Test
     void checkoutSucceedsWhenItConsumesAllAvailableStock()
             throws Exception {
 
@@ -304,6 +336,33 @@ class CheckoutTransactionIntegrationTest {
                         f.buyerId()
                 )
         );
+
+        // Mỗi order phát một event riêng và chỉ thông báo đúng chủ shop.
+        assertEquals(2, db.queryForObject("""
+                SELECT COUNT(*)
+                FROM notifications n
+                JOIN orders o ON o.id = n.reference_id
+                JOIN shops s ON s.id = o.shop_id
+                WHERE o.buyer_id = ?
+                  AND n.type = 'ORDER_CREATED'
+                  AND n.receiver_id = s.owner_id
+                  AND n.is_read = FALSE
+                """, Integer.class, f.buyerId()));
+        assertEquals(2, db.queryForObject("""
+                SELECT COUNT(DISTINCT n.event_id)
+                FROM notifications n
+                JOIN orders o ON o.id = n.reference_id
+                WHERE o.buyer_id = ? AND n.type = 'ORDER_CREATED'
+                """, Integer.class, f.buyerId()));
+        assertEquals(0, db.queryForObject("""
+                SELECT COUNT(*)
+                FROM notifications n
+                JOIN orders o ON o.id = n.reference_id
+                JOIN shops s ON s.id = o.shop_id
+                WHERE o.buyer_id = ?
+                  AND n.type = 'ORDER_CREATED'
+                  AND n.receiver_id <> s.owner_id
+                """, Integer.class, f.buyerId()));
 
         // Phải có hai OrderItem.
         assertEquals(

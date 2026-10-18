@@ -29,6 +29,7 @@ public interface OrderRepository extends JpaRepository<Order, Long>, JpaSpecific
     Optional<Order> findByOrderCodeForUpdate(@Param("orderCode") String orderCode);
 
     List<Order> findAllByBuyerIdOrderByCreatedAtDesc(Long buyerId);
+    List<Order> findAllByBuyerIdOrderByCreatedAtDescIdDesc(Long buyerId);
     List<Order> findAllByShopIdOrderByCreatedAtDesc(Long shopId);
     List<Order> findAllByShopIdInOrderByCreatedAtDesc(List<Long> shopIds);
 

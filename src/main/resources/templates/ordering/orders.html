@@ -1,135 +1,58 @@
 <!DOCTYPE html>
 <html lang="vi" xmlns:th="http://www.thymeleaf.org">
-<head th:replace="~{fragments/head :: head('Senvia - Đơn Mua')}"></head>
+<head th:replace="~{fragments/head :: head('Senvia - Đơn mua')}"></head>
 <body>
     <div th:replace="~{fragments/header :: header}"></div>
-    
+
     <main class="w-100 mx-auto px-3 px-md-4 py-5 max-w-1440">
         <div class="row gx-lg-5">
-            <!-- Sidebar Navigation for Account -->
-            <div class="col-12 col-md-3 mb-5 mb-md-0">
-                <div class="d-flex flex-column gap-3 sticky-top" style="top: 100px;">
-                    <h4 class="text-serif text-plum mb-4">Tài Khoản</h4>
-                    <a th:href="@{/account/profile}" class="text-muted hover-plum text-decoration-none transition-colors pb-2 d-inline-block w-100">Hồ sơ cá nhân</a>
-                    <a th:href="@{/account/change-password}" class="text-muted hover-plum text-decoration-none transition-colors pb-2 d-inline-block w-100">Đổi mật khẩu</a>
-                    <a th:href="@{/account/orders}" class="fw-bold text-burgundy text-decoration-none border-bottom border-burgundy pb-2 d-inline-block w-100">Đơn mua</a>
-                    <a th:href="@{/account/wishlist}" class="text-muted hover-plum text-decoration-none transition-colors pb-2 d-inline-block w-100">Sản phẩm yêu thích</a>
-                    <a th:href="@{/account/notifications}" class="text-muted hover-plum text-decoration-none transition-colors pb-2 d-inline-block w-100 d-flex justify-content-between align-items-center">
-                        Thông báo
-                        <span class="badge bg-burgundy rounded-pill">3</span>
-                    </a>
-                </div>
-            </div>
+            <nav class="col-12 col-md-3 mb-5 mb-md-0" aria-label="Tài khoản">
+                <h4 class="text-serif text-plum mb-4">Tài khoản</h4>
+                <a th:href="@{/account/profile}" class="d-block text-muted mb-3">Hồ sơ cá nhân</a>
+                <a th:href="@{/account/orders}" class="d-block fw-bold text-burgundy">Đơn mua</a>
+            </nav>
 
-            <!-- Main Content -->
             <div class="col-12 col-md-9">
-                <h2 class="text-serif text-plum mb-4">Đơn Mua Của Bạn</h2>
-
+                <h1 class="text-serif text-plum mb-4">Đơn mua của bạn</h1>
                 <div th:if="${cancelSuccess}" class="alert alert-success rounded-0" role="status"
                      th:text="${cancelSuccess}"></div>
                 <div th:if="${cancelError}" class="alert alert-danger rounded-0" role="alert"
                      th:text="${cancelError}"></div>
-                
-                <!-- Filters -->
-                <div class="d-flex flex-nowrap overflow-x-auto gap-3 mb-4 pb-2 hide-scrollbar">
-                    <a href="#" class="btn bg-plum text-white rounded-0 px-4 py-2 flex-shrink-0">Tất cả</a>
-                    <a href="#" class="btn border border-clay text-plum hover-border-plum rounded-0 px-4 py-2 flex-shrink-0 transition-colors">Chờ thanh toán</a>
-                    <a href="#" class="btn border border-clay text-plum hover-border-plum rounded-0 px-4 py-2 flex-shrink-0 transition-colors">Đang xử lý</a>
-                    <a href="#" class="btn border border-clay text-plum hover-border-plum rounded-0 px-4 py-2 flex-shrink-0 transition-colors">Đang giao</a>
-                    <a href="#" class="btn border border-clay text-plum hover-border-plum rounded-0 px-4 py-2 flex-shrink-0 transition-colors">Hoàn thành</a>
-                    <a href="#" class="btn border border-clay text-plum hover-border-plum rounded-0 px-4 py-2 flex-shrink-0 transition-colors">Đã hủy</a>
+
+                <div th:if="${#lists.isEmpty(orders)}" class="bg-white border border-clay p-4 text-muted">
+                    Bạn chưa có đơn hàng nào.
                 </div>
 
-                <!-- Order List -->
-                <div class="d-flex flex-column gap-4">
-                    <!-- Order Item 1 -->
-                    <div class="bg-white border border-clay p-4">
-                        <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center border-bottom pb-3 mb-3 gap-2">
-                            <div class="d-flex align-items-center gap-2">
-                                <span class="fw-bold text-plum">Mã đơn: #ORD-20231005-001</span>
-                                <span class="text-muted small">|</span>
-                                <span class="text-muted small">05/10/2023</span>
-                                <span class="text-muted small">|</span>
-                                <span class="fw-medium text-plum"><i class="bi bi-shop me-1"></i> NOLA Official</span>
-                            </div>
-                            <div class="text-success fw-bold text-uppercase small">
-                                <i class="bi bi-check-circle me-1"></i> Hoàn thành
-                            </div>
+                <div th:each="order : ${orders}" class="bg-white border border-clay p-4 mb-3">
+                    <div class="d-flex flex-wrap justify-content-between gap-3 border-bottom pb-3 mb-3">
+                        <div>
+                            <strong class="text-plum" th:text="${order.orderCode}"></strong>
+                            <span class="text-muted small ms-2" th:text="${order.date}"></span>
+                            <div class="text-muted small mt-1" th:text="${order.shopName}"></div>
                         </div>
-                        
-                        <div class="d-flex gap-3 mb-3">
-                            <img src="https://images.unsplash.com/photo-1594035910387-fea47714263f?w=150&q=80" alt="Product" class="bg-ivory object-fit-cover" style="width: 80px; height: 80px;">
-                            <div class="flex-grow-1">
-                                <h6 class="text-plum mb-1">Nước Hoa Le Labo Santal 33</h6>
-                                <p class="text-muted small mb-2">Phân loại: 50ml</p>
-                                <div class="d-flex justify-content-between">
-                                    <span class="text-plum">x1</span>
-                                    <span class="text-plum fw-medium">4.500.000₫</span>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="d-flex justify-content-between align-items-center border-top pt-3">
-                            <div class="text-muted">Tổng tiền: <span class="text-burgundy fw-bold fs-5 ms-2">4.500.000₫</span></div>
-                            <div class="d-flex gap-2">
-                                <a th:href="@{/account/orders/detail}" class="btn border border-plum text-plum rounded-0 px-4 hover-bg-plum hover-text-white transition-colors">Xem chi tiết</a>
-                                <button class="btn bg-burgundy text-white rounded-0 px-4 hover-bg-plum transition-colors">Đánh giá</button>
-                            </div>
-                        </div>
+                        <span class="fw-bold text-burgundy" th:text="${order.status}"></span>
                     </div>
-
-                    <!-- Order Item 2 -->
-                    <div class="bg-white border border-clay p-4">
-                        <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center border-bottom pb-3 mb-3 gap-2">
-                            <div class="d-flex align-items-center gap-2">
-                                <span class="fw-bold text-plum">Mã đơn: #ORD-20231010-002</span>
-                                <span class="text-muted small">|</span>
-                                <span class="text-muted small">10/10/2023</span>
-                                <span class="text-muted small">|</span>
-                                <span class="fw-medium text-plum"><i class="bi bi-shop me-1"></i> ASTER</span>
-                            </div>
-                            <div class="text-warning fw-bold text-uppercase small">
-                                <i class="bi bi-hourglass-split me-1"></i> Chờ thanh toán
-                            </div>
-                        </div>
-                        
-                        <div class="d-flex gap-3 mb-3">
-                            <img src="https://images.unsplash.com/photo-1490481651871-ab68de25d43d?w=150&q=80" alt="Product" class="bg-ivory object-fit-cover" style="width: 80px; height: 80px;">
-                            <div class="flex-grow-1">
-                                <h6 class="text-plum mb-1">Túi Xách Da Minimalist</h6>
-                                <p class="text-muted small mb-2">Phân loại: Đen</p>
-                                <div class="d-flex justify-content-between">
-                                    <span class="text-plum">x1</span>
-                                    <span class="text-plum fw-medium">1.250.000₫</span>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="d-flex justify-content-between align-items-center border-top pt-3">
-                            <div class="text-muted">Tổng tiền: <span class="text-burgundy fw-bold fs-5 ms-2">1.250.000₫</span></div>
-                            <div class="d-flex gap-2">
-                                <button class="btn border border-clay text-muted rounded-0 px-4 hover-border-plum transition-colors">Hủy đơn</button>
-                                <a th:href="@{/account/orders/detail}" class="btn border border-plum text-plum rounded-0 px-4 hover-bg-plum hover-text-white transition-colors">Thanh toán ngay</a>
-                            </div>
+                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+                        <span class="text-plum">
+                            Tổng tiền:
+                            <strong th:text="${order.totalAmount} + ' ₫'"></strong>
+                        </span>
+                        <div class="d-flex flex-wrap gap-2">
+                            <a th:href="@{/account/orders/detail(id=${order.orderCode})}"
+                               class="btn border border-plum text-plum rounded-0 px-4">
+                                Xem chi tiết
+                            </a>
+                            <a th:href="@{/account/orders/history(id=${order.orderCode})}"
+                               class="btn border border-plum text-plum rounded-0 px-4">
+                                Xem lịch sử
+                            </a>
                         </div>
                     </div>
                 </div>
-
-                <!-- Pagination -->
-                <nav class="mt-5">
-                    <ul class="pagination justify-content-center border-0 gap-2">
-                        <li class="page-item disabled"><a class="page-link border-0 text-muted shadow-none bg-transparent" href="#">&larr; Trước</a></li>
-                        <li class="page-item active"><a class="page-link border-0 bg-plum text-white rounded-circle shadow-none" href="#" style="width: 36px; height: 36px; display: flex; align-items: center; justify-content: center;">1</a></li>
-                        <li class="page-item"><a class="page-link border-0 text-plum hover-bg-ivory rounded-circle shadow-none transition-colors" href="#" style="width: 36px; height: 36px; display: flex; align-items: center; justify-content: center;">2</a></li>
-                        <li class="page-item"><a class="page-link border-0 text-plum shadow-none bg-transparent" href="#">Sau &rarr;</a></li>
-                    </ul>
-                </nav>
             </div>
         </div>
     </main>
-    
-    <div th:replace="~{fragments/footer :: footer}"></div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <div th:replace="~{fragments/footer :: footer}"></div>
 </body>
 </html>

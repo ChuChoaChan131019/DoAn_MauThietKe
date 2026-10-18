@@ -340,5 +340,12 @@ class CheckoutRollbackIntegrationTest {
                 eventProbe.countForBuyer(buyer),
                 "Rollback không được xử lý OrderCreatedEvent."
         );
+
+        assertEquals(0, db.queryForObject("""
+                SELECT COUNT(*)
+                FROM notifications n
+                JOIN orders o ON o.id = n.reference_id
+                WHERE o.buyer_id = ? AND n.type = 'ORDER_CREATED'
+                """, Integer.class, buyer));
     }
 }
