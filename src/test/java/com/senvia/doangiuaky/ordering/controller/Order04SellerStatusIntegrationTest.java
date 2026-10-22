@@ -121,6 +121,7 @@ class Order04SellerStatusIntegrationTest {
         }
 
         for (Long userId : createdUsers) {
+            db.update("DELETE FROM notifications WHERE receiver_id = ?", userId);
             db.update("DELETE FROM users WHERE id = ?", userId);
         }
     }
