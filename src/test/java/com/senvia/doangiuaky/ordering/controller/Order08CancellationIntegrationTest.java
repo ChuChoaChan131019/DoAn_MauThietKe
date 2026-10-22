@@ -134,6 +134,7 @@ class Order08CancellationIntegrationTest {
                     f.adminId(),
                     f.outsiderId()
             )) {
+                db.update("DELETE FROM notifications WHERE receiver_id = ?", id);
                 db.update("DELETE FROM users WHERE id = ?", id);
             }
         }
