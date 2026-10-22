@@ -244,23 +244,8 @@ class Order08CancellationIntegrationTest {
     }
 
     @Test
-    void buyerCanCancelAndAdminCanCancelButOutsiderCannot()
+    void adminCanCancelButForeignSellerCannot()
             throws Exception {
-
-        Fixture buyerOrder = fixture(
-                "PREPARING", "COD", "COD_PENDING", false
-        );
-
-        mvc.perform(
-                post("/account/orders/cancel")
-                        .param("id", buyerOrder.code())
-                        .param("reason", "Đổi nhu cầu")
-                        .with(user(buyerOrder.buyerEmail())
-                                .roles("USER"))
-                        .with(csrf())
-        ).andExpect(status().is3xxRedirection());
-
-        assertEquals("CANCELLED", orderStatus(buyerOrder));
 
         Fixture adminOrder = fixture(
                 "PENDING", "COD", "COD_PENDING", false
@@ -295,19 +280,15 @@ class Order08CancellationIntegrationTest {
     }
 
     @Test
-    void buyerAndAdminSeeValidationAndStateErrorsAfterRedirect() throws Exception {
+    void adminSeesValidationAndStateErrorsAfterRedirect() throws Exception {
         Fixture pending = fixture("PENDING", "COD", "COD_PENDING", false);
         Fixture shipping = fixture("SHIPPING", "COD", "COD_PENDING", false);
 
         String reasonError = "Lý do hủy phải có từ 1 đến 500 ký tự.";
         String stateError = "Đơn ở trạng thái SHIPPING không thể hủy.";
 
-        assertCancellationErrorOnPage(pending, "/account/orders/cancel", "/account/orders",
-                pending.buyerEmail(), "USER", "   ", reasonError);
         assertCancellationErrorOnPage(pending, "/admin/orders/cancel", "/admin/orders",
                 pending.adminEmail(), "ADMIN", "   ", reasonError);
-        assertCancellationErrorOnPage(shipping, "/account/orders/cancel", "/account/orders",
-                shipping.buyerEmail(), "USER", "Không nhận hàng", stateError);
         assertCancellationErrorOnPage(shipping, "/admin/orders/cancel", "/admin/orders",
                 shipping.adminEmail(), "ADMIN", "Không giao được", stateError);
 
@@ -441,56 +422,8 @@ class Order08CancellationIntegrationTest {
     // =========================================================
 
     @Test
-    void order06BuyerAndAdminCanCancelAllowedStatuses()
+    void order06AdminCanCancelAllowedStatuses()
             throws Exception {
-
-        // Buyer hủy đơn CONFIRMED.
-        Fixture buyerOrder = fixture(
-                "CONFIRMED",
-                "COD",
-                "COD_PENDING",
-                false
-        );
-
-        mvc.perform(
-                post("/account/orders/cancel")
-                        .param("id", buyerOrder.code())
-                        .param(
-                                "reason",
-                                "Thay đổi nhu cầu mua hàng"
-                        )
-                        .with(
-                                user(buyerOrder.buyerEmail())
-                                        .roles("USER")
-                        )
-                        .with(csrf())
-        )
-                .andExpect(status().is3xxRedirection())
-                .andExpect(
-                        flash().attributeExists("cancelSuccess")
-                );
-
-        assertEquals(
-                "CANCELLED",
-                orderStatus(buyerOrder)
-        );
-
-        assertEquals(
-                "CANCELLED",
-                paymentStatus(buyerOrder)
-        );
-
-        // Tồn kho tăng từ 3 lên 5.
-        assertEquals(5, stock(buyerOrder));
-
-        assertEquals(
-                1,
-                restorationCount(buyerOrder)
-        );
-
-        // PENDING -> CONFIRMED -> CANCELLED.
-        assertEquals(3, historyCount(buyerOrder));
-
         // Admin hủy đơn PREPARING của shop LOCKED.
         Fixture adminOrder = fixture(
                 "PREPARING",
@@ -538,130 +471,21 @@ class Order08CancellationIntegrationTest {
         // PENDING -> CONFIRMED -> PREPARING -> CANCELLED.
         assertEquals(4, historyCount(adminOrder));
 
-        // Cả hai đơn đều phát event sau commit.
-        assertEquals(2, eventRecorder.events.size());
-        var buyerEvent = eventRecorder.events.stream()
-                .filter(event -> buyerOrder.code().equals(event.orderCode()))
-                .findFirst().orElseThrow();
+        // Đơn admin phát event sau commit.
+        assertEquals(1, eventRecorder.events.size());
         var adminEvent = eventRecorder.events.stream()
                 .filter(event -> adminOrder.code().equals(event.orderCode()))
                 .findFirst().orElseThrow();
-        assertNotNull(buyerEvent.eventId());
         assertNotNull(adminEvent.eventId());
-        assertNotEquals(buyerEvent.eventId(), adminEvent.eventId());
     }
 
     // =========================================================
     // ORDER 06 - TEST 10
-    // Không được hủy đơn đã COMPLETED
+    // Form hủy của Admin chỉ hiển thị ở trạng thái hợp lệ
     // =========================================================
 
     @Test
-    void order06CompletedOrderCannotBeCancelled()
-            throws Exception {
-
-        Fixture f = fixture(
-                "COMPLETED",
-                "COD",
-                "PAID",
-                false
-        );
-
-        int historyBefore = historyCount(f);
-
-        mvc.perform(
-                post("/account/orders/cancel")
-                        .param("id", f.code())
-                        .param(
-                                "reason",
-                                "Muốn hủy sau khi hoàn thành"
-                        )
-                        .with(
-                                user(f.buyerEmail())
-                                        .roles("USER")
-                        )
-                        .with(csrf())
-        )
-                .andExpect(status().is3xxRedirection())
-                .andExpect(
-                        flash().attributeExists("cancelError")
-                );
-
-        // Đơn không thay đổi.
-        assertEquals("COMPLETED", orderStatus(f));
-
-        // Payment giữ nguyên PAID.
-        assertEquals("PAID", paymentStatus(f));
-
-        // Không được hoàn kho.
-        assertEquals(3, stock(f));
-        assertEquals(0, restorationCount(f));
-
-        // Không được ghi thêm lịch sử.
-        assertEquals(
-                historyBefore,
-                historyCount(f)
-        );
-
-        // Không được phát event.
-        assertTrue(eventRecorder.events.isEmpty());
-    }
-
-    // =========================================================
-    // ORDER 06 - TEST 11
-    // Buyer trái quyền không được hủy kể cả lý do sai
-    // =========================================================
-
-    @Test
-    void order06ForeignBuyerCannotBypassOwnershipWithInvalidReason()
-            throws Exception {
-
-        Fixture f = fixture(
-                "PENDING",
-                "COD",
-                "COD_PENDING",
-                false
-        );
-
-        mvc.perform(
-                post("/account/orders/cancel")
-                        .param("id", f.code())
-                        .param("reason", "   ")
-                        .with(
-                                user(f.outsiderEmail())
-                                        .roles("USER")
-                        )
-                        .with(csrf())
-        )
-                .andExpect(status().isNotFound());
-
-        // Không thay đổi trạng thái đơn.
-        assertEquals("PENDING", orderStatus(f));
-
-        // Không thay đổi payment.
-        assertEquals(
-                "COD_PENDING",
-                paymentStatus(f)
-        );
-
-        // Không hoàn kho.
-        assertEquals(3, stock(f));
-        assertEquals(0, restorationCount(f));
-
-        // Không tạo history mới.
-        assertEquals(1, historyCount(f));
-
-        // Không phát event.
-        assertTrue(eventRecorder.events.isEmpty());
-    }
-
-    // =========================================================
-    // ORDER 06 - TEST 12
-    // Form hủy chỉ hiển thị ở trạng thái hợp lệ
-    // =========================================================
-
-    @Test
-    void order06CancelFormIsOnlyShownForAllowedStatuses()
+    void order06AdminCancelFormIsOnlyShownForAllowedStatuses()
             throws Exception {
 
         Fixture pending = fixture(
@@ -677,36 +501,6 @@ class Order08CancellationIntegrationTest {
                 "COD_PENDING",
                 false
         );
-
-        // Buyer xem đơn PENDING có form hủy.
-        String buyerHtml = mvc.perform(
-                get("/account/orders/detail")
-                        .param("id", pending.code())
-                        .with(
-                                user(pending.buyerEmail())
-                                        .roles("USER")
-                        )
-        ).andExpect(status().isOk())
-                .andReturn().getResponse().getContentAsString();
-        assertRenderedCancelForm(buyerHtml, "/account/orders/cancel", pending.code());
-
-        // Buyer xem đơn SHIPPING không có form hủy.
-        mvc.perform(
-                get("/account/orders/detail")
-                        .param("id", shipping.code())
-                        .with(
-                                user(shipping.buyerEmail())
-                                        .roles("USER")
-                        )
-        )
-                .andExpect(status().isOk())
-                .andExpect(
-                        content().string(
-                                not(containsString(
-                                        "/account/orders/cancel"
-                                ))
-                        )
-                );
 
         // Admin xem đơn PENDING có form hủy.
         String adminHtml = mvc.perform(

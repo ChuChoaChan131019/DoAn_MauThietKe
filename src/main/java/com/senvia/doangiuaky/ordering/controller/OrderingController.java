@@ -205,25 +205,6 @@ public class OrderingController {
         return "ordering/checkout-success";
     }
 
-    @GetMapping("/account/orders")
-    public String orders(Model model) {
-        model.addAttribute("orders", orderQueryApi.listForCurrentBuyer());
-        return "ordering/orders";
-    }
-
-    // ORDER 09: Buyer xem chi tiết đơn thật.
-    @GetMapping("/account/orders/detail")
-    public String orderDetail(@RequestParam("id") String id, Model model) {
-        var order = orderQueryApi.getBuyerOrder(id);
-
-        model.addAttribute("order", order);
-        model.addAttribute("history", orderHistoryApi.forCurrentBuyer(id));
-        model.addAttribute("backUrl", "/account/orders");
-        model.addAttribute("adminView", false);
-
-        return "ordering/order-detail";
-    }
-
     @GetMapping("/merchant/orders")
     public String merchantOrders(@RequestParam(required = false) String status, @RequestParam(defaultValue = "1") int page, Model model) {
         SellerOrderPage result = sellerOrderReadService.pageOwnOrders(status, page);
@@ -357,22 +338,6 @@ public class OrderingController {
         return "redirect:/merchant/orders/detail";
     }
 
-    // ORDER 08 - Buyer hủy đơn thuộc quyền sở hữu.
-    @PostMapping("/account/orders/cancel")
-    public String cancelBuyerOrder(@RequestParam("id") String code, @RequestParam("reason") String reason, RedirectAttributes redirectAttributes) {
-        try {
-            orderCancellationService.cancelAsBuyer(code, reason);
-            redirectAttributes.addFlashAttribute("cancelSuccess", "Đã hủy đơn hàng.");
-        } catch (ResponseStatusException exception) {
-            int status = exception.getStatusCode().value();
-            if (status != 400 && status != 409) {
-                throw exception;
-            }
-            redirectAttributes.addFlashAttribute("cancelError", exception.getReason());
-        }
-        return "redirect:/account/orders";
-    }
-
     // ORDER 08 - Admin hủy đơn hợp lệ.
     @PostMapping("/admin/orders/cancel")
     public String cancelAdminOrder(@RequestParam("id") String code, @RequestParam("reason") String reason,
@@ -388,18 +353,6 @@ public class OrderingController {
             redirectAttributes.addFlashAttribute("cancelError", exception.getReason());
         }
         return "redirect:/admin/orders";
-    }
-
-    // ORDER 07: Buyer xem lịch sử đơn thuộc sở hữu.
-    @GetMapping("/account/orders/history")
-    public String buyerOrderHistory(@RequestParam("id") String orderCode, Model model) {
-        var history = orderHistoryApi.forCurrentBuyer(orderCode);
-
-        model.addAttribute("orderCode", orderCode);
-        model.addAttribute("history", history);
-        model.addAttribute("backUrl", "/account/orders");
-
-        return "ordering/order-history";
     }
 
     // ORDER 07: Admin xem lịch sử đơn.

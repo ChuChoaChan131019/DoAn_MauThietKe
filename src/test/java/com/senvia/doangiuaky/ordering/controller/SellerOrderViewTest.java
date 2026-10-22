@@ -217,35 +217,6 @@ class SellerOrderViewTest {
                                             containsString("17/10/2026 16:15:00")));
     }
 
-    @Test
-void buyerCanOpenOrderHistoryPage() throws Exception {
-
-    when(orderHistoryApi.forCurrentBuyer("ORD-1"))
-            .thenReturn(List.of(
-                    new OrderHistoryEntry(
-                            1L,
-                            null,
-                            "PENDING",
-                            "Đơn hàng được tạo",
-                            10L,
-                            "Đơn hàng được tạo thành công",
-                            Instant.parse("2026-10-17T09:00:00Z"),
-                            "17/10/2026 16:00:00"
-                    )
-            ));
-
-    mvc.perform(
-            get("/account/orders/history")
-                    .param("id", "ORD-1")
-                    .with(user("buyer@example.com").roles("USER"))
-    )
-            .andExpect(status().isOk())
-            .andExpect(view().name("ordering/order-history"))
-            .andExpect(content().string(
-                    containsString("Đơn hàng được tạo thành công")
-            ));
-}
-
         @Test
         void adminCanOpenOrderHistoryPage() throws Exception {
 

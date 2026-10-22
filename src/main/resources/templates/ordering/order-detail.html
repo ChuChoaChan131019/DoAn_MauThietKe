@@ -255,9 +255,7 @@
                         </p>
                     </div>
 
-                    <form th:action="${adminView}
-                                    ? @{/admin/orders/cancel}
-                                    : @{/account/orders/cancel}"
+                    <form th:action="@{/admin/orders/cancel}"
                         method="post"
                         onsubmit="return confirm('Bạn có chắc chắn muốn hủy đơn hàng này?');">
 

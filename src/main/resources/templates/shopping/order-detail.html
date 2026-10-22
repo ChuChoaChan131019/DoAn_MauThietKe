@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/head :: head('Senvia - Chi tiết đơn hàng')}"></head>
+<body>
+<div th:replace="~{fragments/header :: header}"></div>
+
+<main class="w-100 mx-auto px-3 px-md-4 py-5 max-w-1440">
+    <div class="mb-4">
+        <a th:href="${backUrl}" class="text-muted text-decoration-none">
+            <i class="bi bi-arrow-left me-2" aria-hidden="true"></i>Quay lại danh sách đơn hàng
+        </a>
+    </div>
+
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 border-bottom pb-4 mb-5">
+        <div>
+            <h1 class="text-serif text-plum mb-2">Chi tiết đơn hàng</h1>
+            <div class="text-muted">Mã đơn: <strong class="text-plum" th:text="${order.order.orderCode}">ORD-...</strong></div>
+            <div class="text-muted small mt-1">Ngày đặt: <span th:text="${orderCreatedAt}">01/01/2026 00:00</span></div>
+        </div>
+        <span class="border border-clay px-3 py-2 fw-bold text-burgundy"
+              th:text="${statusLabels[order.order.status]}">Trạng thái</span>
+    </div>
+
+    <div th:if="${cancelSuccess != null}" class="alert alert-success rounded-0" role="alert"
+         th:text="${cancelSuccess}">Hủy đơn hàng thành công.</div>
+    <div th:if="${cancelError != null}" class="alert alert-danger rounded-0" role="alert"
+         th:text="${cancelError}">Không thể hủy đơn hàng.</div>
+
+    <div class="row gx-lg-5 gy-5">
+        <div class="col-12 col-lg-8">
+            <section class="bg-white border border-clay p-4 p-md-5 mb-4">
+                <h2 class="h5 fw-bold text-plum border-bottom pb-3 mb-4">Sản phẩm trong đơn</h2>
+                <div th:if="${#lists.isEmpty(order.items)}" class="text-muted">Không có sản phẩm để hiển thị.</div>
+                <div th:each="item : ${order.items}" class="border-bottom pb-3 mb-3">
+                    <h3 class="h6 fw-bold text-plum mb-2" th:text="${item.productName}">Sản phẩm</h3>
+                    <div class="d-flex justify-content-between gap-3 mb-2">
+                        <span class="text-muted small">Số lượng: <strong th:text="${item.quantity}">1</strong></span>
+                        <span class="text-plum" th:text="${#numbers.formatDecimal(item.unitPrice, 0, 'COMMA', 0, 'POINT')} + '₫'">0₫</span>
+                    </div>
+                    <div class="text-end fw-bold text-burgundy"
+                         th:text="${#numbers.formatDecimal(item.subtotal, 0, 'COMMA', 0, 'POINT')} + '₫'">0₫</div>
+                </div>
+            </section>
+
+            <section class="bg-white border border-clay p-4 p-md-5 mb-4">
+                <h2 class="h5 fw-bold text-plum border-bottom pb-3 mb-4">Lịch sử trạng thái đơn hàng</h2>
+                <div th:if="${#lists.isEmpty(order.history)}" class="text-muted small">Chưa có lịch sử trạng thái.</div>
+                <div th:each="entry : ${order.history}"
+                     class="border-start border-2 border-clay ps-4 pb-4 position-relative">
+                    <span class="position-absolute rounded-circle bg-burgundy"
+                          style="width: 12px; height: 12px; left: -7px; top: 3px;"></span>
+                    <h3 class="h6 fw-bold text-plum mb-1" th:text="${entry.statusLabel}">Trạng thái</h3>
+                    <div class="small text-muted mb-2" th:text="${entry.displayTime}">Thời gian</div>
+                    <div class="small mb-2" th:if="${entry.oldStatus != null}">
+                        <span th:text="${statusLabels[entry.oldStatus]}">Trạng thái cũ</span>
+                        <i class="bi bi-arrow-right mx-2" aria-hidden="true"></i>
+                        <strong th:text="${statusLabels[entry.newStatus]}">Trạng thái mới</strong>
+                    </div>
+                    <div th:if="${entry.note != null and !#strings.isEmpty(entry.note)}"
+                         class="bg-ivory p-3 small" style="white-space: pre-wrap; overflow-wrap: anywhere;"
+                         th:text="${entry.note}">Ghi chú</div>
+                </div>
+            </section>
+        </div>
+
+        <aside class="col-12 col-lg-4">
+            <section class="bg-white border border-clay p-4 mb-4">
+                <h2 class="h5 fw-bold text-plum border-bottom pb-3 mb-3">Thông tin nhận hàng</h2>
+                <div class="fw-bold text-plum mb-2" th:text="${order.receiverName}">Người nhận</div>
+                <div class="text-muted mb-2" th:text="${order.receiverPhone}">Số điện thoại</div>
+                <div class="text-muted" style="overflow-wrap: anywhere;" th:text="${order.shippingAddress}">Địa chỉ</div>
+                <div th:if="${order.note != null and !#strings.isEmpty(order.note)}" class="border-top mt-3 pt-3">
+                    <div class="small text-muted mb-1">Ghi chú</div>
+                    <div class="small" style="white-space: pre-wrap; overflow-wrap: anywhere;" th:text="${order.note}">Ghi chú</div>
+                </div>
+            </section>
+
+            <section class="bg-white border border-clay p-4 mb-4">
+                <h2 class="h5 fw-bold text-plum border-bottom pb-3 mb-3">Thanh toán</h2>
+                <div class="d-flex justify-content-between gap-3 mb-3">
+                    <span class="text-muted">Phương thức</span>
+                    <strong class="text-plum text-end" th:text="${paymentMethodLabels[order.payment.method]}">Thanh toán</strong>
+                </div>
+                <div class="d-flex justify-content-between gap-3 mb-3">
+                    <span class="text-muted">Trạng thái</span>
+                    <strong class="text-burgundy text-end" th:text="${paymentStatusLabels[order.payment.status]}">Trạng thái</strong>
+                </div>
+                <div class="d-flex justify-content-between gap-3 mb-3">
+                    <span class="text-muted">Số tiền</span>
+                    <strong class="text-plum" th:text="${#numbers.formatDecimal(order.payment.amount, 0, 'COMMA', 0, 'POINT')} + '₫'">0₫</strong>
+                </div>
+                <div th:if="${order.payment.transactionReference != null}" class="border-top pt-3">
+                    <div class="small text-muted mb-1">Mã tham chiếu</div>
+                    <code class="text-plum" th:text="${order.payment.transactionReference}">SENVIA-ORD-...</code>
+                </div>
+            </section>
+
+            <section class="bg-ivory border border-clay p-4 mb-4">
+                <div class="d-flex justify-content-between align-items-center">
+                    <span class="fw-bold text-plum">Tổng thanh toán</span>
+                    <strong class="fs-5 text-burgundy"
+                            th:text="${#numbers.formatDecimal(order.order.totalAmount, 0, 'COMMA', 0, 'POINT')} + '₫'">0₫</strong>
+                </div>
+            </section>
+
+            <section th:if="${order.order.status == 'PENDING' or order.order.status == 'CONFIRMED' or order.order.status == 'PREPARING'}"
+                     class="bg-white border border-clay p-4">
+                <h2 class="h5 fw-bold text-plum border-bottom pb-3 mb-3">Hủy đơn hàng</h2>
+                <p class="text-muted small">Bạn có thể hủy đơn trước khi đơn chuyển sang giao hàng. Vui lòng nhập lý do trước khi xác nhận.</p>
+                <form th:action="@{/account/orders/cancel}" method="post"
+                      onsubmit="return confirm('Bạn có chắc chắn muốn hủy đơn hàng này?');">
+                    <input type="hidden" name="id" th:value="${order.order.orderCode}">
+                    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+                    <label for="order-cancel-reason" class="form-label fw-bold text-plum">Lý do hủy <span class="text-danger">*</span></label>
+                    <textarea id="order-cancel-reason" name="reason" class="form-control rounded-0" rows="4" maxlength="500" required
+                              placeholder="Ví dụ: Tôi muốn thay đổi sản phẩm hoặc địa chỉ nhận hàng."></textarea>
+                    <div class="form-text mb-3">Bắt buộc nhập lý do, tối đa 500 ký tự.</div>
+                    <button type="submit" class="btn btn-outline-danger rounded-0 w-100 py-3 fw-bold">Xác nhận hủy đơn hàng</button>
+                </form>
+            </section>
+        </aside>
+    </div>
+</main>
+
+<div th:replace="~{fragments/footer :: footer}"></div>
+</body>
+</html>
