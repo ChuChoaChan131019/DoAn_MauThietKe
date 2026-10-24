@@ -58,7 +58,7 @@ public class SellerController {
     }
 
     @GetMapping("/merchant/dashboard")
-    public String merchantDashboard() { return "merchant/dashboard"; }
+    public String merchantDashboard() { return "redirect:/seller/dashboard"; }
 
     public String merchantOrders() { return "ordering/seller-orders"; }
 

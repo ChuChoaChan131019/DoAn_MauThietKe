@@ -5,4 +5,7 @@ public interface MerchantStatisticsApi {
 
     /** Counts all managed products, including hidden and out-of-stock products. */
     long countProductsForShop(Long shopId);
+
+    /** Counts all products managed by the currently authenticated shop owner. */
+    long countProductsForCurrentShop();
 }
