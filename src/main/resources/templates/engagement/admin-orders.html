@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/head :: head('Senvia - Giám sát đơn hàng')}"></head>
+<body>
+    <div th:replace="~{fragments/header :: header}"></div>
+
+    <main class="w-100 mx-auto px-3 px-md-4 py-5 max-w-1440">
+        <div class="row gx-lg-5">
+            <nav class="col-12 col-md-3 mb-5 mb-md-0" aria-label="Quản trị">
+                <h4 class="text-serif text-plum mb-4">Quản trị</h4>
+                <a th:href="@{/admin/dashboard}" class="d-block text-muted mb-3">Tổng quan</a>
+                <a th:href="@{/admin/orders/monitor}" class="d-block fw-bold text-burgundy">Giám sát đơn hàng</a>
+            </nav>
+
+            <section class="col-12 col-md-9">
+                <h1 class="text-serif text-plum mb-4">Giám sát đơn hàng</h1>
+                <div th:if="${cancelSuccess}" class="alert alert-success rounded-0" role="status"
+                     th:text="${cancelSuccess}"></div>
+                <div th:if="${cancelError}" class="alert alert-danger rounded-0" role="alert"
+                     th:text="${cancelError}"></div>
+
+                <form method="get" th:action="@{/admin/orders/monitor}" class="bg-white border border-clay p-4 mb-4">
+                    <div class="row g-3 align-items-end">
+                        <div class="col-12 col-lg-4">
+                            <label for="orderCode" class="form-label">Mã đơn</label>
+                            <input id="orderCode" name="orderCode" class="form-control rounded-0"
+                                   th:value="${orderCode}" placeholder="Tìm theo mã đơn">
+                        </div>
+                        <div class="col-6 col-lg-2">
+                            <label for="buyerId" class="form-label">Buyer ID</label>
+                            <input id="buyerId" name="buyerId" type="number" min="1" class="form-control rounded-0"
+                                   th:value="${buyerId}">
+                        </div>
+                        <div class="col-6 col-lg-2">
+                            <label for="shopId" class="form-label">Shop ID</label>
+                            <input id="shopId" name="shopId" type="number" min="1" class="form-control rounded-0"
+                                   th:value="${shopId}">
+                        </div>
+                        <div class="col-12 col-lg-2">
+                            <label for="status" class="form-label">Trạng thái</label>
+                            <select id="status" name="status" class="form-select rounded-0">
+                                <option value="">Tất cả</option>
+                                <option th:each="option : ${statusOptions}" th:value="${option}"
+                                        th:text="${option}" th:selected="${option == selectedStatus}">PENDING</option>
+                            </select>
+                        </div>
+                        <div class="col-12 col-lg-2">
+                            <input type="hidden" name="size" th:value="${pageSize}">
+                            <button type="submit" class="btn btn-plum rounded-0 w-100">Lọc</button>
+                        </div>
+                    </div>
+                </form>
+
+                <div th:if="${#lists.isEmpty(orderPage.orders)}" class="bg-white border border-clay p-4 text-muted">
+                    Không tìm thấy đơn hàng phù hợp.
+                </div>
+                <div th:unless="${#lists.isEmpty(orderPage.orders)}"
+                     class="table-responsive bg-white border border-clay">
+                    <table class="table table-hover align-middle mb-0 text-plum">
+                        <thead class="bg-ivory">
+                            <tr>
+                                <th scope="col" class="px-4 py-3">Mã đơn</th>
+                                <th scope="col">Buyer ID</th>
+                                <th scope="col">Shop ID</th>
+                                <th scope="col">Tổng tiền</th>
+                                <th scope="col">Trạng thái</th>
+                                <th scope="col" class="text-end px-4">Thao tác</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr th:each="order : ${orderPage.orders}">
+                                <td class="px-4 py-3">
+                                    <strong th:text="${order.orderCode}">Mã đơn</strong>
+                                    <div class="small text-muted"
+                                         th:text="${#temporals.format(order.createdAt, 'dd/MM/yyyy HH:mm')}"></div>
+                                </td>
+                                <td th:text="${order.buyerId}">0</td>
+                                <td th:text="${order.shopId}">0</td>
+                                <td th:text="${#numbers.formatDecimal(order.totalAmount, 0, 'COMMA', 0, 'POINT')} + '₫'">
+                                    0₫
+                                </td>
+                                <td th:text="${order.status}">PENDING</td>
+                                <td class="text-end px-4">
+                                    <a th:href="@{/admin/orders/monitor/{orderCode}(orderCode=${order.orderCode})}"
+                                       class="btn btn-sm border border-plum text-plum rounded-0">Chi tiết</a>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <nav th:if="${orderPage.totalPages > 1}" aria-label="Phân trang đơn hàng" class="mt-4">
+                    <ul class="pagination justify-content-end">
+                        <li class="page-item" th:classappend="${orderPage.currentPage <= 1} ? ' disabled'">
+                            <a class="page-link"
+                               th:href="@{/admin/orders/monitor(page=${orderPage.currentPage - 1},size=${pageSize},status=${selectedStatus},buyerId=${buyerId},shopId=${shopId},orderCode=${orderCode})}"
+                               aria-label="Trang trước">Trước</a>
+                        </li>
+                        <li class="page-item disabled">
+                            <span class="page-link"
+                                  th:text="|Trang ${orderPage.currentPage} / ${orderPage.totalPages}|">Trang 1 / 1</span>
+                        </li>
+                        <li class="page-item"
+                            th:classappend="${orderPage.currentPage >= orderPage.totalPages} ? ' disabled'">
+                            <a class="page-link"
+                               th:href="@{/admin/orders/monitor(page=${orderPage.currentPage + 1},size=${pageSize},status=${selectedStatus},buyerId=${buyerId},shopId=${shopId},orderCode=${orderCode})}"
+                               aria-label="Trang sau">Sau</a>
+                        </li>
+                    </ul>
+                </nav>
+            </section>
+        </div>
+    </main>
+
+    <div th:replace="~{fragments/footer :: footer}"></div>
+</body>
+</html>
