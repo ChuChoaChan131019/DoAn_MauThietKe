@@ -7,45 +7,40 @@
     <main class="w-100 mx-auto px-3 px-md-4 py-5 max-w-1440">
         <div class="row justify-content-center">
             <div class="col-12 col-md-8 col-lg-6">
-                <a th:href="@{/account/orders/detail}" class="text-muted text-decoration-none hover-plum transition-colors mb-4 d-inline-block"><i class="bi bi-arrow-left me-2"></i>Quay lại chi tiết đơn hàng</a>
+                <a th:href="@{/account/orders/detail(id=${reviewableItem.orderCode})}" class="text-muted text-decoration-none hover-plum transition-colors mb-4 d-inline-block"><i class="bi bi-arrow-left me-2"></i>Quay lại chi tiết đơn hàng</a>
                 
                 <h2 class="text-serif text-plum mb-4">Đánh Giá Sản Phẩm</h2>
                 
                 <div class="bg-white p-4 p-md-5 border border-clay shadow-sm">
                     <div class="d-flex gap-3 border-bottom pb-4 mb-4">
-                        <img src="https://images.unsplash.com/photo-1594035910387-fea47714263f?w=150&q=80" alt="Product" class="bg-ivory object-fit-cover" style="width: 80px; height: 80px;">
                         <div>
-                            <h6 class="text-plum mb-1">Nước Hoa Le Labo Santal 33</h6>
-                            <p class="text-muted small mb-0">Phân loại: 50ml</p>
+                            <h6 class="text-plum mb-1" th:text="|Sản phẩm #${reviewableItem.productId}|">Sản phẩm</h6>
+                            <p class="text-muted small mb-0" th:text="|Đơn hàng ${reviewableItem.orderCode}|">Mã đơn</p>
                         </div>
                     </div>
 
-                    <form>
+                    <form method="post" th:action="@{/account/review}" th:object="${reviewForm}">
+                        <input type="hidden" th:field="*{orderItemId}">
+                        <input type="hidden" th:field="*{productId}">
                         <div class="mb-4 text-center">
                             <label class="form-label fw-bold text-plum d-block mb-3">Chất lượng sản phẩm</label>
                             <div class="d-flex justify-content-center gap-2 fs-2 text-muted rating-stars">
-                                <i class="bi bi-star-fill text-warning cursor-pointer" data-value="1"></i>
-                                <i class="bi bi-star-fill text-warning cursor-pointer" data-value="2"></i>
-                                <i class="bi bi-star-fill text-warning cursor-pointer" data-value="3"></i>
-                                <i class="bi bi-star-fill text-warning cursor-pointer" data-value="4"></i>
-                                <i class="bi bi-star cursor-pointer" data-value="5"></i>
+                                <i th:each="value : ${#numbers.sequence(1, 5)}"
+                                   class="bi cursor-pointer" data-value="1"
+                                   th:attr="data-value=${value}"
+                                   th:classappend="${reviewForm.rating != null and reviewForm.rating >= value} ? ' bi-star-fill text-warning' : ' bi-star'"
+                                   role="button" th:aria-label="|${value} sao|"></i>
                             </div>
-                            <input type="hidden" name="rating" id="ratingValue" value="4" required>
+                            <input type="hidden" th:field="*{rating}" id="ratingValue" required>
+                            <div class="text-danger small mt-2" th:if="${#fields.hasErrors('rating')}"
+                                 th:errors="*{rating}">Vui lòng chọn số sao.</div>
                         </div>
 
                         <div class="mb-4">
                             <label class="form-label text-uppercase fw-medium text-plum small mb-2">Nhận xét chi tiết</label>
-                            <textarea class="form-control bg-ivory border-0 rounded-0 px-4 py-3 shadow-none text-plum" rows="4" placeholder="Hãy chia sẻ cảm nhận của bạn về sản phẩm này..." required></textarea>
-                        </div>
-
-                        <div class="mb-5">
-                            <label class="form-label text-uppercase fw-medium text-plum small mb-2">Thêm hình ảnh (Tùy chọn)</label>
-                            <div class="d-flex gap-2 flex-wrap">
-                                <div class="bg-ivory border border-clay d-flex align-items-center justify-content-center cursor-pointer hover-bg-clay transition-colors" style="width: 80px; height: 80px;">
-                                    <i class="bi bi-camera text-muted fs-4"></i>
-                                </div>
-                            </div>
-                            <div class="text-muted small mt-2">Tối đa 3 hình ảnh, mỗi hình dưới 5MB.</div>
+                            <textarea th:field="*{comment}"
+                                      class="form-control bg-ivory border-0 rounded-0 px-4 py-3 shadow-none text-plum"
+                                      rows="4" placeholder="Hãy chia sẻ cảm nhận của bạn về sản phẩm này..."></textarea>
                         </div>
 
                         <button type="submit" class="btn bg-burgundy text-white rounded-0 fw-medium text-uppercase px-5 py-3 border-0 w-100 hover-bg-plum transition-colors">Gửi Đánh Giá</button>
@@ -57,27 +52,28 @@
     
     <div th:replace="~{fragments/footer :: footer}"></div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         const stars = document.querySelectorAll('.rating-stars i');
         const ratingInput = document.getElementById('ratingValue');
+
+        const updateStars = value => {
+            stars.forEach(star => {
+                const selected = parseInt(star.getAttribute('data-value')) <= value;
+                star.classList.toggle('bi-star-fill', selected);
+                star.classList.toggle('text-warning', selected);
+                star.classList.toggle('bi-star', !selected);
+            });
+        };
         
         stars.forEach(star => {
             star.addEventListener('click', function() {
                 const value = parseInt(this.getAttribute('data-value'));
                 ratingInput.value = value;
-                
-                stars.forEach(s => {
-                    if (parseInt(s.getAttribute('data-value')) <= value) {
-                        s.classList.remove('bi-star');
-                        s.classList.add('bi-star-fill', 'text-warning');
-                    } else {
-                        s.classList.remove('bi-star-fill', 'text-warning');
-                        s.classList.add('bi-star');
-                    }
-                });
+                updateStars(value);
             });
         });
+
+        updateStars(parseInt(ratingInput.value || '0'));
     </script>
 </body>
 </html>
