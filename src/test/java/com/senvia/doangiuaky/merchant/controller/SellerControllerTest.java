@@ -74,6 +74,13 @@ class SellerControllerTest {
     }
 
     @Test
+    void merchantDashboardRedirectsToEngagementStatistics() throws Exception {
+        mockMvc.perform(get("/merchant/dashboard").with(user(ownerPrincipal)))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/seller/dashboard"));
+    }
+
+    @Test
     void ownerCanSubmitShopProfileWithReplacementLogo() throws Exception {
         when(shopProfileService.getOwnedApprovedShop(1L)).thenReturn(approvedShop());
 

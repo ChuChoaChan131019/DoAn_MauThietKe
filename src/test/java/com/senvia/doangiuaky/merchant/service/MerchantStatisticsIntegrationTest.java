@@ -32,6 +32,7 @@ class MerchantStatisticsIntegrationTest {
 
         long expected = jdbc.queryForObject("select count(*) from products where shop_id = ?", Long.class, shopId);
         assertEquals(expected, statistics.countProductsForShop(shopId));
+        assertEquals(expected, statistics.countProductsForCurrentShop());
     }
 
     @Test
