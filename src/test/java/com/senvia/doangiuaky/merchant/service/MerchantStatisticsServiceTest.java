@@ -38,6 +38,25 @@ class MerchantStatisticsServiceTest {
     }
 
     @Test
+    void countsProductsForCurrentShopWithoutAcceptingClientShopId() {
+        Shop shop = mock(Shop.class);
+        when(currentUser.requireCurrentUser()).thenReturn(new UserSummary(7L, "Owner", UserRole.USER, AccountStatus.ACTIVE));
+        when(shops.findByOwnerId(7L)).thenReturn(Optional.of(shop));
+        when(shop.getId()).thenReturn(3L);
+        when(products.countByShopId(3L)).thenReturn(4L);
+
+        assertEquals(4, service.countProductsForCurrentShop());
+        verify(products).countByShopId(3L);
+    }
+
+    @Test
+    void rejectsCurrentUserWithoutShop() {
+        when(currentUser.requireCurrentUser()).thenReturn(new UserSummary(7L, "Owner", UserRole.USER, AccountStatus.ACTIVE));
+
+        assertThrows(MerchantStatisticsAccessException.class, service::countProductsForCurrentShop);
+    }
+
+    @Test
     void rejectsOtherOwnersAndLockedAccounts() {
         Shop shop = mock(Shop.class);
         when(shops.findById(3L)).thenReturn(Optional.of(shop));
@@ -47,5 +66,6 @@ class MerchantStatisticsServiceTest {
 
         when(currentUser.requireCurrentUser()).thenReturn(new UserSummary(7L, "Owner", UserRole.USER, AccountStatus.LOCKED));
         assertThrows(MerchantStatisticsAccessException.class, () -> service.countProductsForShop(3L));
+        assertThrows(MerchantStatisticsAccessException.class, service::countProductsForCurrentShop);
     }
 }
