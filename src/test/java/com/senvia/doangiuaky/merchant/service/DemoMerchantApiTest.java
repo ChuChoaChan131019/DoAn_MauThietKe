@@ -96,11 +96,15 @@ class DemoMerchantApiTest {
         Long shopId = shopIdOf("Canvas Tote Bag");
 
         var summary = merchantApi.findShopSummary(shopId).orElseThrow();
+        var ownerSummary = merchantApi.findShopSummaryForOwner(summary.ownerId()).orElseThrow();
 
         assertEquals(shopId, summary.shopId());
         assertEquals("NOLA Store", summary.shopName());
         assertTrue(summary.ownerActive());
         assertTrue(summary.shopApproved());
+        assertEquals(summary, ownerSummary);
+        assertTrue(merchantApi.findShopSummaryForOwner(null).isEmpty());
+        assertTrue(merchantApi.findShopSummaryForOwner(Long.MAX_VALUE).isEmpty());
         assertTrue(merchantApi.findShopSummary(Long.MAX_VALUE).isEmpty());
     }
 

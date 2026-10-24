@@ -113,12 +113,25 @@ public class DemoMerchantApi implements MerchantApi {
         if (shopId == null || shopId <= 0) {
             return Optional.empty();
         }
-        return shopRepository.findById(shopId).map(shop -> new MerchantShopSummary(
+        return shopRepository.findById(shopId).map(this::toShopSummary);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<MerchantShopSummary> findShopSummaryForOwner(Long ownerId) {
+        if (ownerId == null || ownerId <= 0) {
+            return Optional.empty();
+        }
+        return shopRepository.findByOwnerId(ownerId).map(this::toShopSummary);
+    }
+
+    private MerchantShopSummary toShopSummary(Shop shop) {
+        return new MerchantShopSummary(
                 shop.getId(), shop.getOwnerId(), shop.getShopName(),
                 identityApi.findUser(shop.getOwnerId())
                         .map(owner -> owner.accountStatus() == AccountStatus.ACTIVE)
                         .orElse(false),
-                shop.canBePubliclyListed()));
+                shop.canBePubliclyListed());
     }
 
     @Transactional(readOnly = true)
