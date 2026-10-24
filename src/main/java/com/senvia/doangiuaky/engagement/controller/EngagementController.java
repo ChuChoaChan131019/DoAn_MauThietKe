@@ -53,6 +53,7 @@ public class EngagementController {
             ShopOrderStatistics orderStatistics = orderingStatisticsApi.forOwnShop(shopId);
             model.addAttribute("totalOrders", orderStatistics.totalOrders());
             model.addAttribute("ordersByStatus", orderStatistics.ordersByStatus());
+            model.addAttribute("completedRevenue", orderStatistics.completedRevenue());
             model.addAttribute("orderStatusLabels", orderStatusLabels());
             return "engagement/seller-dashboard";
         } catch (MerchantStatisticsAccessException exception) {

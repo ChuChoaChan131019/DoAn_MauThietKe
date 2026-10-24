@@ -82,7 +82,8 @@ class EngagementControllerTest {
         Map<String, Long> statusCounts = Map.of(
                 "PENDING", 2L, "CONFIRMED", 1L, "PREPARING", 1L,
                 "SHIPPING", 1L, "COMPLETED", 3L, "CANCELLED", 1L);
-        ShopOrderStatistics stats = new ShopOrderStatistics(11L, 9L, statusCounts, BigDecimal.ZERO);
+        BigDecimal completedRevenue = new BigDecimal("1234567.89");
+        ShopOrderStatistics stats = new ShopOrderStatistics(11L, 9L, statusCounts, completedRevenue);
         assertEquals(stats.totalOrders(),
                 stats.ordersByStatus().values().stream().mapToLong(Long::longValue).sum());
         when(orderingStatisticsApi.forOwnShop(11L)).thenReturn(stats);
@@ -92,7 +93,10 @@ class EngagementControllerTest {
                 .andExpect(view().name("engagement/seller-dashboard"))
                 .andExpect(model().attribute("productCount", 12L))
                 .andExpect(model().attribute("totalOrders", 9L))
-                .andExpect(model().attribute("ordersByStatus", statusCounts));
+                .andExpect(model().attribute("ordersByStatus", statusCounts))
+                .andExpect(model().attribute("completedRevenue", completedRevenue))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content()
+                        .string(org.hamcrest.Matchers.containsString("1,234,568₫")));
 
         verify(merchantStatisticsApi).countProductsForCurrentShop();
         verify(merchantApi).findShopSummaryForOwner(7L);
