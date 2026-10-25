@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/head :: head('Senvia - Chi tiết đơn hàng')}"></head>
+<body>
+    <div th:replace="~{fragments/header :: header}"></div>
+
+    <main class="w-100 mx-auto px-3 px-md-4 py-5 max-w-1440">
+        <div class="row gx-lg-5">
+            <nav class="col-12 col-md-3 mb-5 mb-md-0" aria-label="Quản trị">
+                <h4 class="text-serif text-plum mb-4">Quản trị</h4>
+                <a th:href="@{/admin/dashboard}" class="d-block text-muted mb-3">Tổng quan</a>
+                <a th:href="@{/admin/orders/monitor}" class="d-block text-muted mb-3">Giám sát đơn hàng</a>
+            </nav>
+
+            <section class="col-12 col-md-9">
+                <a th:href="@{/admin/orders/monitor}" class="text-burgundy text-decoration-none">← Danh sách đơn hàng</a>
+                <h1 class="text-serif text-plum mt-3 mb-4">
+                    Đơn hàng <span th:text="${orderDetails.order.orderCode}">Mã đơn</span>
+                </h1>
+
+                <div th:if="${cancelSuccess}" class="alert alert-success rounded-0" role="status"
+                     th:text="${cancelSuccess}"></div>
+                <div th:if="${cancelError}" class="alert alert-danger rounded-0" role="alert"
+                     th:text="${cancelError}"></div>
+
+                <section class="bg-white border border-clay p-4 mb-4">
+                    <h2 class="h5 fw-bold text-plum mb-3">Thông tin đơn hàng</h2>
+                    <dl class="row mb-0">
+                        <dt class="col-sm-4">Mã đơn</dt>
+                        <dd class="col-sm-8" th:text="${orderDetails.order.orderCode}">Mã đơn</dd>
+                        <dt class="col-sm-4">Buyer ID</dt>
+                        <dd class="col-sm-8" th:text="${orderDetails.order.buyerId}">0</dd>
+                        <dt class="col-sm-4">Shop ID</dt>
+                        <dd class="col-sm-8" th:text="${orderDetails.order.shopId}">0</dd>
+                        <dt class="col-sm-4">Trạng thái</dt>
+                        <dd class="col-sm-8" th:text="${orderDetails.order.status}">PENDING</dd>
+                        <dt class="col-sm-4">Ngày tạo</dt>
+                        <dd class="col-sm-8"
+                            th:text="${#temporals.format(orderDetails.order.createdAt, 'dd/MM/yyyy HH:mm')}">Ngày</dd>
+                        <dt class="col-sm-4">Tổng tiền</dt>
+                        <dd class="col-sm-8 fw-bold"
+                            th:text="${#numbers.formatDecimal(orderDetails.order.totalAmount, 0, 'COMMA', 0, 'POINT')} + '₫'">
+                            0₫</dd>
+                        <dt class="col-sm-4">Người nhận</dt>
+                        <dd class="col-sm-8" th:text="${orderDetails.receiverName}">Người nhận</dd>
+                        <dt class="col-sm-4">Điện thoại</dt>
+                        <dd class="col-sm-8" th:text="${orderDetails.receiverPhone}">Số điện thoại</dd>
+                        <dt class="col-sm-4">Địa chỉ giao hàng</dt>
+                        <dd class="col-sm-8" th:text="${orderDetails.shippingAddress}">Địa chỉ</dd>
+                        <dt class="col-sm-4">Ghi chú</dt>
+                        <dd class="col-sm-8" th:text="${orderDetails.note ?: 'Không có'}">Không có</dd>
+                    </dl>
+                </section>
+
+                <section class="bg-white border border-clay p-4 mb-4">
+                    <h2 class="h5 fw-bold text-plum mb-3">Sản phẩm</h2>
+                    <div class="table-responsive">
+                        <table class="table align-middle mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Sản phẩm</th>
+                                    <th class="text-end">Đơn giá</th>
+                                    <th class="text-end">Số lượng</th>
+                                    <th class="text-end">Thành tiền</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr th:each="item : ${orderDetails.items}">
+                                    <td th:text="${item.productName}">Sản phẩm</td>
+                                    <td class="text-end"
+                                        th:text="${#numbers.formatDecimal(item.unitPrice, 0, 'COMMA', 0, 'POINT')} + '₫'">
+                                        0₫</td>
+                                    <td class="text-end" th:text="${item.quantity}">1</td>
+                                    <td class="text-end"
+                                        th:text="${#numbers.formatDecimal(item.subtotal, 0, 'COMMA', 0, 'POINT')} + '₫'">
+                                        0₫</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <section class="bg-white border border-clay p-4 mb-4">
+                    <h2 class="h5 fw-bold text-plum mb-3">Thanh toán</h2>
+                    <div th:if="${orderDetails.payment == null}" class="text-muted">Không có thông tin thanh toán.</div>
+                    <dl th:if="${orderDetails.payment != null}" class="row mb-0">
+                        <dt class="col-sm-4">Phương thức</dt>
+                        <dd class="col-sm-8" th:text="${orderDetails.payment.method}">COD</dd>
+                        <dt class="col-sm-4">Trạng thái</dt>
+                        <dd class="col-sm-8" th:text="${orderDetails.payment.status}">COD_PENDING</dd>
+                        <dt class="col-sm-4">Số tiền</dt>
+                        <dd class="col-sm-8"
+                            th:text="${#numbers.formatDecimal(orderDetails.payment.amount, 0, 'COMMA', 0, 'POINT')} + '₫'">
+                            0₫</dd>
+                        <dt class="col-sm-4">Mã giao dịch</dt>
+                        <dd class="col-sm-8"
+                            th:text="${orderDetails.payment.transactionReference ?: 'Không có'}">Không có</dd>
+                        <dt class="col-sm-4">Đã thanh toán</dt>
+                        <dd class="col-sm-8"
+                            th:text="${orderDetails.payment.paidAt == null ? 'Chưa thanh toán' : #temporals.format(orderDetails.payment.paidAt, 'dd/MM/yyyy HH:mm')}">
+                            Chưa thanh toán</dd>
+                        <dt class="col-sm-4">Hoàn tiền</dt>
+                        <dd class="col-sm-8"
+                            th:text="${orderDetails.payment.refundedAt == null ? 'Chưa hoàn tiền' : #temporals.format(orderDetails.payment.refundedAt, 'dd/MM/yyyy HH:mm')}">
+                            Chưa hoàn tiền</dd>
+                    </dl>
+                </section>
+
+                <section class="bg-white border border-clay p-4 mb-4">
+                    <h2 class="h5 fw-bold text-plum mb-3">Lịch sử trạng thái</h2>
+                    <div th:if="${#lists.isEmpty(orderDetails.history)}" class="text-muted">
+                        Chưa có lịch sử trạng thái.
+                    </div>
+                    <ol th:unless="${#lists.isEmpty(orderDetails.history)}" class="list-group list-group-numbered">
+                        <li th:each="entry : ${orderDetails.history}"
+                            class="list-group-item d-flex justify-content-between align-items-start">
+                            <div class="ms-2 me-auto">
+                                <div class="fw-bold" th:text="${entry.statusLabel}">Trạng thái</div>
+                                <span th:if="${entry.note}" th:text="${entry.note}">Ghi chú</span>
+                                <div class="small text-muted" th:text="|Người thực hiện: ${entry.changedBy}|">
+                                    Người thực hiện
+                                </div>
+                            </div>
+                            <span class="badge bg-secondary rounded-pill" th:text="${entry.displayTime}">Ngày</span>
+                        </li>
+                    </ol>
+                </section>
+
+                <section th:if="${canCancel}" class="bg-white border border-clay p-4">
+                    <h2 class="h5 fw-bold text-plum mb-3">Hủy đơn hàng</h2>
+                    <form method="post"
+                          th:action="@{/admin/orders/monitor/{orderCode}/cancel(orderCode=${orderDetails.order.orderCode})}">
+                        <label for="reason" class="form-label">Lý do hủy</label>
+                        <textarea id="reason" name="reason" class="form-control rounded-0 mb-3"
+                                  rows="3" maxlength="500" required th:text="${cancelReason}"></textarea>
+                        <button type="submit" class="btn btn-danger rounded-0"
+                                onclick="return confirm('Bạn có chắc chắn muốn hủy đơn hàng này?')">
+                            Xác nhận hủy đơn
+                        </button>
+                    </form>
+                </section>
+            </section>
+        </div>
+    </main>
+
+    <div th:replace="~{fragments/footer :: footer}"></div>
+</body>
+</html>

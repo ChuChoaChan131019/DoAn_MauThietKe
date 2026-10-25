@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/head :: head('Senvia - Đánh giá đã gửi')}"></head>
+<body>
+    <div th:replace="~{fragments/header :: header}"></div>
+
+    <main class="container py-5">
+        <section class="mx-auto bg-white border border-clay p-4 p-md-5 text-center" style="max-width: 640px;">
+            <i class="bi bi-check-circle text-success display-4" aria-hidden="true"></i>
+            <h1 class="h3 text-serif text-plum mt-3">Đánh giá đã được ghi nhận</h1>
+            <p class="text-muted">Cảm ơn bạn đã chia sẻ ý kiến về sản phẩm.</p>
+            <a th:href="@{/account/orders/detail(id=${orderCode})}"
+               class="btn bg-burgundy text-white rounded-0 px-4 py-2">Quay lại đơn hàng</a>
+        </section>
+    </main>
+
+    <div th:replace="~{fragments/footer :: footer}"></div>
+</body>
+</html>

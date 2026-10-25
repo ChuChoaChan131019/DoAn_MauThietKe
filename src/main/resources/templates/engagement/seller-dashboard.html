@@ -37,7 +37,40 @@
                             <div class="fs-2 fw-bold text-plum" th:text="${productCount}">0</div>
                         </div>
                     </div>
+                    <div class="col-12 col-sm-6 col-lg-4">
+                        <div class="bg-white p-4 border border-clay h-100">
+                            <div class="text-muted small text-uppercase fw-medium mb-2">Tổng số đơn hàng</div>
+                            <div class="fs-2 fw-bold text-plum" th:text="${totalOrders}">0</div>
+                        </div>
+                    </div>
+                    <div class="col-12 col-sm-6 col-lg-4">
+                        <div class="bg-white p-4 border border-clay h-100">
+                            <div class="text-muted small text-uppercase fw-medium mb-2">Doanh thu đơn hoàn tất</div>
+                            <div class="fs-4 fw-bold text-success"
+                                 th:text="${#numbers.formatDecimal(completedRevenue, 0, 'COMMA', 0, 'POINT')} + '₫'">0₫</div>
+                        </div>
+                    </div>
                 </div>
+
+                <section class="mt-5">
+                    <h5 class="fw-bold text-plum mb-3">Đơn hàng theo trạng thái</h5>
+                    <div class="table-responsive bg-white border border-clay">
+                        <table class="table table-borderless table-hover align-middle mb-0 text-plum">
+                            <thead class="border-bottom">
+                                <tr class="text-muted small text-uppercase">
+                                    <th class="px-4 py-3 fw-medium">Trạng thái</th>
+                                    <th class="px-4 py-3 fw-medium text-end">Số đơn</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr th:each="entry : ${ordersByStatus}" class="border-bottom">
+                                    <td class="px-4 py-3" th:text="${orderStatusLabels[entry.key]}">Trạng thái</td>
+                                    <td class="px-4 py-3 fw-bold text-end" th:text="${entry.value}">0</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
             </section>
         </div>
     </main>
