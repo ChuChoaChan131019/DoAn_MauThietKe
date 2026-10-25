@@ -5,8 +5,16 @@ import com.senvia.doangiuaky.engagement.dto.NotificationPageView;
 import com.senvia.doangiuaky.engagement.entity.NotificationType;
 import com.senvia.doangiuaky.engagement.service.NotificationNotFoundException;
 import com.senvia.doangiuaky.engagement.service.NotificationService;
+import com.senvia.doangiuaky.identity.api.AccountStatus;
+import com.senvia.doangiuaky.identity.api.CurrentUserApi;
+import com.senvia.doangiuaky.identity.api.UserRole;
+import com.senvia.doangiuaky.identity.api.UserSummary;
+import com.senvia.doangiuaky.merchant.api.MerchantShopSummary;
 import com.senvia.doangiuaky.merchant.api.MerchantStatisticsAccessException;
 import com.senvia.doangiuaky.merchant.api.MerchantStatisticsApi;
+import com.senvia.doangiuaky.merchant.service.DemoMerchantApi;
+import com.senvia.doangiuaky.ordering.api.ShopOrderStatistics;
+import com.senvia.doangiuaky.ordering.service.OrderingContractService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -15,10 +23,16 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.Instant;
+import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -42,6 +56,15 @@ class EngagementControllerTest {
     @MockitoBean
     private MerchantStatisticsApi merchantStatisticsApi;
 
+    @MockitoBean
+    private CurrentUserApi currentUserApi;
+
+    @MockitoBean
+    private DemoMerchantApi merchantApi;
+
+    @MockitoBean
+    private OrderingContractService orderingStatisticsApi;
+
     @Test
     void anonymousListRedirectsToLogin() throws Exception {
         mockMvc.perform(get("/account/notifications"))
@@ -52,13 +75,58 @@ class EngagementControllerTest {
     @Test
     void shopOwnerCanOpenStatisticsDashboard() throws Exception {
         when(merchantStatisticsApi.countProductsForCurrentShop()).thenReturn(12L);
+        when(currentUserApi.requireCurrentUser())
+                .thenReturn(new UserSummary(7L, "Shop owner", UserRole.USER, AccountStatus.ACTIVE));
+        when(merchantApi.findShopSummaryForOwner(7L))
+                .thenReturn(Optional.of(new MerchantShopSummary(11L, 7L, "Shop", true, true)));
+        Map<String, Long> statusCounts = Map.of(
+                "PENDING", 2L, "CONFIRMED", 1L, "PREPARING", 1L,
+                "SHIPPING", 1L, "COMPLETED", 3L, "CANCELLED", 1L);
+        ShopOrderStatistics stats = new ShopOrderStatistics(11L, 9L, statusCounts, BigDecimal.ZERO);
+        assertEquals(stats.totalOrders(),
+                stats.ordersByStatus().values().stream().mapToLong(Long::longValue).sum());
+        when(orderingStatisticsApi.forOwnShop(11L)).thenReturn(stats);
 
-        mockMvc.perform(get("/seller/dashboard").with(user("seller").roles("USER")))
+        mockMvc.perform(get("/seller/dashboard").param("shopId", "99").with(user("seller").roles("USER")))
                 .andExpect(status().isOk())
                 .andExpect(view().name("engagement/seller-dashboard"))
-                .andExpect(model().attribute("productCount", 12L));
+                .andExpect(model().attribute("productCount", 12L))
+                .andExpect(model().attribute("totalOrders", 9L))
+                .andExpect(model().attribute("ordersByStatus", statusCounts));
 
         verify(merchantStatisticsApi).countProductsForCurrentShop();
+        verify(merchantApi).findShopSummaryForOwner(7L);
+        verify(orderingStatisticsApi).forOwnShop(11L);
+    }
+
+    @Test
+    void dashboardDoesNotQueryOrderingWhenCurrentUserHasNoShop() throws Exception {
+        when(merchantStatisticsApi.countProductsForCurrentShop()).thenReturn(0L);
+        when(currentUserApi.requireCurrentUser())
+                .thenReturn(new UserSummary(7L, "Shop owner", UserRole.USER, AccountStatus.ACTIVE));
+        when(merchantApi.findShopSummaryForOwner(7L)).thenReturn(Optional.empty());
+
+        mockMvc.perform(get("/seller/dashboard").with(user("seller").roles("USER")))
+                .andExpect(status().isNotFound());
+
+        verifyNoInteractions(orderingStatisticsApi);
+    }
+
+    @Test
+    void dashboardPropagatesOrderingAuthorizationFailure() throws Exception {
+        when(merchantStatisticsApi.countProductsForCurrentShop()).thenReturn(0L);
+        when(currentUserApi.requireCurrentUser())
+                .thenReturn(new UserSummary(7L, "Shop owner", UserRole.USER, AccountStatus.ACTIVE));
+        when(merchantApi.findShopSummaryForOwner(7L))
+                .thenReturn(Optional.of(new MerchantShopSummary(11L, 7L, "Shop", true, true)));
+        when(orderingStatisticsApi.forOwnShop(11L))
+                .thenThrow(new org.springframework.web.server.ResponseStatusException(
+                        org.springframework.http.HttpStatus.NOT_FOUND));
+
+        mockMvc.perform(get("/seller/dashboard").with(user("seller").roles("USER")))
+                .andExpect(status().isNotFound());
+
+        verify(orderingStatisticsApi).forOwnShop(11L);
     }
 
     @Test

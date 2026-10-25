@@ -16,6 +16,7 @@
 - Dùng `identity.api` cho receiver/reviewer/Admin ACTIVE.
 - Dùng `merchant.api` cho shop/product/product count.
 - Seller dashboard hiển thị số sản phẩm qua `MerchantStatisticsApi#countProductsForCurrentShop()`; không nhận shop ID từ request và không truy cập dữ liệu Merchant nội bộ.
+- STAT 02 lấy shop summary của current user qua `merchant.api`, sau đó gọi `OrderingStatisticsApi#forOwnShop(shopId)`; Ordering kiểm tra ownership và trả tổng cùng breakdown đầy đủ trạng thái.
 - Dùng `ordering.api` cho review verification, order query/cancel và statistics.
 - Linh sở hữu nghiệp vụ notification, bảng `notifications`, listener Observer và giao diện thông báo; Phúc sở hữu review, bảng `reviews`, dashboard và Admin order.
 - Listener xử lý shop/order/review event sau commit; publisher vẫn thuộc module phát event.

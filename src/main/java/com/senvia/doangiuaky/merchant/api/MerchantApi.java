@@ -39,4 +39,9 @@ public interface MerchantApi {
     default Optional<MerchantShopSummary> findShopSummary(Long shopId) {
         return Optional.empty();
     }
+
+    /** Finds the shop summary for the supplied owner ID. */
+    default Optional<MerchantShopSummary> findShopSummaryForOwner(Long ownerId) {
+        return Optional.empty();
+    }
 }
