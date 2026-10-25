@@ -5,6 +5,8 @@ import com.senvia.doangiuaky.engagement.dto.NotificationPageView;
 import com.senvia.doangiuaky.engagement.entity.NotificationType;
 import com.senvia.doangiuaky.engagement.service.NotificationNotFoundException;
 import com.senvia.doangiuaky.engagement.service.NotificationService;
+import com.senvia.doangiuaky.merchant.api.MerchantStatisticsAccessException;
+import com.senvia.doangiuaky.merchant.api.MerchantStatisticsApi;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -16,6 +18,7 @@ import java.time.Instant;
 import java.util.List;
 
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verify;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -36,11 +39,41 @@ class EngagementControllerTest {
     @MockitoBean
     private NotificationService notificationService;
 
+    @MockitoBean
+    private MerchantStatisticsApi merchantStatisticsApi;
+
     @Test
     void anonymousListRedirectsToLogin() throws Exception {
         mockMvc.perform(get("/account/notifications"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/login"));
+    }
+
+    @Test
+    void shopOwnerCanOpenStatisticsDashboard() throws Exception {
+        when(merchantStatisticsApi.countProductsForCurrentShop()).thenReturn(12L);
+
+        mockMvc.perform(get("/seller/dashboard").with(user("seller").roles("USER")))
+                .andExpect(status().isOk())
+                .andExpect(view().name("engagement/seller-dashboard"))
+                .andExpect(model().attribute("productCount", 12L));
+
+        verify(merchantStatisticsApi).countProductsForCurrentShop();
+    }
+
+    @Test
+    void dashboardRejectsUserWithoutShopAccess() throws Exception {
+        when(merchantStatisticsApi.countProductsForCurrentShop())
+                .thenThrow(new MerchantStatisticsAccessException("No shop access."));
+
+        mockMvc.perform(get("/seller/dashboard").with(user("seller").roles("USER")))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void dashboardRequiresUserRole() throws Exception {
+        mockMvc.perform(get("/seller/dashboard").with(user("admin").roles("ADMIN")))
+                .andExpect(status().isForbidden());
     }
 
     @Test

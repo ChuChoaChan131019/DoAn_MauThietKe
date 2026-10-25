@@ -28,13 +28,31 @@ public class MerchantStatisticsService implements MerchantStatisticsApi {
     @Override
     @Transactional(readOnly = true)
     public long countProductsForShop(Long shopId) {
-        UserSummary currentUser = currentUserApi.requireCurrentUser();
-        if (shopId == null || shopId <= 0 || currentUser.role() != UserRole.USER
-                || currentUser.accountStatus() != AccountStatus.ACTIVE
-                || shops.findById(shopId)
+        UserSummary currentUser = requireActiveUser();
+        if (shopId == null || shopId <= 0 || shops.findById(shopId)
                 .filter(shop -> shop.getOwnerId().equals(currentUser.userId())).isEmpty()) {
             throw new MerchantStatisticsAccessException("Không có quyền xem thống kê gian hàng.");
         }
         return products.countByShopId(shopId);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public long countProductsForCurrentShop() {
+        UserSummary currentUser = requireActiveUser();
+        Long shopId = shops.findByOwnerId(currentUser.userId())
+                .map(shop -> shop.getId())
+                .orElseThrow(() -> new MerchantStatisticsAccessException(
+                        "Không có quyền xem thống kê gian hàng."));
+        return products.countByShopId(shopId);
+    }
+
+    private UserSummary requireActiveUser() {
+        UserSummary currentUser = currentUserApi.requireCurrentUser();
+        if (currentUser.role() != UserRole.USER
+                || currentUser.accountStatus() != AccountStatus.ACTIVE) {
+            throw new MerchantStatisticsAccessException("Không có quyền xem thống kê gian hàng.");
+        }
+        return currentUser;
     }
 }
