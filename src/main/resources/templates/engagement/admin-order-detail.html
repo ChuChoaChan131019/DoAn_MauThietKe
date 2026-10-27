@@ -39,7 +39,7 @@
                             th:text="${#temporals.format(orderDetails.order.createdAt, 'dd/MM/yyyy HH:mm')}">Ngày</dd>
                         <dt class="col-sm-4">Tổng tiền</dt>
                         <dd class="col-sm-8 fw-bold"
-                            th:text="${#numbers.formatDecimal(orderDetails.order.totalAmount, 0, 'COMMA', 0, 'POINT')} + '₫'">
+                            th:text="${#numbers.formatDecimal(orderDetails.order.totalAmount, 0, 'COMMA', 2, 'POINT')} + '₫'">
                             0₫</dd>
                         <dt class="col-sm-4">Người nhận</dt>
                         <dd class="col-sm-8" th:text="${orderDetails.receiverName}">Người nhận</dd>
@@ -68,11 +68,11 @@
                                 <tr th:each="item : ${orderDetails.items}">
                                     <td th:text="${item.productName}">Sản phẩm</td>
                                     <td class="text-end"
-                                        th:text="${#numbers.formatDecimal(item.unitPrice, 0, 'COMMA', 0, 'POINT')} + '₫'">
+                                        th:text="${#numbers.formatDecimal(item.unitPrice, 0, 'COMMA', 2, 'POINT')} + '₫'">
                                         0₫</td>
                                     <td class="text-end" th:text="${item.quantity}">1</td>
                                     <td class="text-end"
-                                        th:text="${#numbers.formatDecimal(item.subtotal, 0, 'COMMA', 0, 'POINT')} + '₫'">
+                                        th:text="${#numbers.formatDecimal(item.subtotal, 0, 'COMMA', 2, 'POINT')} + '₫'">
                                         0₫</td>
                                 </tr>
                             </tbody>
@@ -90,7 +90,7 @@
                         <dd class="col-sm-8" th:text="${orderDetails.payment.status}">COD_PENDING</dd>
                         <dt class="col-sm-4">Số tiền</dt>
                         <dd class="col-sm-8"
-                            th:text="${#numbers.formatDecimal(orderDetails.payment.amount, 0, 'COMMA', 0, 'POINT')} + '₫'">
+                            th:text="${#numbers.formatDecimal(orderDetails.payment.amount, 0, 'COMMA', 2, 'POINT')} + '₫'">
                             0₫</dd>
                         <dt class="col-sm-4">Mã giao dịch</dt>
                         <dd class="col-sm-8"

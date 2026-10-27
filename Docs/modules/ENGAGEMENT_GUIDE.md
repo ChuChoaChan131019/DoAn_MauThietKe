@@ -20,6 +20,7 @@
 - STAT 03 hiển thị `completedRevenue` kiểu `BigDecimal` từ cùng Ordering statistics response; Engagement không tự cộng order hoặc query repository.
 - Admin order monitor gọi `AdminOrderApi` để tìm/lọc/phân trang và tải chi tiết qua DTO; lệnh hủy chỉ gọi `OrderCancellationApi#cancelAsAdmin`. Ordering chịu trách nhiệm xác thực Admin ACTIVE, trạng thái hủy, history, stock và payment.
 - Review form và thao tác tạo review xác minh `orderItemId`/`productId` qua `ReviewOrderApi#requireReviewableItem`; chỉ lưu `buyerId` từ `ReviewableOrderItem`, không nhận reviewer ID từ request. Ordering chịu trách nhiệm xác minh buyer ACTIVE, đúng sản phẩm và order COMPLETED.
+- Mỗi order item chỉ có một review; nếu hai request cùng tạo review, unique constraint `uk_reviews_order_item` được chuyển thành lỗi HTTP 409 thay vì lỗi server.
 - Dùng `ordering.api` cho review verification, Admin order query/cancel và statistics.
 - Linh sở hữu nghiệp vụ notification, bảng `notifications`, listener Observer và giao diện thông báo; Phúc sở hữu review, bảng `reviews`, dashboard và Admin order.
 - Listener xử lý shop/order/review event sau commit; publisher vẫn thuộc module phát event.

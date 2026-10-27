@@ -96,7 +96,7 @@ class EngagementControllerTest {
                 .andExpect(model().attribute("ordersByStatus", statusCounts))
                 .andExpect(model().attribute("completedRevenue", completedRevenue))
                 .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content()
-                        .string(org.hamcrest.Matchers.containsString("1,234,568₫")));
+                        .string(org.hamcrest.Matchers.containsString("1,234,567.89₫")));
 
         verify(merchantStatisticsApi).countProductsForCurrentShop();
         verify(merchantApi).findShopSummaryForOwner(7L);

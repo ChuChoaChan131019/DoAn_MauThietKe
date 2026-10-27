@@ -128,7 +128,7 @@ Tài liệu này là nguồn chi tiết về đầu việc, contract, kiểm th�
 | Hiển thị | Nhóm cart item theo shop; cảnh báo product/category/shop/owner không hợp lệ trước checkout |
 | Favorite | Thêm, xóa, danh sách; chống trùng ở Service/database; giới hạn đúng owner |
 | Shopping API | Checkout snapshot gồm cart item/product/quantity; xóa đúng item chỉ sau khi TV2 báo thành công |
-| Buyer orders | Danh sách/chi tiết order, items, payment, history; nút/form cancel theo trạng thái; gọi `ordering.api`, không tự xử lý order |
+| Buyer orders | Danh sách/chi tiết order, items, payment, history; nút/form cancel theo trạng thái; nút viết review theo từng item khi order `COMPLETED`, truyền `orderItemId`/`productId` tới Engagement; gọi `ordering.api`, không tự xử lý order |
 | Observer/Notification | Listener trong `engagement.event` nhận ShopRequested/ShopReviewed, OrderCreated/OrderStatusChanged và ReviewCreated; tạo thông báo đúng receiver sau commit, chống trùng theo eventId; danh sách, unread count, đánh dấu đã đọc một/tất cả và kiểm tra ownership |
 
 ### Kiểm thử và bàn giao
@@ -138,6 +138,7 @@ Tài liệu này là nguồn chi tiết về đầu việc, contract, kiểm th�
 - Favorite trùng và truy cập trái quyền.
 - Snapshot checkout và chỉ xóa cart sau thành công.
 - Buyer không xem order người khác.
+- Chỉ chi tiết order `COMPLETED` hiện đường vào form review cho từng order item.
 - Listener xử lý sau commit; event lặp không tạo thông báo trùng; receiver và read state đúng ownership.
 - Integration flow: Product → Cart → Checkout → Order → Cancel → Stock restored.
 - Contract product/shop được TV1 review; checkout/order contract được TV2 review; event publisher contract được module phát event sở hữu và TV5 review phần tương tác với Review.
@@ -198,17 +199,17 @@ Không công bố password hash, User Entity/Repository hoặc principal nội b
 
 | Nhóm | Đầu việc và kết quả |
 | --- | --- |
-| Review | Tạo và kiểm tra review: chỉ buyer có order item COMPLETED đúng product; rating 1–5; unique order item; không sửa/xóa MVP |
+| Review | Tạo và kiểm tra review: chỉ buyer có order item COMPLETED đúng product; rating 1–5; unique order item; request tạo đồng thời trả conflict khi trùng; không sửa/xóa MVP |
 | Review view/event | Danh sách review và điểm trung bình; phát ReviewCreatedEvent; phối hợp Linh để kiểm tra listener thông báo nhận review |
-| Dashboard | Tổng product từ TV1; order/status/revenue COMPLETED từ TV2; chỉ dữ liệu đúng shop; thẻ số/bảng là đủ |
-| Admin order | Danh sách toàn hệ thống, tìm code, lọc buyer/shop/status, chi tiết, payment, history, form cancel |
+| Dashboard | Tổng product từ TV1; order/status/revenue COMPLETED từ TV2; chỉ dữ liệu đúng shop; hiển thị chính xác đến tối đa 2 chữ số thập phân; thẻ số/bảng là đủ |
+| Admin order | Danh sách toàn hệ thống, tìm code, lọc buyer/shop/status, chi tiết, payment, history, form cancel; tiền hiển thị tối đa 2 chữ số thập phân |
 | Cancel orchestration | Admin UI gọi `ordering.api`; TV2 thực hiện validation, stock, payment và history |
 
 ### Kiểm thử và bàn giao
 
-- Review buyer/order/product/rating/unique.
+- Review buyer/order/product/rating/unique và gửi đồng thời không tạo bản ghi trùng hoặc trả lỗi server.
 - Điểm trung bình.
-- Dashboard đúng shop và revenue COMPLETED.
+- Dashboard đúng shop và revenue COMPLETED hiển thị phần lẻ; Admin list/detail hiển thị tiền có phần lẻ.
 - Admin filter/detail/cancel qua API.
 - Không import Entity/Repository nội bộ module khác.
 - TV4 review quyền; TV1/TV2 review contract dữ liệu.

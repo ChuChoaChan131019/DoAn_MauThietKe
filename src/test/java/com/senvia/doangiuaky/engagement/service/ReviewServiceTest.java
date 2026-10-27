@@ -43,7 +43,7 @@ class ReviewServiceTest {
         assertEquals("ORD-2026-001", reviewService.createReview(form));
 
         ArgumentCaptor<Review> reviewCaptor = ArgumentCaptor.forClass(Review.class);
-        verify(reviewRepository).save(reviewCaptor.capture());
+        verify(reviewRepository).saveAndFlush(reviewCaptor.capture());
         Review savedReview = reviewCaptor.getValue();
         assertEquals(7L, savedReview.getUserId());
         assertEquals(19L, savedReview.getProductId());

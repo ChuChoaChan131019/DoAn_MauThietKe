@@ -14,6 +14,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.server.ResponseStatusException;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -81,6 +82,20 @@ class ReviewControllerTest {
                 .andExpect(redirectedUrl("/account/review/complete?orderCode=ORD-2026-001"));
 
         verify(reviewService).createReview(any(ReviewForm.class));
+    }
+
+    @Test
+    void duplicateSubmissionReturnsConflictToTheBuyer() throws Exception {
+        doThrow(new ResponseStatusException(HttpStatus.CONFLICT, "Mục hàng này đã được đánh giá."))
+                .when(reviewService).createReview(any(ReviewForm.class));
+
+        mockMvc.perform(post("/account/review")
+                        .with(user("buyer").roles("USER"))
+                        .with(csrf())
+                        .param("orderItemId", "44")
+                        .param("productId", "19")
+                        .param("rating", "5"))
+                .andExpect(status().isConflict());
     }
 
     @Test

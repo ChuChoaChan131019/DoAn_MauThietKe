@@ -129,9 +129,30 @@ class BuyerOrderIntegrationTest {
                 .andExpect(content().string(containsString("Snapshot product")))
                 .andExpect(content().string(containsString("SENVIA-")))
                 .andExpect(content().string(containsString("Khởi tạo đơn hàng")))
+                .andExpect(content().string(not(containsString("/account/review"))))
                 .andExpect(content().string(containsString("/account/orders/cancel")))
                 .andExpect(content().string(containsString("maxlength=\"500\"")))
                 .andExpect(content().string(containsString("_csrf")));
+    }
+
+    @Test
+    void completedOrderDetailLinksEachItemToItsReviewForm() throws Exception {
+        Fixture f = fixture();
+        String code = createOrder(f, f.buyerId(), "COMPLETED", "COD", "PAID", "review-link");
+        Long orderItemId = db.queryForObject("""
+                SELECT oi.id
+                FROM order_items oi
+                JOIN orders o ON o.id = oi.order_id
+                WHERE o.order_code = ?
+                """, Long.class, code);
+
+        mvc.perform(get("/account/orders/detail")
+                        .param("id", code)
+                        .with(user(f.buyerEmail()).roles("USER")))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("Viết đánh giá")))
+                .andExpect(content().string(containsString(
+                        "/account/review?orderItemId=" + orderItemId + "&amp;productId=" + f.productId())));
     }
 
     @Test
