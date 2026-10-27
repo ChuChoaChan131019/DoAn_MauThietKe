@@ -46,6 +46,7 @@ class PublicCatalogRenderIntegrationTest {
         mockMvc.perform(get("/products/{id}", productId))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("NOLA Store")))
+                .andExpect(content().string(containsString("/products/" + productId + "/reviews")))
                 .andExpect(content().string(containsString("/merchant/shop-public?shopId=" + shopId)))
                 .andExpect(content().string(containsString("https://")));
         mockMvc.perform(get("/merchant/shop-public").param("shopId", shopId.toString()))

@@ -199,7 +199,7 @@ Không công bố password hash, User Entity/Repository hoặc principal nội b
 | Nhóm | Đầu việc và kết quả |
 | --- | --- |
 | Review | Tạo và kiểm tra review: chỉ buyer có order item COMPLETED đúng product; rating 1–5; unique order item; không sửa/xóa MVP |
-| Review view/event | Danh sách review và điểm trung bình; phát ReviewCreatedEvent; phối hợp Linh để kiểm tra listener thông báo nhận review |
+| Review view/event | Danh sách review và điểm trung bình công khai, DTO không lộ buyer/order-item ID, empty state rõ ràng, GET không ghi dữ liệu/phát event; link từ chi tiết sản phẩm; phối hợp Linh để kiểm tra listener nhận ReviewCreatedEvent |
 | Dashboard | Tổng product từ TV1; order/status/revenue COMPLETED từ TV2; chỉ dữ liệu đúng shop; thẻ số/bảng là đủ |
 | Admin order | Danh sách toàn hệ thống, tìm code, lọc buyer/shop/status, chi tiết, payment, history, form cancel |
 | Cancel orchestration | Admin UI gọi `ordering.api`; TV2 thực hiện validation, stock, payment và history |
