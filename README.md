@@ -1,6 +1,6 @@
 # E-commerce Marketplace
 
-![Java](https://img.shields.io/badge/Java-21-orange)
+![Java](https://img.shields.io/badge/Java-25-orange)
 ![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.1.1-6DB33F)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Supabase-4169E1)
 ![Status](https://img.shields.io/badge/status-in%20development-yellow)
@@ -23,7 +23,7 @@ Website sàn thương mại điện tử được xây dựng cho đồ án gi�
 
 | Thành phần | Công nghệ |
 | --- | --- |
-| Backend | Java 21, Spring Boot 4.1.1, Spring MVC |
+| Backend | Java 25, Spring Boot 4.1.1, Spring MVC |
 | Giao diện | Thymeleaf, Bootstrap 5, HTML/CSS/JavaScript |
 | Bảo mật | Spring Security, BCrypt |
 | Dữ liệu | Spring Data JPA, Hibernate, PostgreSQL/Supabase |
@@ -46,7 +46,7 @@ Hệ thống áp dụng State Pattern cho shop, Strategy Pattern cho payment và
 
 ## Chạy nhanh
 
-Yêu cầu JDK 21 và PostgreSQL/Supabase đã cấu hình.
+Yêu cầu JDK 25 và PostgreSQL/Supabase đã cấu hình.
 
 ```powershell
 .\mvnw.cmd spring-boot:run

@@ -4,7 +4,7 @@ Tài liệu này là nguồn chuẩn cho tiêu chuẩn code, kiểm thử, bảo
 
 ## 1. Tiêu chuẩn mã nguồn
 
-- Dùng Java 21 và quy ước đặt tên Java chuẩn.
+- Dùng Java 25 và quy ước đặt tên Java chuẩn.
 - Package bắt đầu bằng `com.senvia.doangiuaky`.
 - Controller chỉ nhận request, gọi service và trả response/view; không gọi Repository trực tiếp.
 - Service chứa use case, business rule, transaction và kiểm tra ownership.

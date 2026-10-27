@@ -4,11 +4,11 @@
 
 | Thành phần | Yêu cầu                               |
 | ------------ | --------------------------------------- |
-| JDK          | Java 21                                 |
+| JDK          | Java 25                                 |
 | Build        | Maven Wrapper đi kèm repository       |
 | Database     | H2 local/test hoặc PostgreSQL/Supabase |
 | Lưu ảnh    | Cloudinary khi triển khai upload       |
-| Công cụ    | Git và IDE hỗ trợ Java 21            |
+| Công cụ    | Git và IDE hỗ trợ Java 25            |
 
 Kiểm tra:
 
@@ -18,7 +18,7 @@ git --version
 .\mvnw.cmd -version
 ```
 
-Maven phải sử dụng JDK 21.
+Maven phải sử dụng JDK 25.
 
 ## 2. Lấy mã nguồn
 

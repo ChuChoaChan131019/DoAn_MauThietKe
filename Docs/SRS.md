@@ -17,10 +17,10 @@ tháng 9 năm 2026
 | ----------------------- | ----------------------------------------------------------------------------------------------------- |
 | Tên tài liệu         | Đặc tả yêu cầu phần mềm Website Sàn thương mại điện tử                                  |
 | Mã tài liệu          | SRS ECOM 01                                                                                           |
-| Phiên bản             | 1.4                                                                                                   |
+| Phiên bản             | 1.5                                                                                                   |
 | Trạng thái            | Bản cơ sở để nhóm thống nhất phân tích và triển khai                                      |
 | Đối tượng sử dụng | Nhóm phát triển, giảng viên hướng dẫn và người kiểm thử                                  |
-| Công nghệ chính      | Java 21, Spring Boot, Thymeleaf, Spring Data JPA, Spring Security, Supabase PostgreSQL và Cloudinary |
+| Công nghệ chính      | Java 25, Spring Boot, Thymeleaf, Spring Data JPA, Spring Security, Supabase PostgreSQL và Cloudinary |
 
 ### Lịch sử phiên bản
 
@@ -31,6 +31,7 @@ tháng 9 năm 2026
 | 1.2           | 25/09/2026     | Nhóm phát triển  | Bổ sung cấu trúc chi tiết và giải thích trường dữ liệu của 14 bảng                  |
 | 1.3           | 27/09/2026     | Nhóm phát triển  | Chuyển cấu trúc package sang modular monolith theo năm bounded context                       |
 | 1.4           | 29/09/2026     | Nhóm phát triển  | Chốt quy tắc checkout, hủy đơn, thanh toán, tồn kho, catalog, thông báo và đánh giá |
+| 1.5           | 24/10/2026     | Nhóm phát triển  | Cập nhật runtime Java của dự án từ 21 lên 25                                         |
 
 ### Phê duyệt tài liệu
 
@@ -128,7 +129,7 @@ Kết quả cần đạt là một website cho phép tài khoản USER mua hàng
 
 Sản phẩm là ứng dụng web nguyên khối được xây dựng bằng Java và Spring Boot. Hệ thống phục vụ ba nhóm hành vi chính: mua hàng, vận hành gian hàng và quản trị sàn. Dữ liệu được lưu trên Supabase PostgreSQL để các thành viên cùng sử dụng; hình ảnh được lưu trên Cloudinary.
 
-Bộ công nghệ chính thức gồm VS Code, Java 21, Spring Boot, Spring MVC, Thymeleaf, Bootstrap, Spring Data JPA, Spring Security, Supabase PostgreSQL và Cloudinary. State Pattern và Strategy Pattern là hai mẫu bắt buộc của đề tài; nhóm áp dụng thêm Observer Pattern cho thông báo như mẫu thứ ba.
+Bộ công nghệ chính thức gồm VS Code, Java 25, Spring Boot, Spring MVC, Thymeleaf, Bootstrap, Spring Data JPA, Spring Security, Supabase PostgreSQL và Cloudinary. State Pattern và Strategy Pattern là hai mẫu bắt buộc của đề tài; nhóm áp dụng thêm Observer Pattern cho thông báo như mẫu thứ ba.
 
 - Người dùng đăng ký, đăng nhập, quản lý hồ sơ, mua hàng, theo dõi đơn, đánh giá và lưu sản phẩm yêu thích.
 - Người dùng gửi yêu cầu mở gian hàng; quản trị viên phê duyệt, từ chối hoặc khóa gian hàng.
@@ -869,7 +870,7 @@ Merchant lưu kết quả hoàn kho theo dòng đơn để request hủy lặp k
 
 | **Thành phần** | **Công nghệ**                                | **Vai trò**                               |
 | ---------------------- | ---------------------------------------------------- | ------------------------------------------------ |
-| Ngôn ngữ             | Java 21                                              | Nghiệp vụ và backend                          |
+| Ngôn ngữ             | Java 25                                              | Nghiệp vụ và backend                          |
 | Framework              | Spring Boot                                          | Khởi tạo và vận hành ứng dụng             |
 | Web                    | Spring MVC và Thymeleaf                             | Điều khiển và hiển thị giao diện          |
 | Bảo mật              | Spring Security và BCrypt                           | Xác thực, phân quyền và mã hóa mật khẩu |
