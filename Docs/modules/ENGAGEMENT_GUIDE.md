@@ -17,7 +17,8 @@
 - Dùng `merchant.api` cho shop/product/product count.
 - Seller dashboard hiển thị số sản phẩm qua `MerchantStatisticsApi#countProductsForCurrentShop()`; không nhận shop ID từ request và không truy cập dữ liệu Merchant nội bộ.
 - STAT 02 lấy shop summary của current user qua `merchant.api`, sau đó gọi `OrderingStatisticsApi#forOwnShop(shopId)`; Ordering kiểm tra ownership và trả tổng cùng breakdown đầy đủ trạng thái.
-- STAT 03 hiển thị `completedRevenue` kiểu `BigDecimal` từ cùng Ordering statistics response; Engagement không tự cộng order hoặc query repository.
+- STAT 03 hiển thị `completedRevenue` kiểu `BigDecimal` từ cùng Ordering statistics response, giữ tối đa hai chữ số thập phân; Engagement không tự cộng order hoặc query repository.
+- STAT 05 trình bày product/order/revenue bằng summary cards responsive cơ bản và breakdown theo trạng thái bằng bảng responsive; không cần chart library.
 - Admin order monitor gọi `AdminOrderApi` để tìm/lọc/phân trang và tải chi tiết qua DTO; lệnh hủy chỉ gọi `OrderCancellationApi#cancelAsAdmin`. Ordering chịu trách nhiệm xác thực Admin ACTIVE, trạng thái hủy, history, stock và payment.
 - Review form và thao tác tạo review xác minh `orderItemId`/`productId` qua `ReviewOrderApi#requireReviewableItem`; chỉ lưu `buyerId` từ `ReviewableOrderItem`, không nhận reviewer ID từ request. Ordering chịu trách nhiệm xác minh buyer ACTIVE, đúng sản phẩm và order COMPLETED.
 - Dùng `ordering.api` cho review verification, Admin order query/cancel và statistics.
