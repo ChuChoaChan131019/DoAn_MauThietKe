@@ -3,8 +3,11 @@ package com.senvia.doangiuaky.engagement.dto;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 
 public class ReviewForm {
+
+    public static final int MAX_COMMENT_LENGTH = 1000;
 
     private Long orderItemId;
     private Long productId;
@@ -14,6 +17,7 @@ public class ReviewForm {
     @Max(value = 5, message = "Số sao phải từ 1 đến 5.")
     private Integer rating;
 
+    @Size(max = MAX_COMMENT_LENGTH, message = "Nhận xét không được vượt quá 1.000 ký tự.")
     private String comment;
 
     public Long getOrderItemId() {
