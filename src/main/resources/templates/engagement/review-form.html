@@ -40,7 +40,11 @@
                             <label class="form-label text-uppercase fw-medium text-plum small mb-2">Nhận xét chi tiết</label>
                             <textarea th:field="*{comment}"
                                       class="form-control bg-ivory border-0 rounded-0 px-4 py-3 shadow-none text-plum"
-                                      rows="4" placeholder="Hãy chia sẻ cảm nhận của bạn về sản phẩm này..."></textarea>
+                                      rows="4" maxlength="1000"
+                                      placeholder="Hãy chia sẻ cảm nhận của bạn về sản phẩm này..."></textarea>
+                            <div class="text-danger small mt-2" th:if="${#fields.hasErrors('comment')}"
+                                 th:errors="*{comment}">Nhận xét không hợp lệ.</div>
+                            <div class="text-muted small mt-2">Tối đa 1.000 ký tự.</div>
                         </div>
 
                         <button type="submit" class="btn bg-burgundy text-white rounded-0 fw-medium text-uppercase px-5 py-3 border-0 w-100 hover-bg-plum transition-colors">Gửi Đánh Giá</button>

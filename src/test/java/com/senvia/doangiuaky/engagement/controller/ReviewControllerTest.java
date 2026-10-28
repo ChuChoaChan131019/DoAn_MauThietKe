@@ -49,7 +49,8 @@ class ReviewControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(view().name("engagement/review-form"))
                 .andExpect(model().attribute("reviewableItem", reviewableItem()))
-                .andExpect(content().string(org.hamcrest.Matchers.containsString("Đơn hàng ORD-2026-001")));
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("Đơn hàng ORD-2026-001")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("maxlength=\"1000\"")));
 
         verify(reviewService).requireReviewableItem(44L, 19L);
     }
@@ -102,6 +103,32 @@ class ReviewControllerTest {
     }
 
     @Test
+    void commentOverLimitShowsFieldErrorAndPreservesInputWithoutCreatingReview() throws Exception {
+        when(reviewService.requireReviewableItem(44L, 19L)).thenReturn(reviewableItem());
+        String comment = "a".repeat(ReviewForm.MAX_COMMENT_LENGTH + 1);
+
+        mockMvc.perform(post("/account/review")
+                        .with(user("buyer").roles("USER"))
+                        .with(csrf())
+                        .param("orderItemId", "44")
+                        .param("productId", "19")
+                        .param("rating", "5")
+                        .param("comment", comment))
+                .andExpect(status().isOk())
+                .andExpect(view().name("engagement/review-form"))
+                .andExpect(model().attributeHasFieldErrors("reviewForm", "comment"))
+                .andExpect(model().attribute(
+                        "reviewForm",
+                        org.hamcrest.Matchers.hasProperty(
+                                "comment", org.hamcrest.Matchers.is(comment))))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString(
+                        "Nhận xét không được vượt quá 1.000 ký tự.")));
+
+        verify(reviewService).requireReviewableItem(44L, 19L);
+        verify(reviewService, never()).createReview(any(ReviewForm.class));
+    }
+
+    @Test
     void activeAdminIsRejectedByOrderingReviewVerification() throws Exception {
         when(reviewService.requireReviewableItem(44L, 19L))
                 .thenThrow(new ResponseStatusException(HttpStatus.FORBIDDEN));
@@ -122,6 +149,20 @@ class ReviewControllerTest {
                         .param("productId", "19"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/login"));
+    }
+
+    @Test
+    void unauthenticatedReviewSubmissionIsRedirectedToLogin() throws Exception {
+        mockMvc.perform(post("/account/review")
+                        .with(csrf())
+                        .param("orderItemId", "44")
+                        .param("productId", "19")
+                        .param("rating", "5")
+                        .param("comment", "Rất tốt"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/login"));
+
+        verify(reviewService, never()).createReview(any(ReviewForm.class));
     }
 
     private static ReviewableOrderItem reviewableItem() {

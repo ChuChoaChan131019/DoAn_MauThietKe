@@ -22,6 +22,7 @@
 - STAT 05 trình bày product/order/revenue bằng summary cards responsive cơ bản và breakdown theo trạng thái bằng bảng responsive; không cần chart library.
 - Admin order monitor gọi `AdminOrderApi` để tìm/lọc/phân trang và tải chi tiết qua DTO; lệnh hủy chỉ gọi `OrderCancellationApi#cancelAsAdmin`. Ordering chịu trách nhiệm xác thực Admin ACTIVE, trạng thái hủy, history, stock và payment.
 - Review form và thao tác tạo review xác minh `orderItemId`/`productId` qua `ReviewOrderApi#requireReviewableItem`; chỉ lưu `buyerId` từ `ReviewableOrderItem`, không nhận reviewer ID từ request. Ordering chịu trách nhiệm xác minh buyer ACTIVE, đúng sản phẩm và order COMPLETED.
+- Review bắt buộc rating từ 1–5; comment tùy chọn, tối đa 1.000 ký tự. Form validate trước khi lưu, giữ nội dung nhập và hiển thị lỗi ngay tại trường; service cũng chặn nội dung quá giới hạn.
 - Dùng `ordering.api` cho review verification, Admin order query/cancel và statistics.
 - Linh sở hữu nghiệp vụ notification, bảng `notifications`, listener Observer và giao diện thông báo; Phúc sở hữu review, bảng `reviews`, dashboard và Admin order.
 - Listener xử lý shop/order/review event sau commit; publisher vẫn thuộc module phát event.

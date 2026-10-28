@@ -53,6 +53,36 @@ class ReviewServiceTest {
     }
 
     @Test
+    void acceptsCommentAtMaximumLength() {
+        String comment = "a".repeat(ReviewForm.MAX_COMMENT_LENGTH);
+        when(reviewOrderApi.requireReviewableItem(44L, 19L))
+                .thenReturn(new ReviewableOrderItem(44L, 55L, "ORD-2026-001", 7L, 8L, 19L));
+        when(reviewRepository.existsByOrderItemId(44L)).thenReturn(false);
+        ReviewForm form = form(44L, 19L, 5, comment);
+
+        assertEquals("ORD-2026-001", reviewService.createReview(form));
+
+        ArgumentCaptor<Review> reviewCaptor = ArgumentCaptor.forClass(Review.class);
+        verify(reviewRepository).save(reviewCaptor.capture());
+        assertEquals(comment, reviewCaptor.getValue().getComment());
+    }
+
+    @Test
+    void rejectsCommentOverMaximumLengthBeforeCallingOrderingOrSaving() {
+        ReviewForm form = form(
+                44L, 19L, 5, "a".repeat(ReviewForm.MAX_COMMENT_LENGTH + 1));
+
+        ResponseStatusException error = assertThrows(
+                ResponseStatusException.class,
+                () -> reviewService.createReview(form));
+
+        assertEquals(HttpStatus.BAD_REQUEST, error.getStatusCode());
+        verify(reviewOrderApi, never()).requireReviewableItem(
+                org.mockito.ArgumentMatchers.anyLong(), org.mockito.ArgumentMatchers.anyLong());
+        verify(reviewRepository, never()).save(org.mockito.ArgumentMatchers.any(Review.class));
+    }
+
+    @Test
     void doesNotSaveWhenOrderingRejectsWrongBuyerOrProduct() {
         when(reviewOrderApi.requireReviewableItem(44L, 19L))
                 .thenThrow(new ResponseStatusException(HttpStatus.NOT_FOUND));
