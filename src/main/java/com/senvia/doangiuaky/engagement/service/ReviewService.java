@@ -8,6 +8,8 @@ import com.senvia.doangiuaky.merchant.api.CartProductView;
 import com.senvia.doangiuaky.merchant.api.MerchantApi;
 import com.senvia.doangiuaky.ordering.api.ReviewOrderApi;
 import com.senvia.doangiuaky.ordering.api.ReviewableOrderItem;
+import org.hibernate.exception.ConstraintViolationException;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,6 +18,7 @@ import org.springframework.web.server.ResponseStatusException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.List;
+import java.util.Locale;
 
 @Service
 public class ReviewService {
@@ -91,7 +94,30 @@ public class ReviewService {
                 item.orderItemId(),
                 form.getRating(),
                 form.getComment());
-        reviewRepository.save(review);
+        try {
+            reviewRepository.saveAndFlush(review);
+        } catch (DataIntegrityViolationException exception) {
+            if (isDuplicateOrderItem(exception)) {
+                throw duplicateReview();
+            }
+            throw exception;
+        }
         return item.orderCode();
+    }
+
+    private static boolean isDuplicateOrderItem(DataIntegrityViolationException exception) {
+        for (Throwable cause = exception; cause != null; cause = cause.getCause()) {
+            if (cause instanceof ConstraintViolationException constraintViolation
+                    && constraintViolation.getConstraintName() != null
+                    && constraintViolation.getConstraintName()
+                    .toLowerCase(Locale.ROOT).contains("uk_reviews_order_item")) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static ResponseStatusException duplicateReview() {
+        return new ResponseStatusException(HttpStatus.CONFLICT, "Mục hàng này đã được đánh giá.");
     }
 }

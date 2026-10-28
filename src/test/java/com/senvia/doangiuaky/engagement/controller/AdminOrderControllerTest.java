@@ -92,6 +92,7 @@ class AdminOrderControllerTest {
                 .andExpect(model().attribute("canCancel", true))
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("Bàn phím cơ")))
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("COD_PENDING")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("1,250,000.45₫")))
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("Đơn được tạo")));
 
         verify(adminOrderApi).getOrder("ORD-2026-001");
@@ -175,7 +176,7 @@ class AdminOrderControllerTest {
                 12L,
                 34L,
                 status,
-                new BigDecimal("1250000"),
+                new BigDecimal("1250000.45"),
                 Instant.parse("2026-10-20T10:15:00Z"));
     }
 
@@ -189,7 +190,7 @@ class AdminOrderControllerTest {
                 new OrderDetails.PaymentInfo(
                         "COD",
                         "COD_PENDING",
-                        new BigDecimal("1250000"),
+                        new BigDecimal("1250000.45"),
                         null,
                         null,
                         null),
@@ -197,9 +198,9 @@ class AdminOrderControllerTest {
                         101L,
                         201L,
                         "Bàn phím cơ",
-                        new BigDecimal("1250000"),
+                        new BigDecimal("1250000.45"),
                         1,
-                        new BigDecimal("1250000"))),
+                        new BigDecimal("1250000.45"))),
                 List.of(new OrderHistoryEntry(
                         1L,
                         null,

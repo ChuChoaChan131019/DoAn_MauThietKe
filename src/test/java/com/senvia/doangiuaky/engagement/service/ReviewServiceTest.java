@@ -65,7 +65,7 @@ class ReviewServiceTest {
         assertEquals(List.of("Tốt", "Ổn", "Đúng mô tả"), page.reviews().stream()
                 .map(ProductReviewsPage.ReviewItem::comment)
                 .toList());
-        verify(reviewRepository, never()).save(org.mockito.ArgumentMatchers.any(Review.class));
+        verify(reviewRepository, never()).saveAndFlush(org.mockito.ArgumentMatchers.any(Review.class));
         verify(reviewOrderApi, never()).requireReviewableItem(
                 org.mockito.ArgumentMatchers.anyLong(), org.mockito.ArgumentMatchers.anyLong());
     }
@@ -118,7 +118,7 @@ class ReviewServiceTest {
         assertEquals("ORD-2026-001", reviewService.createReview(form));
 
         ArgumentCaptor<Review> reviewCaptor = ArgumentCaptor.forClass(Review.class);
-        verify(reviewRepository).save(reviewCaptor.capture());
+        verify(reviewRepository).saveAndFlush(reviewCaptor.capture());
         Review savedReview = reviewCaptor.getValue();
         assertEquals(7L, savedReview.getUserId());
         assertEquals(19L, savedReview.getProductId());
@@ -138,7 +138,7 @@ class ReviewServiceTest {
         assertEquals("ORD-2026-001", reviewService.createReview(form));
 
         ArgumentCaptor<Review> reviewCaptor = ArgumentCaptor.forClass(Review.class);
-        verify(reviewRepository).save(reviewCaptor.capture());
+        verify(reviewRepository).saveAndFlush(reviewCaptor.capture());
         assertEquals(comment, reviewCaptor.getValue().getComment());
     }
 
@@ -154,7 +154,7 @@ class ReviewServiceTest {
         assertEquals(HttpStatus.BAD_REQUEST, error.getStatusCode());
         verify(reviewOrderApi, never()).requireReviewableItem(
                 org.mockito.ArgumentMatchers.anyLong(), org.mockito.ArgumentMatchers.anyLong());
-        verify(reviewRepository, never()).save(org.mockito.ArgumentMatchers.any(Review.class));
+        verify(reviewRepository, never()).saveAndFlush(org.mockito.ArgumentMatchers.any(Review.class));
     }
 
     @Test
@@ -165,7 +165,7 @@ class ReviewServiceTest {
         assertThrows(ResponseStatusException.class,
                 () -> reviewService.createReview(form(44L, 19L, 4, null)));
 
-        verify(reviewRepository, never()).save(org.mockito.ArgumentMatchers.any(Review.class));
+        verify(reviewRepository, never()).saveAndFlush(org.mockito.ArgumentMatchers.any(Review.class));
     }
 
     @Test
@@ -178,7 +178,7 @@ class ReviewServiceTest {
                 () -> reviewService.createReview(form(44L, 19L, 4, null)));
 
         assertEquals(HttpStatus.FORBIDDEN, error.getStatusCode());
-        verify(reviewRepository, never()).save(org.mockito.ArgumentMatchers.any(Review.class));
+        verify(reviewRepository, never()).saveAndFlush(org.mockito.ArgumentMatchers.any(Review.class));
     }
 
     @Test
@@ -191,7 +191,7 @@ class ReviewServiceTest {
                 () -> reviewService.createReview(form(44L, 19L, 4, null)));
 
         assertEquals(HttpStatus.CONFLICT, error.getStatusCode());
-        verify(reviewRepository, never()).save(org.mockito.ArgumentMatchers.any(Review.class));
+        verify(reviewRepository, never()).saveAndFlush(org.mockito.ArgumentMatchers.any(Review.class));
     }
 
     @Test
@@ -205,7 +205,7 @@ class ReviewServiceTest {
 
         assertEquals(HttpStatus.BAD_REQUEST, error.getStatusCode());
         verify(reviewOrderApi).requireReviewableItem(44L, 19L);
-        verify(reviewRepository, never()).save(org.mockito.ArgumentMatchers.any(Review.class));
+        verify(reviewRepository, never()).saveAndFlush(org.mockito.ArgumentMatchers.any(Review.class));
     }
 
     @Test
@@ -219,7 +219,7 @@ class ReviewServiceTest {
                 () -> reviewService.createReview(form(44L, 19L, 4, null)));
 
         assertEquals(HttpStatus.CONFLICT, error.getStatusCode());
-        verify(reviewRepository, never()).save(org.mockito.ArgumentMatchers.any(Review.class));
+        verify(reviewRepository, never()).saveAndFlush(org.mockito.ArgumentMatchers.any(Review.class));
     }
 
     private static ReviewForm form(Long orderItemId, Long productId, Integer rating, String comment) {
