@@ -8,6 +8,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -37,6 +38,24 @@ class ReviewRepositoryIntegrationTest {
         assertNotNull(saved.getCreatedAt());
     }
 
+    @Test
+    void retrievesProductReviewsNewestFirstWithStableIdOrdering() {
+        insertFixture();
+        insertOrderItem(900002L);
+
+        Review first = reviewRepository.saveAndFlush(
+                Review.create(900001L, 900001L, 900001L, 5, "Đánh giá trước."));
+        Review second = reviewRepository.saveAndFlush(
+                Review.create(900001L, 900001L, 900002L, 4, "Đánh giá sau."));
+
+        List<Long> reviewIds = reviewRepository.findByProductIdOrderByCreatedAtDescIdDesc(900001L)
+                .stream()
+                .map(Review::getId)
+                .toList();
+
+        assertEquals(List.of(second.getId(), first.getId()), reviewIds);
+    }
+
     private void insertFixture() {
         jdbcTemplate.update(
                 "INSERT INTO users (id, full_name, email, password_hash) VALUES (?, ?, ?, ?)",
@@ -61,6 +80,14 @@ class ReviewRepositoryIntegrationTest {
                 "INSERT INTO order_items (id, order_id, product_id, product_name_snapshot, unit_price, "
                         + "quantity, subtotal) VALUES (?, ?, ?, ?, ?, ?, ?)",
                 900001L, 900001L, 900001L, "Review Product", new BigDecimal("100.00"), 1,
+                new BigDecimal("100.00"));
+    }
+
+    private void insertOrderItem(long id) {
+        jdbcTemplate.update(
+                "INSERT INTO order_items (id, order_id, product_id, product_name_snapshot, unit_price, "
+                        + "quantity, subtotal) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                id, 900001L, 900001L, "Review Product", new BigDecimal("100.00"), 1,
                 new BigDecimal("100.00"));
     }
 }

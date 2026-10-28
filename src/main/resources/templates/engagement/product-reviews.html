@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/head :: head('Senvia - Đánh giá sản phẩm')}"></head>
+<body>
+    <div th:replace="~{fragments/header :: header}"></div>
+
+    <main class="w-100 mx-auto px-3 px-md-4 py-5 max-w-1440">
+        <a th:href="@{/products/{id}(id=${reviewPage.productId})}"
+           class="text-muted text-decoration-none d-inline-block mb-4">
+            <i class="bi bi-arrow-left me-2" aria-hidden="true"></i>Quay lại sản phẩm
+        </a>
+
+        <section class="bg-white border border-clay p-4 p-md-5 mb-4">
+            <div class="d-flex flex-column flex-md-row align-items-md-center gap-4">
+                <img th:src="${reviewPage.imageUrl}"
+                     th:alt="${reviewPage.productName}"
+                     class="bg-ivory border border-clay object-fit-cover"
+                     style="width: 120px; height: 120px;">
+                <div>
+                    <div class="text-muted small text-uppercase mb-2" th:text="${reviewPage.shopName}">Gian hàng</div>
+                    <h1 class="h2 text-plum fw-bold mb-3" th:text="${reviewPage.productName}">Sản phẩm</h1>
+                    <div th:if="${reviewPage.reviewCount > 0}" class="d-flex align-items-center gap-2">
+                        <span class="text-warning fs-4" aria-hidden="true">★</span>
+                        <strong class="text-plum"
+                                th:text="${#numbers.formatDecimal(reviewPage.averageRating, 1, 2)} + ' / 5'">0.00 / 5</strong>
+                        <span class="text-muted"
+                              th:text="|(${reviewPage.reviewCount} đánh giá)|">(0 đánh giá)</span>
+                    </div>
+                    <p th:if="${reviewPage.reviewCount == 0}" class="text-muted mb-0">
+                        Chưa có đánh giá nào cho sản phẩm này.
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <section class="bg-white border border-clay p-4 p-md-5">
+            <h2 class="h4 text-plum fw-bold border-bottom border-clay pb-3 mb-4">Đánh giá của người mua</h2>
+            <div th:if="${reviewPage.reviewCount == 0}" class="text-muted">
+                Hãy là người đầu tiên chia sẻ trải nghiệm về sản phẩm.
+            </div>
+            <div th:each="review : ${reviewPage.reviews}" class="border-bottom border-clay py-4">
+                <div class="d-flex flex-column flex-sm-row justify-content-between gap-2 mb-2">
+                    <strong class="text-plum">Người mua</strong>
+                    <time class="small text-muted"
+                          th:datetime="${review.createdAt}"
+                          th:text="${#temporals.format(review.createdAt, 'dd/MM/yyyy HH:mm')}">Ngày đánh giá</time>
+                </div>
+                <div class="text-warning mb-2"
+                     th:attr="aria-label=|Đánh giá ${review.rating} trên 5 sao|">
+                    <span aria-hidden="true" th:text="${'★'.repeat(review.rating)}">★★★★★</span>
+                    <span class="text-muted small ms-2" th:text="|${review.rating}/5|">5/5</span>
+                </div>
+                <p th:if="${review.comment != null}" class="text-plum mb-0"
+                   style="white-space: pre-wrap; overflow-wrap: anywhere;"
+                   th:text="${review.comment}">Nội dung đánh giá</p>
+                <p th:if="${review.comment == null}" class="text-muted fst-italic mb-0">
+                    Người mua không để lại nhận xét.
+                </p>
+            </div>
+        </section>
+    </main>
+
+    <div th:replace="~{fragments/footer :: footer}"></div>
+</body>
+</html>

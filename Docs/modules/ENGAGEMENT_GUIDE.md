@@ -22,6 +22,8 @@
 - STAT 05 trình bày product/order/revenue bằng summary cards responsive cơ bản và breakdown theo trạng thái bằng bảng responsive; không cần chart library.
 - Admin order monitor gọi `AdminOrderApi` để tìm/lọc/phân trang và tải chi tiết qua DTO; lệnh hủy chỉ gọi `OrderCancellationApi#cancelAsAdmin`. Ordering chịu trách nhiệm xác thực Admin ACTIVE, trạng thái hủy, history, stock và payment.
 - Review form và thao tác tạo review xác minh `orderItemId`/`productId` qua `ReviewOrderApi#requireReviewableItem`; chỉ lưu `buyerId` từ `ReviewableOrderItem`, không nhận reviewer ID từ request. Ordering chịu trách nhiệm xác minh buyer ACTIVE, đúng sản phẩm và order COMPLETED.
+- Trang công khai `GET /products/{productId}/reviews` lấy thông tin sản phẩm qua `MerchantApi#findProductForCart` và chỉ hiển thị sản phẩm saleable; review xếp mới nhất trước. Engagement chỉ trả rating, comment, ngày tạo, điểm trung bình và số lượng, không lộ buyer/order-item ID. Trang đọc không ghi dữ liệu hoặc phát event; khi chưa có review, điểm trung bình không được hiển thị như `0`.
+- Chi tiết sản phẩm Merchant chỉ liên kết tới route review công khai; Merchant không gọi Java API ngược chiều sang Engagement.
 - Review bắt buộc rating từ 1–5; comment tùy chọn, tối đa 1.000 ký tự. Form validate trước khi lưu, giữ nội dung nhập và hiển thị lỗi ngay tại trường; service cũng chặn nội dung quá giới hạn.
 - Dùng `ordering.api` cho review verification, Admin order query/cancel và statistics.
 - Linh sở hữu nghiệp vụ notification, bảng `notifications`, listener Observer và giao diện thông báo; Phúc sở hữu review, bảng `reviews`, dashboard và Admin order.
@@ -33,7 +35,7 @@
 1. Linh: migration/schema và contract notification cùng Phúc review.
 2. Linh: Observer listener cho ShopRequested, ShopReviewed, OrderCreated, OrderStatusChanged, ReviewCreated.
 3. Linh: Notification list/unread/read-one/read-all.
-4. Phúc: Review create/validation/list/average.
+4. Phúc: Review create/validation/list/average; trang review công khai có empty state và không phát event khi đọc.
 5. Phúc: Shop dashboard.
 6. Phúc: Admin order list/filter/detail/cancel orchestration.
 7. Linh chủ trì integration test event/notification; Phúc kiểm thử review/dashboard/Admin.
