@@ -3,6 +3,7 @@ package com.senvia.doangiuaky.engagement.repository;
 import com.senvia.doangiuaky.engagement.dto.ReviewForm;
 import com.senvia.doangiuaky.engagement.entity.Review;
 import com.senvia.doangiuaky.engagement.service.ReviewService;
+import com.senvia.doangiuaky.merchant.api.MerchantApi;
 import com.senvia.doangiuaky.ordering.api.ReviewOrderApi;
 import com.senvia.doangiuaky.ordering.api.ReviewableOrderItem;
 import org.junit.jupiter.api.Test;
@@ -79,7 +80,8 @@ class ReviewRepositoryIntegrationTest {
         }).when(synchronizedCheckRepository).existsByOrderItemId(fixtureId);
         when(synchronizedCheckRepository.saveAndFlush(any(Review.class)))
                 .thenAnswer(invocation -> reviewRepository.saveAndFlush(invocation.getArgument(0)));
-        ReviewService reviewService = new ReviewService(reviewOrderApi, synchronizedCheckRepository);
+        ReviewService reviewService = new ReviewService(
+                reviewOrderApi, synchronizedCheckRepository, mock(MerchantApi.class));
         TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
 
         ExecutorService executor = Executors.newFixedThreadPool(2);
@@ -105,6 +107,24 @@ class ReviewRepositoryIntegrationTest {
             executor.shutdownNow();
             deleteFixture(fixtureId);
         }
+    }
+
+    @Test
+    void retrievesProductReviewsNewestFirstWithStableIdOrdering() {
+        insertFixture(900001L);
+        insertOrderItem(900002L);
+
+        Review first = reviewRepository.saveAndFlush(
+                Review.create(900001L, 900001L, 900001L, 5, "Đánh giá trước."));
+        Review second = reviewRepository.saveAndFlush(
+                Review.create(900001L, 900001L, 900002L, 4, "Đánh giá sau."));
+
+        List<Long> reviewIds = reviewRepository.findByProductIdOrderByCreatedAtDescIdDesc(900001L)
+                .stream()
+                .map(Review::getId)
+                .toList();
+
+        assertEquals(List.of(second.getId(), first.getId()), reviewIds);
     }
 
     private void insertFixture(long id) {
@@ -151,5 +171,13 @@ class ReviewRepositoryIntegrationTest {
         form.setRating(5);
         form.setComment("Concurrent submission.");
         return form;
+    }
+
+    private void insertOrderItem(long id) {
+        jdbcTemplate.update(
+                "INSERT INTO order_items (id, order_id, product_id, product_name_snapshot, unit_price, "
+                        + "quantity, subtotal) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                id, 900001L, 900001L, "Review Product", new BigDecimal("100.00"), 1,
+                new BigDecimal("100.00"));
     }
 }

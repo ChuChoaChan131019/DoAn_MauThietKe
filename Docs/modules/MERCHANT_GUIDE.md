@@ -53,6 +53,7 @@ Merchant sở hữu vòng đời shop, category, product, ảnh và stock.
 - Sidebar hiển thị mọi danh mục active dưới dạng ô chọn nhiều mục; ô đã chọn có nền đậm. Các ô lọc submit danh mục đã chọn cùng từ khóa, khoảng giá, gian hàng và thứ tự sắp xếp. Tiêu đề thể hiện danh mục đang chọn; nút bỏ các bộ lọc khác giữ nguyên danh mục. `Xóa tất cả bộ lọc` về `/products`.
 - Tên danh mục cũ không tồn tại hoặc đã bị ẩn cho thông báo chung và danh sách rỗng; không phản hồi tên danh mục ẩn.
 - Lọc catalog dùng repository Merchant; không làm thay đổi public contract `merchant.api`.
+- Chi tiết sản phẩm có link tới trang review công khai `/products/{productId}/reviews` do Engagement sở hữu; đây là liên kết điều hướng, không tạo dependency Java từ Merchant sang Engagement.
 
 ## Quy tắc đặc thù
 

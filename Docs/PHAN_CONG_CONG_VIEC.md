@@ -199,9 +199,9 @@ Không công bố password hash, User Entity/Repository hoặc principal nội b
 
 | Nhóm | Đầu việc và kết quả |
 | --- | --- |
-| Review | Tạo và kiểm tra review: chỉ buyer có order item COMPLETED đúng product; rating 1–5; unique order item; request tạo đồng thời trả conflict khi trùng; không sửa/xóa MVP |
-| Review view/event | Danh sách review và điểm trung bình; phát ReviewCreatedEvent; phối hợp Linh để kiểm tra listener thông báo nhận review |
-| Dashboard | Tổng product từ TV1; order/status/revenue COMPLETED từ TV2; chỉ dữ liệu đúng shop; hiển thị chính xác đến tối đa 2 chữ số thập phân; thẻ số/bảng là đủ |
+| Review | Tạo và kiểm tra review: chỉ buyer có order item COMPLETED đúng product; rating 1–5; comment tùy chọn tối đa 1.000 ký tự; unique order item; request tạo đồng thời trả conflict khi trùng; không sửa/xóa MVP |
+| Review view/event | Danh sách review và điểm trung bình công khai, DTO không lộ buyer/order-item ID, empty state rõ ràng, GET không ghi dữ liệu/phát event; link từ chi tiết sản phẩm; phát ReviewCreatedEvent và phối hợp Linh để kiểm tra listener thông báo nhận review |
+| Dashboard | Tổng product từ TV1; order/status/revenue COMPLETED từ TV2; backend xác định shop từ authenticated owner, không tin ID từ request; mọi số liệu cùng scope; doanh thu giữ tối đa 2 chữ số thập phân; thẻ số và bảng responsive là đủ |
 | Admin order | Danh sách toàn hệ thống, tìm code, lọc buyer/shop/status, chi tiết, payment, history, form cancel; tiền hiển thị tối đa 2 chữ số thập phân |
 | Cancel orchestration | Admin UI gọi `ordering.api`; TV2 thực hiện validation, stock, payment và history |
 
@@ -209,7 +209,7 @@ Không công bố password hash, User Entity/Repository hoặc principal nội b
 
 - Review buyer/order/product/rating/unique và gửi đồng thời không tạo bản ghi trùng hoặc trả lỗi server.
 - Điểm trung bình.
-- Dashboard đúng shop và revenue COMPLETED hiển thị phần lẻ; Admin list/detail hiển thị tiền có phần lẻ.
+- Dashboard đúng shop, từ chối user không có quyền; giả mạo shop/owner ID trên request không đổi product/order/status/revenue scope; revenue COMPLETED và Admin list/detail hiển thị phần lẻ.
 - Admin filter/detail/cancel qua API.
 - Không import Entity/Repository nội bộ module khác.
 - TV4 review quyền; TV1/TV2 review contract dữ liệu.

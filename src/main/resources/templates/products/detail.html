@@ -39,6 +39,11 @@
                     <h1 class="fw-bold text-plum mb-3" style="font-size: 2.5rem;" th:text="${product.name}">Sản phẩm</h1>
                     <div class="fw-bold text-burgundy mb-4" style="font-size: 1.5rem;"
                          th:text="${#numbers.formatDecimal(product.price, 0, 'COMMA', 0, 'POINT')} + 'đ'">0đ</div>
+                    <a th:href="@{/products/{id}/reviews(id=${product.id})}"
+                       class="text-plum text-decoration-none mb-4 d-inline-flex align-items-center gap-2">
+                        <i class="bi bi-star-fill text-warning" aria-hidden="true"></i>
+                        <span>Xem đánh giá và điểm trung bình</span>
+                    </a>
 
                     <p class="text-muted mb-4 pb-4 border-bottom border-clay" style="line-height: 1.8;"
                        th:text="${product.description}">Mô tả sản phẩm</p>

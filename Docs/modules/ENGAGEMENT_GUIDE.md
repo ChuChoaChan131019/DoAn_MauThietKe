@@ -15,12 +15,17 @@
 
 - Dùng `identity.api` cho receiver/reviewer/Admin ACTIVE.
 - Dùng `merchant.api` cho shop/product/product count.
-- Seller dashboard hiển thị số sản phẩm qua `MerchantStatisticsApi#countProductsForCurrentShop()`; không nhận shop ID từ request và không truy cập dữ liệu Merchant nội bộ.
-- STAT 02 lấy shop summary của current user qua `merchant.api`, sau đó gọi `OrderingStatisticsApi#forOwnShop(shopId)`; Ordering kiểm tra ownership và trả tổng cùng breakdown đầy đủ trạng thái.
-- STAT 03 hiển thị `completedRevenue` kiểu `BigDecimal` từ cùng Ordering statistics response; Engagement không tự cộng order hoặc query repository.
+- Seller dashboard hiển thị số sản phẩm qua `MerchantStatisticsApi#countProductsForCurrentShop()`; không nhận owner/shop ID từ request và không truy cập dữ liệu Merchant nội bộ.
+- STAT 02 lấy owner ID từ `CurrentUserApi`, phân giải shop tương ứng qua `merchant.api`, sau đó gọi `OrderingStatisticsApi#forOwnShop(shopId)`; Ordering tự xác minh owner ACTIVE và chỉ trả tổng cùng breakdown trạng thái của shop đó. Request không thể chọn shop hoặc owner khác.
+- STAT 04 áp dụng cùng scope cho mọi số liệu: product count lấy từ shop của current user; order count, status breakdown và completed revenue dùng shop đã phân giải từ authenticated owner. Các API provider tiếp tục kiểm tra ownership ở backend.
+- STAT 03 hiển thị `completedRevenue` kiểu `BigDecimal` từ cùng Ordering statistics response, giữ tối đa hai chữ số thập phân; Engagement không tự cộng order hoặc query repository.
+- STAT 05 trình bày product/order/revenue bằng summary cards responsive cơ bản và breakdown theo trạng thái bằng bảng responsive; không cần chart library.
 - Admin order monitor gọi `AdminOrderApi` để tìm/lọc/phân trang và tải chi tiết qua DTO; lệnh hủy chỉ gọi `OrderCancellationApi#cancelAsAdmin`. Ordering chịu trách nhiệm xác thực Admin ACTIVE, trạng thái hủy, history, stock và payment.
 - Review form và thao tác tạo review xác minh `orderItemId`/`productId` qua `ReviewOrderApi#requireReviewableItem`; chỉ lưu `buyerId` từ `ReviewableOrderItem`, không nhận reviewer ID từ request. Ordering chịu trách nhiệm xác minh buyer ACTIVE, đúng sản phẩm và order COMPLETED.
 - Mỗi order item chỉ có một review; nếu hai request cùng tạo review, unique constraint `uk_reviews_order_item` được chuyển thành lỗi HTTP 409 thay vì lỗi server.
+- Trang công khai `GET /products/{productId}/reviews` lấy thông tin sản phẩm qua `MerchantApi#findProductForCart` và chỉ hiển thị sản phẩm saleable; review xếp mới nhất trước. Engagement chỉ trả rating, comment, ngày tạo, điểm trung bình và số lượng, không lộ buyer/order-item ID. Trang đọc không ghi dữ liệu hoặc phát event; khi chưa có review, điểm trung bình không được hiển thị như `0`.
+- Chi tiết sản phẩm Merchant chỉ liên kết tới route review công khai; Merchant không gọi Java API ngược chiều sang Engagement.
+- Review bắt buộc rating từ 1–5; comment tùy chọn, tối đa 1.000 ký tự. Form validate trước khi lưu, giữ nội dung nhập và hiển thị lỗi ngay tại trường; service cũng chặn nội dung quá giới hạn.
 - Dùng `ordering.api` cho review verification, Admin order query/cancel và statistics.
 - Linh sở hữu nghiệp vụ notification, bảng `notifications`, listener Observer và giao diện thông báo; Phúc sở hữu review, bảng `reviews`, dashboard và Admin order.
 - Listener xử lý shop/order/review event sau commit; publisher vẫn thuộc module phát event.
@@ -31,7 +36,7 @@
 1. Linh: migration/schema và contract notification cùng Phúc review.
 2. Linh: Observer listener cho ShopRequested, ShopReviewed, OrderCreated, OrderStatusChanged, ReviewCreated.
 3. Linh: Notification list/unread/read-one/read-all.
-4. Phúc: Review create/validation/list/average.
+4. Phúc: Review create/validation/list/average; trang review công khai có empty state và không phát event khi đọc.
 5. Phúc: Shop dashboard.
 6. Phúc: Admin order list/filter/detail/cancel orchestration.
 7. Linh chủ trì integration test event/notification; Phúc kiểm thử review/dashboard/Admin.
