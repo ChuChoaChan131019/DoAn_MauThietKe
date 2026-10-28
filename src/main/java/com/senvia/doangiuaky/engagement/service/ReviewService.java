@@ -68,6 +68,12 @@ public class ReviewService {
 
     @Transactional
     public String createReview(ReviewForm form) {
+        if (form.getComment() != null
+                && form.getComment().length() > ReviewForm.MAX_COMMENT_LENGTH) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "Nhận xét không được vượt quá 1.000 ký tự.");
+        }
+
         ReviewableOrderItem item = reviewOrderApi.requireReviewableItem(
                 form.getOrderItemId(), form.getProductId());
 

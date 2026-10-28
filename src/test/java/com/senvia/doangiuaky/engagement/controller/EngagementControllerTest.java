@@ -88,7 +88,10 @@ class EngagementControllerTest {
                 stats.ordersByStatus().values().stream().mapToLong(Long::longValue).sum());
         when(orderingStatisticsApi.forOwnShop(11L)).thenReturn(stats);
 
-        mockMvc.perform(get("/seller/dashboard").param("shopId", "99").with(user("seller").roles("USER")))
+        mockMvc.perform(get("/seller/dashboard")
+                        .param("shopId", "99")
+                        .param("ownerId", "999")
+                        .with(user("seller").roles("USER")))
                 .andExpect(status().isOk())
                 .andExpect(view().name("engagement/seller-dashboard"))
                 .andExpect(model().attribute("productCount", 12L))
@@ -96,11 +99,26 @@ class EngagementControllerTest {
                 .andExpect(model().attribute("ordersByStatus", statusCounts))
                 .andExpect(model().attribute("completedRevenue", completedRevenue))
                 .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content()
-                        .string(org.hamcrest.Matchers.containsString("1,234,568₫")));
+                        .string(org.hamcrest.Matchers.containsString("Tổng số sản phẩm")))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content()
+                        .string(org.hamcrest.Matchers.containsString("Tổng số đơn hàng")))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content()
+                        .string(org.hamcrest.Matchers.containsString("Đơn hàng theo trạng thái")))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content()
+                        .string(org.hamcrest.Matchers.containsString("Hoàn tất")))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content()
+                        .string(org.hamcrest.Matchers.containsString("1,234,567.89₫")))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content()
+                        .string(org.hamcrest.Matchers.containsString("col-12 col-sm-6 col-lg-4")))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content()
+                        .string(org.hamcrest.Matchers.containsString("table-responsive")));
 
         verify(merchantStatisticsApi).countProductsForCurrentShop();
+        verify(merchantStatisticsApi, never()).countProductsForShop(99L);
+        verify(currentUserApi).requireCurrentUser();
         verify(merchantApi).findShopSummaryForOwner(7L);
         verify(orderingStatisticsApi).forOwnShop(11L);
+        verify(orderingStatisticsApi, never()).forOwnShop(99L);
     }
 
     @Test
