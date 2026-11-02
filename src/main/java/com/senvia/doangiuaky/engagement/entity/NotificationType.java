@@ -5,5 +5,6 @@ public enum NotificationType {
     SHOP_APPROVED,
     SHOP_REJECTED,
     ORDER_CREATED,
-    ORDER_STATUS_CHANGED
+    ORDER_STATUS_CHANGED,
+    REVIEW_CREATED
 }

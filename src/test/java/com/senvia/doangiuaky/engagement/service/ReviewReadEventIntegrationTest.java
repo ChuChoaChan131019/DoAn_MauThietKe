@@ -7,6 +7,7 @@ import com.senvia.doangiuaky.merchant.api.MerchantApi;
 import com.senvia.doangiuaky.ordering.api.ReviewOrderApi;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.test.context.junit.jupiter.SpringJUnitConfig;
@@ -89,8 +90,14 @@ class ReviewReadEventIntegrationTest {
         ReviewService reviewService(
                 ReviewOrderApi reviewOrderApi,
                 ReviewRepository reviewRepository,
-                MerchantApi merchantApi) {
-            return new ReviewService(reviewOrderApi, reviewRepository, merchantApi);
+                MerchantApi merchantApi,
+                ApplicationEventPublisher eventPublisher) {
+            return new ReviewService(reviewOrderApi, reviewRepository, merchantApi, eventPublisher);
+        }
+
+        @Bean
+        ApplicationEventPublisher eventPublisher() {
+            return mock(ApplicationEventPublisher.class);
         }
     }
 }

@@ -1,5 +1,6 @@
 package com.senvia.doangiuaky.engagement.service;
 
+import com.senvia.doangiuaky.engagement.api.ReviewCreatedEvent;
 import com.senvia.doangiuaky.engagement.dto.ProductReviewsPage;
 import com.senvia.doangiuaky.engagement.dto.ReviewForm;
 import com.senvia.doangiuaky.engagement.entity.Review;
@@ -10,6 +11,7 @@ import com.senvia.doangiuaky.ordering.api.ReviewOrderApi;
 import com.senvia.doangiuaky.ordering.api.ReviewableOrderItem;
 import org.hibernate.exception.ConstraintViolationException;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,6 +21,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.List;
 import java.util.Locale;
+import java.util.UUID;
 
 @Service
 public class ReviewService {
@@ -26,14 +29,17 @@ public class ReviewService {
     private final ReviewOrderApi reviewOrderApi;
     private final ReviewRepository reviewRepository;
     private final MerchantApi merchantApi;
+    private final ApplicationEventPublisher eventPublisher;
 
     public ReviewService(
             ReviewOrderApi reviewOrderApi,
             ReviewRepository reviewRepository,
-            MerchantApi merchantApi) {
+            MerchantApi merchantApi,
+            ApplicationEventPublisher eventPublisher) {
         this.reviewOrderApi = reviewOrderApi;
         this.reviewRepository = reviewRepository;
         this.merchantApi = merchantApi;
+        this.eventPublisher = eventPublisher;
     }
 
     @Transactional(readOnly = true)
@@ -95,7 +101,13 @@ public class ReviewService {
                 form.getRating(),
                 form.getComment());
         try {
-            reviewRepository.saveAndFlush(review);
+            Review persistedReview = reviewRepository.saveAndFlush(review);
+            eventPublisher.publishEvent(new ReviewCreatedEvent(
+                    UUID.randomUUID(),
+                    persistedReview.getId(),
+                    persistedReview.getProductId(),
+                    persistedReview.getRating(),
+                    persistedReview.getCreatedAt()));
         } catch (DataIntegrityViolationException exception) {
             if (isDuplicateOrderItem(exception)) {
                 throw duplicateReview();

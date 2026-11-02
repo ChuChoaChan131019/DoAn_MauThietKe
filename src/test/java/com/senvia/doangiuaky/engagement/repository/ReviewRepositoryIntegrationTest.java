@@ -9,6 +9,7 @@ import com.senvia.doangiuaky.ordering.api.ReviewableOrderItem;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Propagation;
@@ -81,7 +82,8 @@ class ReviewRepositoryIntegrationTest {
         when(synchronizedCheckRepository.saveAndFlush(any(Review.class)))
                 .thenAnswer(invocation -> reviewRepository.saveAndFlush(invocation.getArgument(0)));
         ReviewService reviewService = new ReviewService(
-                reviewOrderApi, synchronizedCheckRepository, mock(MerchantApi.class));
+                reviewOrderApi, synchronizedCheckRepository, mock(MerchantApi.class),
+                mock(ApplicationEventPublisher.class));
         TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
 
         ExecutorService executor = Executors.newFixedThreadPool(2);

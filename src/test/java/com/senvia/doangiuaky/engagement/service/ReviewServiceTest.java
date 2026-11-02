@@ -2,6 +2,7 @@ package com.senvia.doangiuaky.engagement.service;
 
 import com.senvia.doangiuaky.engagement.dto.ProductReviewsPage;
 import com.senvia.doangiuaky.engagement.dto.ReviewForm;
+import com.senvia.doangiuaky.engagement.api.ReviewCreatedEvent;
 import com.senvia.doangiuaky.engagement.entity.Review;
 import com.senvia.doangiuaky.engagement.repository.ReviewRepository;
 import com.senvia.doangiuaky.merchant.api.CartProductView;
@@ -9,6 +10,7 @@ import com.senvia.doangiuaky.merchant.api.MerchantApi;
 import com.senvia.doangiuaky.ordering.api.ReviewOrderApi;
 import com.senvia.doangiuaky.ordering.api.ReviewableOrderItem;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
@@ -18,6 +20,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
@@ -25,6 +28,10 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -40,8 +47,24 @@ class ReviewServiceTest {
     @Mock
     private MerchantApi merchantApi;
 
+    @Mock
+    private org.springframework.context.ApplicationEventPublisher eventPublisher;
+
     @InjectMocks
     private ReviewService reviewService;
+
+    @BeforeEach
+    void stubPersistedReview() {
+        lenient().doAnswer(invocation -> {
+            Review review = invocation.getArgument(0);
+            Review persisted = mock(Review.class);
+            when(persisted.getId()).thenReturn(101L);
+            when(persisted.getProductId()).thenReturn(review.getProductId());
+            when(persisted.getRating()).thenReturn(review.getRating());
+            when(persisted.getCreatedAt()).thenReturn(Instant.now());
+            return persisted;
+        }).when(reviewRepository).saveAndFlush(any(Review.class));
+    }
 
     @Test
     void returnsProductReviewsAndAverageWithoutExposingReviewOwnershipIds() {
@@ -125,6 +148,15 @@ class ReviewServiceTest {
         assertEquals(44L, savedReview.getOrderItemId());
         assertEquals(5, savedReview.getRating());
         assertEquals("Rất tốt", savedReview.getComment());
+
+        ArgumentCaptor<Object> eventCaptor = ArgumentCaptor.forClass(Object.class);
+        verify(eventPublisher).publishEvent(eventCaptor.capture());
+        ReviewCreatedEvent created = (ReviewCreatedEvent) eventCaptor.getValue();
+        assertEquals(101L, created.reviewId());
+        assertEquals(19L, created.productId());
+        assertEquals(5, created.rating());
+        org.junit.jupiter.api.Assertions.assertNotNull(created.eventId());
+        org.junit.jupiter.api.Assertions.assertNotNull(created.occurredAt());
     }
 
     @Test
@@ -140,6 +172,21 @@ class ReviewServiceTest {
         ArgumentCaptor<Review> reviewCaptor = ArgumentCaptor.forClass(Review.class);
         verify(reviewRepository).saveAndFlush(reviewCaptor.capture());
         assertEquals(comment, reviewCaptor.getValue().getComment());
+    }
+
+    @Test
+    void doesNotPublishEventWhenReviewPersistenceFails() {
+        when(reviewOrderApi.requireReviewableItem(44L, 19L))
+                .thenReturn(new ReviewableOrderItem(44L, 55L, "ORD-2026-001", 7L, 8L, 19L));
+        when(reviewRepository.existsByOrderItemId(44L)).thenReturn(false);
+        doAnswer(invocation -> {
+            throw new IllegalStateException("database unavailable");
+        }).when(reviewRepository).saveAndFlush(any(Review.class));
+
+        assertThrows(IllegalStateException.class,
+                () -> reviewService.createReview(form(44L, 19L, 5, "Rất tốt")));
+
+        verify(eventPublisher, never()).publishEvent(any());
     }
 
     @Test
