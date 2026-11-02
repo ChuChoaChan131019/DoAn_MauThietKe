@@ -17,11 +17,14 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.model;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
@@ -97,6 +100,35 @@ class ReviewControllerTest {
                         .param("productId", "19")
                         .param("rating", "5"))
                 .andExpect(status().isConflict());
+    }
+
+    @Test
+    void reviewResourceDoesNotExposeUpdateOrDeleteEndpoints() throws Exception {
+        mockMvc.perform(put("/account/review")
+                        .with(user("buyer").roles("USER"))
+                        .with(csrf())
+                        .param("orderItemId", "44")
+                        .param("productId", "19")
+                        .param("rating", "4"))
+                .andExpect(status().isMethodNotAllowed());
+
+        mockMvc.perform(delete("/account/review")
+                        .with(user("buyer").roles("USER"))
+                        .with(csrf()))
+                .andExpect(status().isMethodNotAllowed());
+
+        mockMvc.perform(put("/account/review/44")
+                        .with(user("buyer").roles("USER"))
+                        .with(csrf())
+                        .param("rating", "4"))
+                .andExpect(status().isNotFound());
+
+        mockMvc.perform(delete("/account/review/44")
+                        .with(user("buyer").roles("USER"))
+                        .with(csrf()))
+                .andExpect(status().isNotFound());
+
+        verifyNoInteractions(reviewService);
     }
 
     @Test
