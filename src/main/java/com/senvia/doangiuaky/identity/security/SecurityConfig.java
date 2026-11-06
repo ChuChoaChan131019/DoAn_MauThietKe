@@ -19,7 +19,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers(
                                 "/", "/products", "/products/**", "/merchant/shop-public",
-                                "/login", "/register", "/error", "/error/**",
+                                "/login", "/register", "/newsletter/subscribe", "/error", "/error/**",
                                 "/css/**", "/js/**", "/images/**", "/webjars/**", "/favicon.ico")
                         .permitAll()
                         .requestMatchers("/identity/admin/**", "/admin/**").hasRole("ADMIN")
