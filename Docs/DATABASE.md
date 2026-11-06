@@ -5,7 +5,7 @@ Tài liệu này tập trung vào thiết kế vật lý, constraint, index, mig
 ## 1. Tổng quan
 
 - PostgreSQL/Supabase.
-- 15 bảng, tên dạng số nhiều.
+- 16 bảng, tên dạng số nhiều (gồm bảng đăng ký bản tin bổ sung ngoài SRS).
 - Tiền tệ dùng `NUMERIC`; Java dùng `BigDecimal`.
 - Thời gian ưu tiên `TIMESTAMPTZ`.
 - Không lưu file ảnh trong database; chỉ lưu URL và Cloudinary `public_id`.
@@ -29,6 +29,7 @@ Tài liệu này tập trung vào thiết kế vật lý, constraint, index, mig
 | `order_status_histories` | `ordering` | Lịch sử trạng thái |
 | `notifications` | `engagement` | Notification nội bộ |
 | `reviews` | `engagement` | Rating và comment |
+| `newsletter_subscriptions` | `engagement` | Email đăng ký bản tin (tính năng bổ sung ngoài SRS) |
 
 ## 3. Quan hệ chính
 
@@ -62,6 +63,7 @@ users * ─── * products qua reviews/order_items
 | `UNIQUE(payments.order_id)` | Một payment cho mỗi order |
 | `UNIQUE(reviews.order_item_id)` | Một review cho mỗi order item |
 | `UNIQUE(notifications.event_id, receiver_id)` | Listener idempotent theo receiver |
+| `UNIQUE(newsletter_subscriptions.email)` | Không đăng ký trùng email đã chuẩn hóa |
 | `CHECK(products.price > 0)` | Giá hợp lệ |
 | `CHECK(products.stock_quantity >= 0)` | Tồn kho không âm |
 | `PRIMARY KEY(stock_restorations.order_item_id)` | Mỗi dòng đơn chỉ hoàn kho một lần; ID từ Ordering là khóa tham chiếu dạng giá trị, không có FK chéo module |

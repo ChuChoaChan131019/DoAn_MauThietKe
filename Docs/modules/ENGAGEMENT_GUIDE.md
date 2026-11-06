@@ -43,6 +43,8 @@
 
 ## Quy tắc đặc thù
 
+- Form bản tin ở trang chủ là tính năng bổ sung ngoài SRS: khách chưa đăng nhập có thể gửi email qua `POST /newsletter/subscribe`; Engagement chuẩn hóa email, lưu duy nhất trong `newsletter_subscriptions`, trả thông báo thành công/lỗi trên trang chủ. Hiện hệ thống chỉ ghi nhận đăng ký, chưa gửi email bản tin.
+
 - Event có `eventId`; unique `(event_id, receiver_id)`.
 - Observer listener do Linh phụ trách, chạy sau commit và xử lý lặp không tạo notification trùng.
 - Notification thuộc riêng receiver.
